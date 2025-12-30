@@ -1,14 +1,14 @@
-# PascalFramework
+# Pascal Framework
 
 ## Project Overview
 
-PascalFramework (also known as Sphere10Framework) is a foundational library for Free Pascal and Lazarus applications, providing enterprise-grade components and utilities that extend the standard FCL and LCL libraries. The framework addresses the gap between Pascal's standard libraries and the demands of modern application development by offering production-ready implementations of common patterns, data structures, and UI components.
+Pascal Framework is a foundational library for Free Pascal and Lazarus applications, providing enterprise-grade components and utilities that extend the standard FCL and LCL libraries. The framework addresses the gap between Pascal's standard libraries and the demands of modern application development by offering production-ready implementations of common patterns, data structures, and UI components.
 
-The library is designed for developers building desktop applications with Lazarus/FPC who need robust, reusable solutions for collection manipulation, caching, memory management, data binding, and UI components. Rather than reinventing these patterns in each project, PascalFramework provides battle-tested implementations that handle edge cases, threading concerns, and memory management correctly.
+The library is designed for developers building desktop applications with Lazarus/FPC who need robust, reusable solutions for collection manipulation, caching, memory management, data binding, and UI components. Rather than reinventing these patterns in each project, Pascal Framework provides battle-tested implementations that handle edge cases, threading concerns, and memory management correctly.
 
 ## Design Philosophy
 
-PascalFramework is built on several core principles:
+Pascal Framework is built on several core principles:
 
 **Correctness Over Convenience**: Components prioritize correct behavior, particularly around memory management, threading safety, and edge cases. The framework provides explicit dispose policies and memory scope management rather than relying on implicit behavior that can lead to leaks or undefined behavior.
 
@@ -145,7 +145,7 @@ The `TNotifyManyEvent` and `TThreadNotify` types provide event systems that supp
 
 ## Typical Use Cases
 
-PascalFramework is well-suited for:
+Pascal Framework is well-suited for:
 
 - **Lazarus Desktop Applications**: Building rich-client applications that need advanced data grids, wizards, and form management
 - **Data-Intensive Applications**: Applications that process large datasets with filtering, sorting, and paging requirements
@@ -200,7 +200,7 @@ The framework is distributed as a Lazarus package:
 1. Clone or download the repository
 2. Open `packages/Sphere10Framework.lpk` in Lazarus IDE
 3. Compile and install the package
-4. Add `Sphere10Framework` to your project's required packages
+4. Add the package to your project's required packages
 
 ### Minimal Usage Example
 
@@ -210,60 +210,65 @@ program MinimalExample;
 {$mode delphi}
 
 uses
-  UCommon, UCommon.Collections, UMemory;
+  UCommon, UCommon.Collections, UMemory, Generics.Collections;
 
 var
-  numbers: TArray<Integer>;
-  filtered: TList<Integer>;
-  predicate: IPredicate<Integer>;
+  list: TList<Integer>;
+  pred: IPredicate<Integer>;
   GC: TDisposables;
-begin
-  // Use TDisposables for automatic cleanup
-  numbers := TArrayTool<Integer>.Create(1, 2, 3, 4, 5);
   
-  filtered := GC.AddObject(TList<Integer>.Create) as TList<Integer>;
-  filtered.AddRange(numbers);
+  function IsEven(constref x: Integer): Boolean;
+  begin
+    Result := (x mod 2) = 0;
+  end;
+
+begin
+  // Use TDisposables for automatic cleanup at scope exit
+  list := GC.AddObject(TList<Integer>.Create) as TList<Integer>;
+  list.AddRange([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   
   // Create predicate: filter even numbers
-  predicate := TPredicateTool<Integer>.FromFunc(
-    function(constref x: Integer): Boolean
-    begin
-      Result := x mod 2 = 0;
-    end
-  );
+  pred := TPredicateTool<Integer>.FromFunc(IsEven);
   
-  // Filter list in place
-  TListTool<Integer>.FilterBy(filtered, predicate);
+  // Filter list in place, keeping only even numbers
+  TListTool<Integer>.FilterBy(list, pred);
   
-  // filtered now contains only even numbers: [2, 4]
+  // list now contains: [2, 4, 6, 8, 10]
   
-  // GC automatically frees filtered at scope exit
+  // GC automatically frees list at scope exit
 end.
 ```
 
-### Basic Cache Example
+### Comparer Example
 
 ```pascal
 var
-  cache: TActionCache<Integer, string>;
+  cmp: IComparer<Integer>;
   
-cache := TActionCache<Integer, string>.Create(
-  nil,  // Owner
-  idpFree,  // Dispose cached strings
-  TActionCache<Integer, string>.TValueFetcher.FromGlobalFunction(@MyFetchFunc),
-  TActionCache<Integer, string>.TSizeEstimator.FromGlobalFunction(@MyEstimateFunc),
-  crpLeastUsed,  // Eviction policy
-  epSinceFetchedTime,  // Expiration policy
-  nvpCacheNormally,  // Null handling
-  1024 * 1024,  // Max size in bytes
-  TTimeSpan.FromSeconds(60)  // Expiration duration
-);
+  function MyCompareFunc(constref Left, Right: Integer): Integer;
+  begin
+    Result := TCompare.Integer(Left, Right);
+  end;
 
-try
-  // Automatically fetches on first access
-  WriteLn(cache.Get(42).Value);
-finally
-  cache.Free;
+begin
+  // Create comparer from function
+  cmp := TComparerTool<Integer>.FromFunc(MyCompareFunc);
+  
+  // Use comparer
+  if cmp.Compare(2, 3) < 0 then
+    WriteLn('2 is less than 3');
+end;
+```
+
+### Multiple Comparers
+
+```pascal
+var
+  cmp: IComparer<Integer>;
+  
+begin
+  // Chain multiple comparers - stops at first non-zero result
+  cmp := TComparerTool<Integer>.Many([Comparer1, Comparer2, Comparer3]);
 end;
 ```
 
@@ -273,21 +278,30 @@ The framework provides multiple extension points:
 
 ### Custom Comparers and Predicates
 
-Implement `IComparer<T>` or `IPredicate<T>` or use tool classes to create them from functions:
+Create comparers and predicates from functions using the tool classes:
 
 ```pascal
-// From nested function
-myComparer := TComparerTool<TMyType>.FromFunc(
-  function(constref L, R: TMyType): Integer
-  begin
-    Result := CompareStr(L.Name, R.Name);
-  end
-);
+// Nested function comparer
+function NestedCompareFunc(constref Left, Right: Integer): Integer;
+begin
+  Result := TCompare.Integer(Left, Right);
+end;
 
-// From object method
-myPredicate := TPredicateTool<TMyType>.FromFunc(
-  @Self.MyValidationMethod
-);
+myComparer := TComparerTool<Integer>.FromFunc(NestedCompareFunc);
+
+// Object method predicate
+function TMyClass.MyFilterFunc(constref AItem: Integer): Boolean;
+begin
+  Result := (AItem mod 2) = 0;
+end;
+
+myPredicate := TPredicateTool<Integer>.FromFunc(MyFilterFunc);
+
+// Combine multiple predicates with AND logic
+pred := TPredicateTool<Integer>.AndMany([pred1, pred2, pred3]);
+
+// Combine multiple predicates with OR logic
+pred := TPredicateTool<Integer>.OrMany([pred1, pred2, pred3]);
 ```
 
 ### Custom Cache Fetch and Size Logic
@@ -376,7 +390,7 @@ end;
 
 ## Status & Maturity
 
-PascalFramework is **stable and production-ready**. The library has been used in commercial applications since 2017 and has a test suite covering core functionality.
+Pascal Framework is **stable and production-ready**. The library has been used in commercial applications since 2017 and has a test suite covering core functionality.
 
 **API Stability**: The public APIs are considered stable. Breaking changes are avoided, though additions and deprecations may occur in future versions.
 
@@ -393,6 +407,6 @@ PascalFramework is **stable and production-ready**. The library has been used in
 
 ## License
 
-PascalFramework is distributed under the **MIT License**. See the [LICENSE](LICENSE) file for complete terms.
+Pascal Framework is distributed under the **MIT License**. See the [LICENSE](LICENSE) file for complete terms.
 
 In summary: The software is provided as-is without warranty. You are free to use, modify, and distribute it for any purpose, including commercial applications, provided the license text and copyright notice are retained.
