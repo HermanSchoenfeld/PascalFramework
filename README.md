@@ -1,6 +1,9 @@
-# PascalFramework
+# Pascal Framework
 
 Sphere10's Pascal libraries for Lazarus/Free Pascal, written in Delphi mode.
+The framework provides reusable utilities for collections, caching, memory
+management, data binding and desktop UI composition. It favors composable
+callbacks and explicit resource ownership.
 The cache and wizard APIs follow the corresponding Sphere10 C# Framework
 behavior while keeping Pascal classes, events, callbacks and explicit ownership.
 
@@ -23,6 +26,24 @@ Individual entry points also work without Project Groups:
 
 Use Project > Open Project for `.lpi` files and Package > Open Package File for
 the `.lpk`. Library units are `.pas` files and do not launch on their own.
+
+## Other library units
+
+The foundation and UI utilities documented in the existing project overview
+remain available alongside caching and wizards:
+
+| Unit | Main facilities |
+| --- | --- |
+| `UCommon` | Time spans, array utilities, result values, variants and multicast/thread notification helpers |
+| `UCommon.Collections` | Comparer, predicate and transformer composition; list filtering and collection helpers |
+| `UMemory` | `TDisposables` scopes and explicit object/pointer disposal policies |
+| `UCommon.Data` | Variant-based data rows, columns, filtering and sorting specifications |
+| `UCommon.UI` | Application form lifecycle helpers and throttled events |
+| `UVisualGrid` | Reusable data grid controls, column rendering, filtering, sorting and paging |
+
+Standard `Generics.Collections` containers require caller synchronization when
+shared between threads. `TDisposables` scopes should remain local to the owning
+thread. UI forms and wizard navigation belong on the LCL UI thread.
 
 ## Caching
 
@@ -147,3 +168,7 @@ register the same fixtures. The existing wizard demonstration is
 `examples/wizard/FrameworkTester.lpi`. See the [test guide](tests/README.md)
 and [wizard example guide](examples/wizard/README.md) for fixture selection,
 setup and screen lifecycle details.
+## License
+
+Pascal Framework is distributed under the [MIT License](LICENSE).
+Herman Schoenfeld and the Sphere10 contributors maintain the project.
