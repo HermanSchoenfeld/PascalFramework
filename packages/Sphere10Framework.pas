@@ -7,7 +7,9 @@ unit Sphere10Framework;
 interface
 
 uses
-  UVisualGrid, LazarusPackageIntf;
+  UCache, UCommon, UCommon.Collections, UCommon.Data, UCommon.UI, UMemory,
+  UVisualGrid, UWizard, Generics.Collections, Generics.Defaults, Generics.Hashes,
+  Generics.Helpers, Generics.MemoryExpanders, Generics.Strings, LazarusPackageIntf;
 
 implementation
 

@@ -666,6 +666,7 @@ type
 var
   i : integer;
   filters : __TList_IPredicate_T;
+  predicates : TArray<__IPredicate_T>;
   GC : TDisposables;
 begin
   filters := GC.AddObject( __TList_IPredicate_T.Create ) as __TList_IPredicate_T;
@@ -678,9 +679,13 @@ begin
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
-    else case AOperand of
-      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray);
-      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
+    else begin
+      // FPC 3.2.0 cannot resolve the overloaded generic call on ToArray directly.
+      predicates := filters.ToArray;
+      case AOperand of
+        foAnd: Result := __TPredicateTool_T.AndMany(predicates);
+        foOr: Result := __TPredicateTool_T.OrMany(predicates);
+      end;
     end;
   end;
 end;
