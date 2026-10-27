@@ -1,6 +1,6 @@
 unit UWIZFeatureSummary;
 
-{ Copyright (c) 2026 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2026 Herman Schoenfeld <https://www.sphere10.com>
 
   Completion, cancellation and retry behavior for the feature wizard.
 

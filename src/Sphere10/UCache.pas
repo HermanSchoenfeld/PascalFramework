@@ -1,6 +1,6 @@
 unit UCache;
 
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Generic caching with expiration and capacity management.
 
