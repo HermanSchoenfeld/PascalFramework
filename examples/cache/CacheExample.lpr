@@ -1,6 +1,6 @@
 program CacheExample;
 
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Console examples of cache fetching, admission, notifications and ownership.
 

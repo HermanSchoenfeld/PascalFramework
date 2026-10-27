@@ -1,6 +1,6 @@
 program PrivateDesktopBroker;
 
-{ Copyright (c) 2026 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2026 Herman Schoenfeld <https://www.sphere10.com>
 
   Native wizard regression checks on a separate Windows desktop. The broker
   never switches the input desktop; all commands target only its own QA child.

@@ -1,6 +1,6 @@
 unit UWizardFeatureDemo;
 
-{ Copyright (c) 2026 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2026 Herman Schoenfeld <https://www.sphere10.com>
 
   Wizard feature showcase controller. Application policy stays in this example.
 

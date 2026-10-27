@@ -1,6 +1,6 @@
 ﻿unit UVisualGrid;
 
-{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+{ Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
   Enterprise-class grid control for Lazarus/FPC.
 
