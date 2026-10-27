@@ -36,7 +36,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="15">
+    <Units Count="17">
       <Unit0>
         <Filename Value="FrameworkTests.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -100,6 +100,14 @@
         <Filename Value="UCommon.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit14>
+      <Unit15>
+        <Filename Value="UWizard.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="UWizard.TestScreens.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit16>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
