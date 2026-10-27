@@ -1,57 +1,103 @@
 unit UCache;
 
-{$ifdef FPC}
-  {$mode Delphi}
-{$endif}
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
 
-{$modeswitch nestedprocvars}
+  Generic caching with expiration and capacity management.
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+  {$MODESWITCH NESTEDPROCVARS}
+{$ENDIF}
 
 interface
 
 uses
-  syncobjs, Classes, SysUtils, UCommon, Generics.Collections, LCLIntf;
+  Classes, SysUtils, SyncObjs, Generics.Collections, Generics.Defaults, UCommon, UMemory;
 
 type
+  TItemDisposePolicy = TDisposePolicy;
+
+  { TCachedItem }
+
   TCachedItem<TValue> = class(TInterfacedObject)
+    private
+      FCanPurge : boolean;
+      FPurged : boolean;
+      FRemoving : boolean;
+      FProtectedCount : Integer;
+      FInsertionOrder : QWord;
+      FAccessOrder : QWord;
+      procedure ReleaseValue;
     public
       FInvalidated : boolean;
       FFetchedOn : TDateTime;
       FLastAccessedOn : TDateTime;
       FAccessedCount : DWord;
-      FSize : DWord;
+      FSize : SizeInt;
       FDisposePolicy : TItemDisposePolicy;
       FValue : TValue;
-    public
-      constructor Create(const AValue : TValue; ASize: DWord; ADisposePolicy : TItemDisposePolicy);
+      constructor Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TItemDisposePolicy);
       destructor Destroy; override;
       property Invalidated : boolean read FInvalidated;
+      property Purged : boolean read FPurged;
+      property CanPurge : boolean read FCanPurge write FCanPurge;
       property FetchedOn : TDateTime read FFetchedOn;
       property LastAccessedOn : TDateTime read FLastAccessedOn;
       property AccessedCount : DWord read FAccessedCount;
-      property Size : DWord read FSize;
+      property Size : SizeInt read FSize;
       property Value : TValue read FValue;
   end;
 
+  { TCacheBase }
+
+  // Operations and callbacks run under a recursive lock. A callback may call the
+  // cache again, but must not destroy it. Borrowed entries/objects require caller
+  // synchronization when used after an operation; the value indexer copies its
+  // result while the lock is held. Standard Delphi events have one handler each.
   TCacheBase<TKey, TValue> = class(TComponent)
     public type
-        TExpirationPolicy = (epSinceFetchedTime, epSinceLastAccessedTime, epNone);
-        TCacheReapPolicy = (crpLeastUsed, crpLargest, crpSmallest, crpOldest, crpIdle, crpASAP, crpNone);
-        TNullValuePolicy = (nvpCacheNormally, nvpReturnButDontCache, nvpThrow);
-    private type
-       __TPair_TKey_TValue = TPair<TKey, TValue>;
-       __TCachedItem_TValue = TCachedItem<TValue>;
+      TExpirationPolicy = (epSinceFetchedTime, epSinceLastAccessedTime, epNone);
+      TCacheReapPolicy = (crpLeastUsed, crpLargest, crpSmallest, crpOldest, crpIdle, crpASAP, crpNone);
+      TNullValuePolicy = (nvpCacheNormally, nvpReturnButDontCache, nvpThrow);
+      TStaleValuePolicy = (svpAssumeNeverStale, svpCheckStaleOnDemand);
+      TItemFetchingEvent = procedure(Sender: TObject; const AKey: TKey) of object;
+      TItemValueEvent = procedure(Sender: TObject; const AKey: TKey; const AValue: TValue) of object;
+      TItemRemovingEvent = procedure(Sender: TObject; const AKey: TKey; AItem: TCachedItem<TValue>) of object;
+      __TCachedItem_TValue = TCachedItem<TValue>;
+      __TPair_TKey_TValue = TPair<TKey, TValue>;
+      __TPair_TKey_TCachedItem = TPair<TKey, __TCachedItem_TValue>;
     private
-      FItemFetched: TNotifyManyEventEx; { Args = TKey, TValue }
-      FItemRemoved: TNotifyManyEventEx; { Args = TKey, TValue }
-      function ByExpiredCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function ByAccessedCountCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function ByIdleCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function ByIdleDescendingCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function ByFetchedOnCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function ByAccessedOnCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function BySizeCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function BySizeDescendingCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-      function IsExpiredFilter(const Item : __TPair_TKey_TValue) : boolean;
+      FItemFetching : TItemFetchingEvent;
+      FItemFetched : TItemValueEvent;
+      FItemRemoving : TItemRemovingEvent;
+      FItemRemoved : TItemValueEvent;
+      FReapLevel : Double;
+      FStaleValuePolicy : TStaleValuePolicy;
+      FLastUpdateOn : TDateTime;
+      FLastAccessedOn : TDateTime;
+      FTotalAccesses : QWord;
+      FOrder : QWord;
+      FLastResult : __TCachedItem_TValue;
+      FDestroying : boolean;
+      function GetItemCount : Integer;
+      function GetCachedItems : TArray<__TCachedItem_TValue>;
+      function GetValue(const AKey: TKey) : TValue;
+      function IsExpiredAt(AItem: __TCachedItem_TValue; ATimestamp: TDateTime) : boolean;
+      function CompareVictims(ALeft, ARight: __TCachedItem_TValue; ATimestamp: TDateTime) : Integer;
+      procedure SortVictims(var AEntries: TArray<__TPair_TKey_TCachedItem>; ALeft, ARight: Integer; ATimestamp: TDateTime);
+      function StoreValue(const AKey: TKey; const AValue: TValue; AFetched: boolean) : __TCachedItem_TValue;
+      function IsNullValue(const AValue: TValue) : boolean;
+      procedure CheckAvailable;
+      procedure RememberResult(AItem: __TCachedItem_TValue);
     protected type
       __TDictionary_TKey_TCachedItem_TValue = TDictionary<TKey, __TCachedItem_TValue>;
     protected
@@ -63,113 +109,122 @@ type
       FReapPolicy : TCacheReapPolicy;
       FNullValuePolicy : TNullValuePolicy;
       FInternalStorage : __TDictionary_TKey_TCachedItem_TValue;
-      FLock : TSimpleRWSync;
+      FLock : TCriticalSection;
       function EstimateSize(const AVal: TValue) : SizeInt; virtual; abstract;
       function Fetch(const AKey: TKey): TValue; virtual; abstract;
-      function IsExpired(ACachedItem: TCachedItem<TValue>) : boolean;
+      function CheckStaleness(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean; virtual;
       procedure MakeSpace(const requestedSpace: SizeInt);
       procedure MakeSpaceFast(const requestedSpace: SizeInt);
+      procedure OnItemFetching(const AKey: TKey); virtual;
       procedure OnItemFetched(const AKey: TKey; const AVal: TValue); virtual;
+      // Raising here retains the entry and capacity. Recursive removal skips it;
+      // replacement of the pending entry is rejected until preparation returns.
+      procedure OnItemRemoving(const AKey: TKey; AItem: __TCachedItem_TValue); virtual;
       procedure OnItemRemoved(const AKey: TKey; const AVal: TValue); virtual;
+      procedure NotifyItemFetching(const AKey: TKey);
       procedure NotifyItemFetched(const AKey: TKey; const AVal: TValue);
+      procedure NotifyItemRemoving(const AKey: TKey; AItem: __TCachedItem_TValue);
       procedure NotifyItemRemoved(const AKey: TKey; const AVal: TValue);
-      function AddItemInternal(const Key: TKey; const AVal: TValue) : TCachedItem<TValue>;
+      function AddItemInternal(const AKey: TKey; const AVal: TValue) : __TCachedItem_TValue;
       procedure RemoveItemInternal(const AKey: TKey);
     public
-      constructor Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : Cardinal; const AExpirationDuration : TTimeSpan); overload;
+      constructor Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale); overload;
       destructor Destroy; override;
-      property ItemFetched : TNotifyManyEventEx read FItemFetched;
-      property ItemRemoved : TNotifyManyEventEx read FItemRemoved;
+      // Fetching precedes Fetch; Fetched follows successful admission (or an
+      // uncached null result). Removing precedes removal; Removed follows it.
+      property ItemFetching : TItemFetchingEvent read FItemFetching write FItemFetching;
+      property ItemFetched : TItemValueEvent read FItemFetched write FItemFetched;
+      property ItemRemoving : TItemRemovingEvent read FItemRemoving write FItemRemoving;
+      property ItemRemoved : TItemValueEvent read FItemRemoved write FItemRemoved;
+      property ItemCount : Integer read GetItemCount;
+      // Snapshot of membership. Entries are borrowed and must not be freed by callers.
+      property CachedItems : TArray<__TCachedItem_TValue> read GetCachedItems;
       property CurrentSize : SizeInt read FCurrentSize;
       property MaxCapacity : SizeInt read FMaxCapacity;
+      property ReapLevel : Double read FReapLevel;
+      // LastUpdateOn tracks explicit writes. FetchedOn begins after Fetch;
+      // LastAccessedOn is updated after the fetched notification completes.
+      property LastUpdateOn : TDateTime read FLastUpdateOn;
+      property LastAccessedOn : TDateTime read FLastAccessedOn;
+      property TotalAccesses : QWord read FTotalAccesses;
       property ExpirationDuration : TTimeSpan read FExpirationDuration;
       property ExpirationPolicy : TExpirationPolicy read FExpirationPolicy;
       property ReapPolicy : TCacheReapPolicy read FReapPolicy;
       property NullValuePolicy : TNullValuePolicy read FNullValuePolicy;
-      function Get(const AKey: TKey) : TCachedItem<TValue>;
+      property StaleValuePolicy : TStaleValuePolicy read FStaleValuePolicy;
+
+      // Borrowed until removal; the most recent Get result also survives until the next Get.
+      function Get(const AKey: TKey) : __TCachedItem_TValue; virtual;
+      // Admission transfers ownership according to the configured disposal
+      // policy. A rejected explicit value remains owned by its caller; rejected
+      // fetched values are disposed by the cache. Set preserves FetchedOn.
+      procedure SetValue(const AKey: TKey; const AValue: TValue); virtual;
       function ContainsCachedItem(const AKey : TKey) : boolean;
+      function IsExpired(ACachedItem: __TCachedItem_TValue) : boolean;
+      function IsStale(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean;
       procedure BulkLoad(const ABulkValues : TEnumerable<__TPair_TKey_TValue>);
       procedure Invalidate(const AKey: TKey);
       procedure Remove(const AKey: TKey);
+      // Reap respects pins and selects expired entries first. crpNone reaps only
+      // expired/invalidated entries; explicit Remove/Purge ignore pins.
+      function Reap(AMinimumRelease: SizeInt) : SizeInt;
+      // Purge/Flush remove only original membership, retaining callback additions.
+      procedure Purge;
       procedure Flush;
+      property Values[const AKey: TKey] : TValue read GetValue write SetValue; default;
   end;
 
-{ TActionCache }
+  { TActionCache }
 
   TActionCache<TKey, TValue> = class(TCacheBase<TKey, TValue>)
     public type
-      { IValueFetcher }
       IValueFetcher = interface
         function Fetch(const AKey: TKey): TValue;
       end;
-
-      { ISizeEstimator }
       ISizeEstimator = interface
-        function Estimate(const AKey: TKey) : SizeInt;
+        function Estimate(const AValue: TValue) : SizeInt;
       end;
-
-      { TNestedFetchFunc }
       TNestedFetchFunc = function (const AKey : TKey) : TValue is nested;
-
-      { TObjectFetchFunc }
       TObjectFetchFunc = function (const AKey : TKey) : TValue of object;
-
-      { TGlobalFetchFunc }
       TGlobalFetchFunc = function (const AKey : TKey) : TValue;
-
-      { TValueFetcher }
+      TNestedEstimateFunc = function (const AValue : TValue) : SizeInt is nested;
+      TObjectEstimateFunc = function (const AValue : TValue) : SizeInt of object;
+      TGlobalEstimateFunc = function (const AValue : TValue) : SizeInt;
       TValueFetcher = class (TInterfacedObject, IValueFetcher)
         private
           FFetcher : IValueFetcher;
         public
-          function Fetch(const AKey: TKey): TValue;
           constructor Create(const AFetcher: IValueFetcher);
+          function Fetch(const AKey: TKey): TValue;
           class function FromNestedFunction(const AFunc: TNestedFetchFunc) : IValueFetcher;
           class function FromObjectFunction(const AFunc: TObjectFetchFunc) : IValueFetcher;
           class function FromGlobalFunction(const AFunc: TGlobalFetchFunc) : IValueFetcher;
       end;
-
-      { TNestedEstimateFunc }
-      TNestedEstimateFunc = function (const AKey : TKey) : SizeInt is nested;
-
-      { TObjectEstimateFunc }
-      TObjectEstimateFunc = function (const AKey : TKey) : SizeInt of object;
-
-      { TGlobalEstimateFunc }
-      TGlobalEstimateFunc = function (const AKey : TKey) : SizeInt;
-
-      { TSizeEstimator }
       TSizeEstimator = class (TInterfacedObject, ISizeEstimator)
         private
           FEstimator : ISizeEstimator;
         public
-          function Estimate(const AKey: TKey) : SizeInt;
           constructor Create(const AEstimator: ISizeEstimator);
+          function Estimate(const AValue: TValue) : SizeInt;
           class function FromNestedFunction(const AFunc: TNestedEstimateFunc) : ISizeEstimator;
           class function FromObjectFunction(const AFunc: TObjectEstimateFunc) : ISizeEstimator;
           class function FromGlobalFunction(const AFunc: TGlobalEstimateFunc) : ISizeEstimator;
       end;
-
-   private type
-     { GlobalFunctionValueFetcher }
-     GlobalFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
+    private type
+      GlobalFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
         private
           FFunc : TGlobalFetchFunc;
         public
           constructor Create(const AFunc: TGlobalFetchFunc);
           function Fetch(const AKey: TKey): TValue;
       end;
-
-      { ObjectFunctionValueFetcher }
       ObjectFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
         private
           FFunc : TObjectFetchFunc;
         public
-          constructor Create(const AFunc: TGlobalFetchFunc);
+          constructor Create(const AFunc: TObjectFetchFunc);
           function Fetch(const AKey: TKey): TValue;
       end;
-
-      { NestedFunctionValueFetcher }
       NestedFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
         private
           FFunc : TNestedFetchFunc;
@@ -177,34 +232,27 @@ type
           constructor Create(const AFunc: TNestedFetchFunc);
           function Fetch(const AKey: TKey): TValue;
       end;
-
-     { GlobalSizeEstimator }
-     GlobalFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
+      GlobalFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
         private
           FFunc : TGlobalEstimateFunc;
         public
           constructor Create(const AFunc: TGlobalEstimateFunc);
-          function Estimate(const AKey: TKey): SizeInt;
+          function Estimate(const AValue: TValue): SizeInt;
       end;
-
-      { ObjectFunctionValueFetcher }
       ObjectFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
         private
           FFunc : TObjectEstimateFunc;
         public
           constructor Create(const AFunc: TObjectEstimateFunc);
-          function Estimate(const AKey: TKey): SizeInt;
+          function Estimate(const AValue: TValue): SizeInt;
       end;
-
-      { NestedFunctionValueFetcher }
       NestedFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
         private
           FFunc : TNestedEstimateFunc;
         public
-          constructor Create(const TNestedEstimateFunc);
-          function Estimate(const AKey: TKey): SizeInt;
+          constructor Create(const AFunc: TNestedEstimateFunc);
+          function Estimate(const AValue: TValue): SizeInt;
       end;
-
     private
       FValueFetcher : IValueFetcher;
       FSizeEstimator : ISizeEstimator;
@@ -212,405 +260,659 @@ type
       function EstimateSize(const AVal: TValue) : SizeInt; override;
       function Fetch(const AKey: TKey): TValue; override;
     public
-      constructor Create(
-            AOwner:TComponent;
-            const AValueFetcher : IValueFetcher;
-            const ASizeEstimator : ISizeEstimator;
-            const AItemDisposePolicy : TItemDisposePolicy;
-            const AReapPolicy : TCacheReapPolicy;
-            const AExpirationPolicy : TExpirationPolicy;
-            const ANullPolicy : TNullValuePolicy;
-            const AMaxCapacity : Integer;
-            const AExpirationDuration : TTimeSpan); overload;
+      constructor Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullPolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale); overload;
   end;
 
 implementation
 
 uses
-  Generics.Defaults, UAutoScope, UCommon.Collections;
-
+  TypInfo, Math;
 
 { TCachedItem }
 
-constructor TCachedItem<TValue>.Create(const AValue : TValue; ASize: DWord; ADisposePolicy : TItemDisposePolicy);
+constructor TCachedItem<TValue>.Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TItemDisposePolicy);
 begin
-  FInvalidated := false;
+  inherited Create;
+  FCanPurge := true;
   FFetchedOn := Now;
-  FLastAccessedOn := Now;
-  FFetchedOn := Now;
-  FAccessedCount := 0;
+  FLastAccessedOn := FFetchedOn;
   FSize := ASize;
-  FDisposePolicy := TItemDisposePolicy;
-  FValue :=  AValue;
+  FDisposePolicy := ADisposePolicy;
+  FValue := AValue;
+end;
+
+procedure TCachedItem<TValue>.ReleaseValue;
+begin
+  case FDisposePolicy of
+    idpFree, idpFreeAndNil: if PTypeInfo(TypeInfo(TValue))^.Kind = tkClass then
+      TObject(PPointer(@FValue)^).Free;
+    idpFreeMem: if PTypeInfo(TypeInfo(TValue))^.Kind = tkPointer then
+      System.FreeMem(PPointer(@FValue)^);
+  end;
+  FValue := Default(TValue);
 end;
 
 destructor TCachedItem<TValue>.Destroy;
 begin
-  case FDisposePolicy of
-    idpFreeAndNil: FreeAndNil(FValue);
-    idpNil: FValue := nil;
-    idpNone: // do nothing
-  end;
+  ReleaseValue;
   inherited;
 end;
 
 { TCacheBase }
 
-constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : Cardinal; const AExpirationDuration : TTimeSpan);
+constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TStaleValuePolicy);
 begin
   inherited Create(AOwner);
+  if AMaxCapacity < 0 then
+    raise EArgumentException.Create('Cache capacity must be nonnegative.');
+  if not ((AReapLevel > 0) and (AReapLevel < 1)) then
+    raise EArgumentException.Create('Reap level must be greater than zero and less than one.');
+  if AExpirationDuration < TTimeSpan.FromMilliseconds(0) then
+    raise EArgumentException.Create('Expiration duration must be nonnegative.');
+  if (AItemDisposePolicy in [idpFree, idpFreeAndNil]) and (PTypeInfo(TypeInfo(TValue))^.Kind <> tkClass) then
+    raise EArgumentException.Create('Object disposal requires an object-valued cache.');
+  if (AItemDisposePolicy = idpFreeMem) and (PTypeInfo(TypeInfo(TValue))^.Kind <> tkPointer) then
+    raise EArgumentException.Create('Memory disposal requires a pointer-valued cache.');
   FItemDisposePolicy := AItemDisposePolicy;
   FNullValuePolicy := ANullValuePolicy;
   FInternalStorage := __TDictionary_TKey_TCachedItem_TValue.Create;
-  FCurrentSize := 0;
   FReapPolicy := AReapPolicy;
   FExpirationPolicy := AExpirationPolicy;
   FMaxCapacity := AMaxCapacity;
   FExpirationDuration := AExpirationDuration;
-  FLock := TSimpleRWSync.Create;
+  FReapLevel := AReapLevel;
+  FStaleValuePolicy := AStaleValuePolicy;
+  FLastUpdateOn := Now;
+  FLastAccessedOn := FLastUpdateOn;
+  FLock := TCriticalSection.Create;
 end;
 
 destructor TCacheBase<TKey, TValue>.Destroy;
+var
+  item : __TCachedItem_TValue;
 begin
-  Flush;
-  FreeAndNil(FInternalStorage);
+  FDestroying := true;
+  // Destruction releases ownership without invoking application callbacks.
+  if Assigned(FInternalStorage) then begin
+    for item in FInternalStorage.Values do
+      item._Release;
+    FreeAndNil(FInternalStorage);
+  end;
+  if Assigned(FLastResult) then begin
+    FLastResult._Release;
+    FLastResult := nil;
+  end;
   FreeAndNil(FLock);
   inherited;
 end;
 
-function TCacheBase<TKey, TValue>.Get(const AKey: TKey) : TCachedItem<TValue>;
-var
-  item: TCachedItem<TValue>;
+procedure TCacheBase<TKey, TValue>.CheckAvailable;
 begin
-  if NOT FInternalStorage.TryGetValue(AKey, item) then begin
-      try
-        FLock.BeginWrite;
-        if NOT FInternalStorage.TryGetValue(AKey, item) then
-            item := AddItemInternal(AKey, Fetch(AKey));
-      finally
-        FLock.EndWrite;
-      end
-  end else if IsExpired(item) then begin
-    try
-      FLock.BeginWrite;
+  if FDestroying then
+    raise EInvalidOperation.Create('The cache is being destroyed.');
+end;
+
+function TCacheBase<TKey, TValue>.GetItemCount : Integer;
+begin
+  FLock.Acquire;
+  try
+    Result := FInternalStorage.Count;
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.GetCachedItems : TArray<__TCachedItem_TValue>;
+begin
+  FLock.Acquire;
+  try
+    Result := FInternalStorage.Values.ToArray;
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.GetValue(const AKey: TKey) : TValue;
+begin
+  FLock.Acquire;
+  try
+    Result := Get(AKey).Value;
+  finally
+    FLock.Release;
+  end;
+end;
+
+procedure TCacheBase<TKey, TValue>.RememberResult(AItem: __TCachedItem_TValue);
+var
+  previous : __TCachedItem_TValue;
+begin
+  AItem._AddRef;
+  previous := FLastResult;
+  FLastResult := AItem;
+  if Assigned(previous) then
+    previous._Release;
+end;
+
+function TCacheBase<TKey, TValue>.IsNullValue(const AValue: TValue) : boolean;
+begin
+  Result := false;
+  case PTypeInfo(TypeInfo(TValue))^.Kind of
+    tkClass, tkInterface, tkPointer, tkClassRef, tkProcVar:
+      Result := PPointer(@AValue)^ = nil;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.Get(const AKey: TKey) : __TCachedItem_TValue;
+var
+  item, current, original : __TCachedItem_TValue;
+  value : TValue;
+  requiresFetch : boolean;
+begin
+  original := nil;
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    requiresFetch := not FInternalStorage.TryGetValue(AKey, item);
+    if not requiresFetch then begin
+      // A staleness hook may remove this entry and reenter Get, replacing the
+      // retained last result. Keep our own reference until this operation ends.
+      original := item;
+      original._AddRef;
+      requiresFetch := (not item.FRemoving) and (IsExpired(item) or IsStale(AKey, item));
+    end;
+    if requiresFetch then begin
       RemoveItemInternal(AKey);
-      item := AddItemInternal(AKey, Fetch(AKey));
+      NotifyItemFetching(AKey);
+      value := Fetch(AKey);
+      if IsNullValue(value) and (FNullValuePolicy = nvpThrow) then
+        raise EInvalidOperation.Create('Cache fetched a null value and its NullValuePolicy prohibits null values.');
+      if IsNullValue(value) and (FNullValuePolicy = nvpReturnButDontCache) then begin
+        item := __TCachedItem_TValue.Create(value, 0, FItemDisposePolicy);
+        item.FInvalidated := true;
+        item.FCanPurge := false;
+      end else begin
+        try
+          item := StoreValue(AKey, value, true);
+        except
+          // A fetched value has no external owner when admission fails.
+          item := __TCachedItem_TValue.Create(value, 0, FItemDisposePolicy);
+          item.Free;
+          raise;
+        end;
+      end;
+      item._AddRef;
+      try
+        NotifyItemFetched(AKey, value);
+        RememberResult(item);
+      finally
+        item._Release;
+      end;
+    end else
+      RememberResult(item);
+    if item.FAccessedCount < High(DWord) then
+      Inc(item.FAccessedCount);
+    if FTotalAccesses < High(QWord) then
+      Inc(FTotalAccesses);
+    FLastAccessedOn := Now;
+    item.FLastAccessedOn := FLastAccessedOn;
+    Inc(FOrder);
+    item.FAccessOrder := FOrder;
+    if IsNullValue(item.Value) then begin
+      if FNullValuePolicy = nvpThrow then
+        raise EInvalidOperation.Create('Cache returned a null value and its NullValuePolicy prohibits null values.');
+      if FNullValuePolicy = nvpReturnButDontCache then begin
+        if FInternalStorage.TryGetValue(AKey, current) and (current = item) then
+          RemoveItemInternal(AKey);
+        item.FInvalidated := true;
+      end;
+    end;
+    Result := item;
+  finally
+    try
+      if Assigned(original) then
+        original._Release;
     finally
-      FLock.EndWrite;
-    end
+      FLock.Release;
+    end;
   end;
-  inc(item.FAccessedCount);
-  item.FLastAccessedOn := Now;
-  if not Assigned(item.Value) then begin
-    case NullValuePolicy of
-      nvpThrow: raise Exception.Create('Cache fetched a null value and this cache NullValuePolicy prohibits null values.');
-      nvpReturnButDontCache: Invalidate(AKey);
-      nvpCacheNormally: ;
-    end
-  end;
-  Result := item;
 end;
 
-function TCacheBase<TKey, TValue>.ContainsCachedItem(const AKey : TKey) : boolean;
+function TCacheBase<TKey, TValue>.StoreValue(const AKey: TKey; const AValue: TValue; AFetched: boolean) : __TCachedItem_TValue;
 var
- item : TCachedItem<TValue>;
+  item, original : __TCachedItem_TValue;
+  size, delta : SizeInt;
+  timestamp : TDateTime;
+  sameObject : boolean;
+  value : TValue;
 begin
-  Result := FInternalStorage.TryGetValue(AKey, item) AND (NOT IsExpired(item));
+  value := AValue;
+  size := EstimateSize(value);
+  if size < 0 then
+    raise EInvalidOperation.Create('A cache size estimator returned a negative size.');
+  if size > FMaxCapacity then
+    raise EInvalidOperation.CreateFmt('Cache capacity insufficient for requested space [%d].', [size]);
+  timestamp := Now;
+  original := nil;
+  FInternalStorage.TryGetValue(AKey, original);
+  if Assigned(original) and original.FRemoving then
+    raise EInvalidOperation.Create('Cannot replace an entry during removal preparation.');
+  if Assigned(original) then begin
+    original._AddRef;
+    Inc(original.FProtectedCount);
+  end;
+  try
+    delta := size;
+    if Assigned(original) then
+      Dec(delta, original.Size);
+    MakeSpace(delta);
+    item := nil;
+    FInternalStorage.TryGetValue(AKey, item);
+    delta := size;
+    if Assigned(item) then
+      Dec(delta, item.Size);
+    if delta > FMaxCapacity - FCurrentSize then
+      raise EInvalidOperation.Create('A cache callback left insufficient capacity for replacement.');
+    if not Assigned(item) then begin
+      item := __TCachedItem_TValue.Create(value, size, FItemDisposePolicy);
+      item._AddRef;
+      try
+        FInternalStorage.Add(AKey, item);
+      except
+        // Admission failed: ownership of AValue remains with the caller.
+        item.FDisposePolicy := idpNone;
+        item._Release;
+        raise;
+      end;
+      Inc(FOrder);
+      item.FInsertionOrder := FOrder;
+      item.FFetchedOn := timestamp;
+    end else begin
+      sameObject := false;
+      if PTypeInfo(TypeInfo(TValue))^.Kind in [tkClass, tkPointer] then
+        sameObject := PPointer(@item.FValue)^ = PPointer(@value)^;
+      if not sameObject then
+        item.ReleaseValue;
+      item.FValue := value;
+      item.FSize := size;
+    end;
+    if AFetched then
+      item.FFetchedOn := timestamp;
+    item.FInvalidated := false;
+    item.FPurged := false;
+    item.FLastAccessedOn := timestamp;
+    Inc(FOrder);
+    item.FAccessOrder := FOrder;
+    Inc(FCurrentSize, delta);
+    Result := item;
+  finally
+    if Assigned(original) then begin
+      Dec(original.FProtectedCount);
+      original._Release;
+    end;
+  end;
 end;
 
-function TCacheBase<TKey, TValue>.IsExpired(ACachedItem: TCachedItem<TValue>) : boolean;
-var
-  from : TDateTime;
+procedure TCacheBase<TKey, TValue>.SetValue(const AKey: TKey; const AValue: TValue);
 begin
-  if ACachedItem.Invalidated then begin
-    Result := true;
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    StoreValue(AKey, AValue, false);
+    FLastUpdateOn := Now;
+    FLastAccessedOn := FLastUpdateOn;
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.ContainsCachedItem(const AKey: TKey) : boolean;
+var
+  item : __TCachedItem_TValue;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    Result := FInternalStorage.TryGetValue(AKey, item);
+    if Result then
+      Result := not IsExpired(item);
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.IsExpired(ACachedItem: __TCachedItem_TValue) : boolean;
+begin
+  Result := IsExpiredAt(ACachedItem, Now);
+end;
+
+function TCacheBase<TKey, TValue>.IsExpiredAt(AItem: __TCachedItem_TValue; ATimestamp: TDateTime) : boolean;
+var
+  timestamp : TDateTime;
+begin
+  if not Assigned(AItem) then
+    raise EArgumentNilException.Create('AItem');
+  Result := AItem.Invalidated;
+  if Result or (FExpirationPolicy = epNone) then
     exit;
-  end;
+  if FExpirationPolicy = epSinceFetchedTime then
+    timestamp := AItem.FetchedOn
+  else
+    timestamp := AItem.LastAccessedOn;
+  Result := TTimeSpan.Subtract(ATimestamp, timestamp) > FExpirationDuration;
+end;
 
-  case FExpirationPolicy of
-    epSinceFetchedTime: from := ACachedItem.FetchedOn;
-    epSinceLastAccessedTime: from := ACachedItem.LastAccessedOn;
-    else from := Now;
-  end;
+function TCacheBase<TKey, TValue>.CheckStaleness(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean;
+begin
+  Result := false;
+end;
 
-  Result := (FExpirationPolicy <> epNone) AND (TTimeSpan.Subtract(Now, from) > FExpirationDuration);
+function TCacheBase<TKey, TValue>.IsStale(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean;
+begin
+  Result := (FStaleValuePolicy = svpCheckStaleOnDemand) and CheckStaleness(AKey, AItem);
+end;
+
+procedure TCacheBase<TKey, TValue>.Invalidate(const AKey: TKey);
+var
+  item : __TCachedItem_TValue;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    if FInternalStorage.TryGetValue(AKey, item) then
+      item.FInvalidated := true;
+  finally
+    FLock.Release;
+  end;
 end;
 
 procedure TCacheBase<TKey, TValue>.Remove(const AKey: TKey);
 begin
+  FLock.Acquire;
   try
-    FLock.BeginWrite;
+    CheckAvailable;
     RemoveItemInternal(AKey);
   finally
-    FLock.EndWrite;
+    FLock.Release;
   end;
-end;
-
-procedure TCacheBase<TKey, TValue>.Flush;
-var
-  key: TKey;
-begin
-  try
-    FLock.BeginWrite;
-    for key in FInternalStorage.Keys do
-      RemoveItemInternal(FInternalStorage[key]);
-    FInternalStorage.Clear;
-  finally
-    FLock.EndWrite;
-  end
-end;
-
-procedure TCacheBase<TKey, TValue>.BulkLoad(const ABulkValues: TEnumerable<__TPair_TKey_TValue>);
-var
-  kvp: __TPair_TKey_TValue;
-begin
-  try
-    FLock.BeginWrite;
-    for kvp in ABulkValues do begin
-      if FInternalStorage.ContainsKey(kvp.Key) then begin
-        RemoveItemInternal(kvp.Key);
-        AddItemInternal(kvp.Key, kvp.Value);
-      end else AddItemInternal(kvp.Key, kvp.Value);
-    end
-  finally
-    FLock.EndWrite;
-  end
-end;
-
-procedure TCacheBase<TKey, TValue>.Invalidate;
-begin
-  raise Exception.Create('Not implemented');
-end;
-
-
-procedure TCacheBase<TKey, TValue>.OnItemFetched(const AKey : TKey; const AVal: TValue);
-begin
-end;
-
-procedure TCacheBase<TKey, TValue>.OnItemRemoved(const AKey : TKey; const AVal: TValue);
-begin
-end;
-
-procedure TCacheBase<TKey, TValue>.MakeSpace(const requestedSpace: SizeInt);
-type
-  TSortFunc = TOnComparison<__TPair_TKey_TValue>;
-var
-  candidate : __TPair_TKey_TValue;
-  deathRow: TList<__TPair_TKey_TValue>;
-  sortOrder: array of TSortFunc;
-  reapAll: boolean;
-  GC : TScoped;
-begin
-  try
-    FLock.BeginWrite;
-    if requestedSpace > FMaxCapacity then
-      raise Exception.Create(Format('Cache capacity insufficient for requested space [%0:d].',[requestedSpace]));
-
-    // If need space
-    if FReapPolicy = crpASAP then begin
-      MakeSpaceFast(requestedSpace);
-      exit;
-    end;
-
-    // Get elements to be purged (deathrow)
-    deathRow := GC.AddObject(TList<__TPair_TKey_TValue>.Create) as TList<__TPair_TKey_TValue>;
-    deathRow.AddRange(FInternalStorage.ToArray);
-    case FReapPolicy of
-      crpLeastUsed: sortOrder := TArrayTool<TSortFunc>.Create(ByExpiredCompare, ByAccessedCountCompare, BySizeDescendingCompare);
-      crpOldest: sortOrder := TArrayTool<TSortFunc>.Create(ByExpiredCompare, ByFetchedOnCompare);
-      crpIdle: sortOrder := TArrayTool<TSortFunc>.Create(ByExpiredCompare, ByAccessedOnCompare);
-      crpLargest: sortOrder := TArrayTool<TSortFunc>.Create(ByExpiredCompare, BySizeDescendingCompare);
-      crpSmallest: sortOrder := TArrayTool<TSortFunc>.Create(ByExpiredCompare, BySizeCompare);
-      crpNone: begin
-        if FExpirationPolicy <> epNone then begin
-          TListTool<__TPair_TKey_TValue>.Filter(deathRow, TPredicateTool<__TPair_TKey_TValue>.FromFunc(IsExpiredFilter));
-          sortOrder := nil;
-        end else begin
-          deathRow.Clear;
-          sortOrder := nil;
-        end;
-        reapAll := true;
-      end
-      else raise ENotSupportedException(Format('FReapPolicy: [%d]', [FReapPolicy]));
-    end;
-
-    if Length(sortOrder) > 0 then
-      deathRow.Sort(TComparerTool<__TPair_TKey_TValue>.Many(sortOrder));
-
-    // remove items from cache until enough space
-    for candidate in deathRow do
-      if reapAll OR ((MaxCapacity - CurrentSize) < requestedSpace) then
-        RemoveItemInternal(candidate.Key)
-      else break;
-
-    // check enough space was created
-    if (MaxCapacity - CurrentSize) < requestedSpace then
-      raise Exception.Create(Format('Insufficient cache memory (requested space [%d])', [requestedSpace]));
-
-  finally
-    FLock.EndWrite;
-  end
-end;
-
-procedure TCacheBase<TKey, TValue>.MakeSpaceFast(const requestedSpace: SizeInt);
-type
-  THashSet_Key = THashSet<TKey>;
-var
-  savedSpace: SizeInt;
-  deathRow: THashSet_Key;
-  item: __TPair_TKey_TValue;
-  GC : TScoped;
-begin
-  try
-    FLock.BeginWrite;
-    savedSpace := 0;
-    deathRow := GC.AddObject(THashSet<TKey>.Create) as THashSet_Key;
-    for item in FInternalStorage do begin
-      if NOT IsExpired(item.Value) then
-          continue;
-      deathRow.Add(item.Key);
-      inc(savedSpace, item.Value.Size);
-      if requestedSpace >= savedSpace then
-          break;
-    end;
-    if savedSpace < requestedSpace then begin
-      for item in FInternalStorage do begin
-          if (IsExpired(item.Value)) OR (deathRow.Contains(item.Key)) then
-              continue;
-          deathRow.Add(item.Key);
-          inc(savedSpace, item.Value.Size);
-          if requestedSpace >= savedSpace then
-              break;
-      end
-    end;
-    for item in deathRow do
-      RemoveItemInternal(item);
-  finally
-    FLock.EndWrite;
-  end
-end;
-
-function TCacheBase<TKey, TValue>.AddItemInternal(const Key: TKey; const AVal: TValue) : TCachedItem<TValue>;
-var
-  item : TCachedItem<TValue>;
-  size : Cardinal;
-begin
-  item := TCachedItem<TValue>.Create(AVal, EstimateSize(AVal), FItemDisposePolicy);
-
-  if (MaxCapacity - CurrentSize) < item.Size then
-    MakeSpace(item.Size);
-
-  FInternalStorage.Add(key, item);
-  inc(FCurrentSize, item.Size);
-  Result := item;
 end;
 
 procedure TCacheBase<TKey, TValue>.RemoveItemInternal(const AKey: TKey);
 var
-  item : TValue;
+  item : __TCachedItem_TValue;
 begin
-    item := FInternalStorage[AKey];
-    FInternalStorage.Remove(AKey);
-    dec(FCurrentSize, item.Size);
-    OnItemRemoved(AKey, item);
-    NotifyItemRemoved(AKey, item);
+  if not FInternalStorage.TryGetValue(AKey, item) then
+    exit;
+  if item.FRemoving then
+    exit;
+  item.FRemoving := true;
+  try
+    NotifyItemRemoving(AKey, item);
+  finally
+    item.FRemoving := false;
+  end;
+  FInternalStorage.Remove(AKey);
+  Dec(FCurrentSize, item.Size);
+  item.FPurged := true;
+  item.FCanPurge := false;
+  try
+    NotifyItemRemoved(AKey, item.Value);
+  finally
+    try
+      if FItemDisposePolicy <> idpNone then
+        item.ReleaseValue;
+    finally
+      item._Release;
+    end;
+  end;
+end;
+
+procedure TCacheBase<TKey, TValue>.Purge;
+var
+  entries : TArray<__TPair_TKey_TCachedItem>;
+  entry : __TPair_TKey_TCachedItem;
+  current : __TCachedItem_TValue;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    entries := FInternalStorage.ToArray;
+    for entry in entries do
+      entry.Value._AddRef;
+    try
+      for entry in entries do
+        if FInternalStorage.TryGetValue(entry.Key, current) and (current = entry.Value) then
+          RemoveItemInternal(entry.Key);
+    finally
+      for entry in entries do
+        entry.Value._Release;
+    end;
+  finally
+    FLock.Release;
+  end;
+end;
+
+procedure TCacheBase<TKey, TValue>.Flush;
+begin
+  Purge;
+end;
+
+procedure TCacheBase<TKey, TValue>.BulkLoad(const ABulkValues: TEnumerable<__TPair_TKey_TValue>);
+var
+  pair : __TPair_TKey_TValue;
+begin
+  if not Assigned(ABulkValues) then
+    raise EArgumentNilException.Create('ABulkValues');
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    for pair in ABulkValues do
+      SetValue(pair.Key, pair.Value);
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TCacheBase<TKey, TValue>.CompareVictims(ALeft, ARight: __TCachedItem_TValue; ATimestamp: TDateTime) : Integer;
+var
+  leftExpired, rightExpired : boolean;
+begin
+  leftExpired := IsExpiredAt(ALeft, ATimestamp);
+  rightExpired := IsExpiredAt(ARight, ATimestamp);
+  if leftExpired <> rightExpired then begin
+    if leftExpired then Result := -1 else Result := 1;
+    exit;
+  end;
+  Result := 0;
+  case FReapPolicy of
+    crpLeastUsed: begin
+      if ALeft.AccessedCount < ARight.AccessedCount then Result := -1;
+      if ALeft.AccessedCount > ARight.AccessedCount then Result := 1;
+      if Result = 0 then begin
+        if ALeft.Size > ARight.Size then Result := -1;
+        if ALeft.Size < ARight.Size then Result := 1;
+      end;
+    end;
+    crpOldest: begin
+      if ALeft.FInsertionOrder < ARight.FInsertionOrder then Result := -1;
+      if ALeft.FInsertionOrder > ARight.FInsertionOrder then Result := 1;
+    end;
+    crpIdle: begin
+      if ALeft.FAccessOrder < ARight.FAccessOrder then Result := -1;
+      if ALeft.FAccessOrder > ARight.FAccessOrder then Result := 1;
+    end;
+    crpLargest: begin
+      if ALeft.Size > ARight.Size then Result := -1;
+      if ALeft.Size < ARight.Size then Result := 1;
+    end;
+    crpSmallest: begin
+      if ALeft.Size < ARight.Size then Result := -1;
+      if ALeft.Size > ARight.Size then Result := 1;
+    end;
+  end;
+  if Result = 0 then begin
+    if ALeft.FInsertionOrder < ARight.FInsertionOrder then Result := -1;
+    if ALeft.FInsertionOrder > ARight.FInsertionOrder then Result := 1;
+  end;
+end;
+
+procedure TCacheBase<TKey, TValue>.SortVictims(var AEntries: TArray<__TPair_TKey_TCachedItem>; ALeft, ARight: Integer; ATimestamp: TDateTime);
+var
+  i, j : Integer;
+  pivot : __TCachedItem_TValue;
+  temp : __TPair_TKey_TCachedItem;
+begin
+  if ALeft >= ARight then
+    exit;
+  i := ALeft;
+  j := ARight;
+  pivot := AEntries[ALeft + (ARight - ALeft) div 2].Value;
+  repeat
+    while CompareVictims(AEntries[i].Value, pivot, ATimestamp) < 0 do Inc(i);
+    while CompareVictims(AEntries[j].Value, pivot, ATimestamp) > 0 do Dec(j);
+    if i <= j then begin
+      temp := AEntries[i];
+      AEntries[i] := AEntries[j];
+      AEntries[j] := temp;
+      Inc(i);
+      Dec(j);
+    end;
+  until i > j;
+  if ALeft < j then SortVictims(AEntries, ALeft, j, ATimestamp);
+  if i < ARight then SortVictims(AEntries, i, ARight, ATimestamp);
+end;
+
+function TCacheBase<TKey, TValue>.Reap(AMinimumRelease: SizeInt) : SizeInt;
+var
+  entries : TArray<__TPair_TKey_TCachedItem>;
+  entry : __TPair_TKey_TCachedItem;
+  current : __TCachedItem_TValue;
+  before : SizeInt;
+  timestamp : TDateTime;
+begin
+  if AMinimumRelease < 0 then
+    raise EArgumentException.Create('The requested release must be nonnegative.');
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    Result := 0;
+    if AMinimumRelease = 0 then
+      exit;
+    before := FCurrentSize;
+    timestamp := Now;
+    entries := FInternalStorage.ToArray;
+    for entry in entries do
+      entry.Value._AddRef;
+    try
+      // Equal-sized and equal-time victims are ordered by insertion.
+      if FReapPolicy <> crpNone then
+        SortVictims(entries, 0, High(entries), timestamp);
+      for entry in entries do begin
+        if before - FCurrentSize >= AMinimumRelease then
+          break;
+        if not FInternalStorage.TryGetValue(entry.Key, current) then
+          continue;
+        if (current <> entry.Value) or (not current.CanPurge) or current.FRemoving or (current.FProtectedCount > 0) then
+          continue;
+        if (FReapPolicy = crpNone) and (not IsExpired(current)) then
+          continue;
+        RemoveItemInternal(entry.Key);
+      end;
+      Result := Max(0, before - FCurrentSize);
+    finally
+      for entry in entries do
+        entry.Value._Release;
+    end;
+  finally
+    FLock.Release;
+  end;
+end;
+
+procedure TCacheBase<TKey, TValue>.MakeSpace(const requestedSpace: SizeInt);
+var
+  deficit, target : SizeInt;
+  fraction : Int64;
+begin
+  if requestedSpace <= FMaxCapacity - FCurrentSize then
+    exit;
+  deficit := requestedSpace - (FMaxCapacity - FCurrentSize);
+  fraction := Ceil(FMaxCapacity * FReapLevel);
+  if fraction >= FMaxCapacity then
+    target := FMaxCapacity
+  else
+    target := Max(1, fraction);
+  Reap(Max(deficit, target));
+  if requestedSpace > FMaxCapacity - FCurrentSize then
+    raise EInvalidOperation.CreateFmt('Insufficient cache capacity (requested space [%d]).', [requestedSpace]);
+end;
+
+procedure TCacheBase<TKey, TValue>.MakeSpaceFast(const requestedSpace: SizeInt);
+begin
+  MakeSpace(requestedSpace);
+end;
+
+function TCacheBase<TKey, TValue>.AddItemInternal(const AKey: TKey; const AVal: TValue) : __TCachedItem_TValue;
+begin
+  Result := StoreValue(AKey, AVal, true);
+end;
+
+procedure TCacheBase<TKey, TValue>.OnItemFetching(const AKey: TKey);
+begin
+end;
+
+procedure TCacheBase<TKey, TValue>.OnItemFetched(const AKey: TKey; const AVal: TValue);
+begin
+end;
+
+procedure TCacheBase<TKey, TValue>.OnItemRemoving(const AKey: TKey; AItem: __TCachedItem_TValue);
+begin
+end;
+
+procedure TCacheBase<TKey, TValue>.OnItemRemoved(const AKey: TKey; const AVal: TValue);
+begin
+end;
+
+procedure TCacheBase<TKey, TValue>.NotifyItemFetching(const AKey: TKey);
+begin
+  OnItemFetching(AKey);
+  if Assigned(FItemFetching) then
+    FItemFetching(Self, AKey);
 end;
 
 procedure TCacheBase<TKey, TValue>.NotifyItemFetched(const AKey: TKey; const AVal: TValue);
 begin
   OnItemFetched(AKey, AVal);
-  ItemFetched.Invoke(Self, [AKey, AVal]);
+  if Assigned(FItemFetched) then
+    FItemFetched(Self, AKey, AVal);
+end;
+
+procedure TCacheBase<TKey, TValue>.NotifyItemRemoving(const AKey: TKey; AItem: __TCachedItem_TValue);
+begin
+  OnItemRemoving(AKey, AItem);
+  if Assigned(FItemRemoving) then
+    FItemRemoving(Self, AKey, AItem);
 end;
 
 procedure TCacheBase<TKey, TValue>.NotifyItemRemoved(const AKey: TKey; const AVal: TValue);
 begin
   OnItemRemoved(AKey, AVal);
-  ItemRemoved.Invoke(Self, [AKey, AVal]);
+  if Assigned(FItemRemoved) then
+    FItemRemoved(Self, AKey, AVal);
 end;
 
-{%region Sort Functions }
+{ TActionCache }
 
-function TCacheBase<TKey, TValue>.ByExpiredCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-var
-  leftExp, rightExp : boolean;
+constructor TActionCache<TKey, TValue>.Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullPolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TStaleValuePolicy);
 begin
-  leftExp := IsExpired(Left.Value);
-  rightExp := IsExpired(Right.Value);
-  if leftExp <> rightExp then
-    Result := 0
-  else
-    if not leftExp then Result := 1 else Result := -1
-end;
-
-function TCacheBase<TKey, TValue>.ByAccessedCountCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := TCompare.Int32(Left.Value.AccessedCount, Right.Value.AccessedCount);
-end;
-
-function TCacheBase<TKey, TValue>.ByIdleCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := TCompare.Int32(TTimeSpan.Subtract(Now,Left.Value.AccessedOn), TTimeSpan.Subtract(Now,Right.Value.AccessedOn));
-end;
-
-function TCacheBase<TKey, TValue>.ByIdleDescendingCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := -ByIdleCompare(Left, Right);
-end;
-
-function TCacheBase<TKey, TValue>.ByFetchedOnCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := TCompare.Int32(Left.Value.FetchedOn, Right.Value.FetchedOn);
-end;
-
-function TCacheBase<TKey, TValue>.ByAccessedOnCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := TCompare.Int32(Left.Value.AccessedOn, Right.Value.AccessedOn);
-end;
-
-function TCacheBase<TKey, TValue>.BySizeCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := TCompare.Int32(Left.Value.Size, Right.Value.Size);
-end;
-
-function TCacheBase<TKey, TValue>.BySizeDescendingCompare(constref Left, Right: __TPair_TKey_TValue): Integer;
-begin
-  Result := -BySizeCompare(Left, Right);
-end;
-
-function TCacheBase<TKey, TValue>.IsExpiredFilter(const Item : __TPair_TKey_TValue) : boolean;
-begin
-  Result := IsExpired(Item.Value);
-end;
-
-{%endregion}
-
-
-{ ActionCache }
-
-//  const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : Cardinal; const AExpirationDuration : TTimeSpan
-constructor TActionCache<TKey, TValue>.Create(
-            AOwner:TComponent;
-            const AValueFetcher : IValueFetcher;
-            const ASizeEstimator : ISizeEstimator;
-            const AItemDisposePolicy : TItemDisposePolicy;
-            const AReapPolicy : TCacheReapPolicy;
-            const AExpirationPolicy : TExpirationPolicy;
-            const ANullPolicy : TNullValuePolicy;
-            const AMaxCapacity : Integer;
-            const AExpirationDuration : TTimeSpan);
-begin
-  Inherited Create(AOwner, AItemDisposePolicy, AReapPolicy, AExpirationPolicy, ANullPolicy, AMaxCapacity, AExpirationDuration);
+  inherited Create(AOwner, AItemDisposePolicy, AReapPolicy, AExpirationPolicy, ANullPolicy, AMaxCapacity, AExpirationDuration, AReapLevel, AStaleValuePolicy);
+  if not Assigned(AValueFetcher) then
+    raise EArgumentNilException.Create('AValueFetcher');
   FValueFetcher := AValueFetcher;
   FSizeEstimator := ASizeEstimator;
 end;
 
 function TActionCache<TKey, TValue>.Fetch(const AKey: TKey): TValue;
-var
-  val : TValue;
 begin
-  val := FValueFetcher.Fetch(AKey);
-  NotifyItemFetched(AKey, val);
-  result := val;
+  Result := FValueFetcher.Fetch(AKey);
 end;
 
 function TActionCache<TKey, TValue>.EstimateSize(const AVal: TValue) : SizeInt;
@@ -621,5 +923,138 @@ begin
     Result := 0;
 end;
 
-end.
+constructor TActionCache<TKey, TValue>.TValueFetcher.Create(const AFetcher: IValueFetcher);
+begin
+  inherited Create;
+  if not Assigned(AFetcher) then
+    raise EArgumentNilException.Create('AFetcher');
+  FFetcher := AFetcher;
+end;
 
+function TActionCache<TKey, TValue>.TValueFetcher.Fetch(const AKey: TKey): TValue;
+begin
+  Result := FFetcher.Fetch(AKey);
+end;
+
+class function TActionCache<TKey, TValue>.TValueFetcher.FromNestedFunction(const AFunc: TNestedFetchFunc) : IValueFetcher;
+begin
+  Result := NestedFunctionValueFetcher.Create(AFunc);
+end;
+
+class function TActionCache<TKey, TValue>.TValueFetcher.FromObjectFunction(const AFunc: TObjectFetchFunc) : IValueFetcher;
+begin
+  Result := ObjectFunctionValueFetcher.Create(AFunc);
+end;
+
+class function TActionCache<TKey, TValue>.TValueFetcher.FromGlobalFunction(const AFunc: TGlobalFetchFunc) : IValueFetcher;
+begin
+  Result := GlobalFunctionValueFetcher.Create(AFunc);
+end;
+
+constructor TActionCache<TKey, TValue>.TSizeEstimator.Create(const AEstimator: ISizeEstimator);
+begin
+  inherited Create;
+  if not Assigned(AEstimator) then
+    raise EArgumentNilException.Create('AEstimator');
+  FEstimator := AEstimator;
+end;
+
+function TActionCache<TKey, TValue>.TSizeEstimator.Estimate(const AValue: TValue) : SizeInt;
+begin
+  Result := FEstimator.Estimate(AValue);
+end;
+
+class function TActionCache<TKey, TValue>.TSizeEstimator.FromNestedFunction(const AFunc: TNestedEstimateFunc) : ISizeEstimator;
+begin
+  Result := NestedFunctionEstimator.Create(AFunc);
+end;
+
+class function TActionCache<TKey, TValue>.TSizeEstimator.FromObjectFunction(const AFunc: TObjectEstimateFunc) : ISizeEstimator;
+begin
+  Result := ObjectFunctionEstimator.Create(AFunc);
+end;
+
+class function TActionCache<TKey, TValue>.TSizeEstimator.FromGlobalFunction(const AFunc: TGlobalEstimateFunc) : ISizeEstimator;
+begin
+  Result := GlobalFunctionEstimator.Create(AFunc);
+end;
+
+constructor TActionCache<TKey, TValue>.GlobalFunctionValueFetcher.Create(const AFunc: TGlobalFetchFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.GlobalFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+begin
+  Result := FFunc(AKey);
+end;
+
+constructor TActionCache<TKey, TValue>.ObjectFunctionValueFetcher.Create(const AFunc: TObjectFetchFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.ObjectFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+begin
+  Result := FFunc(AKey);
+end;
+
+constructor TActionCache<TKey, TValue>.NestedFunctionValueFetcher.Create(const AFunc: TNestedFetchFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.NestedFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+begin
+  Result := FFunc(AKey);
+end;
+
+constructor TActionCache<TKey, TValue>.GlobalFunctionEstimator.Create(const AFunc: TGlobalEstimateFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.GlobalFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+begin
+  Result := FFunc(AValue);
+end;
+
+constructor TActionCache<TKey, TValue>.ObjectFunctionEstimator.Create(const AFunc: TObjectEstimateFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.ObjectFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+begin
+  Result := FFunc(AValue);
+end;
+
+constructor TActionCache<TKey, TValue>.NestedFunctionEstimator.Create(const AFunc: TNestedEstimateFunc);
+begin
+  inherited Create;
+  if not Assigned(AFunc) then
+    raise EArgumentNilException.Create('AFunc');
+  FFunc := AFunc;
+end;
+
+function TActionCache<TKey, TValue>.NestedFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+begin
+  Result := FFunc(AValue);
+end;
+
+end.
