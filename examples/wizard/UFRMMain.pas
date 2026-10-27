@@ -16,9 +16,13 @@ type
   { TFRMMain }
   TFRMMain = class(TForm)
     btnNotifyTest: TButton;
+    FFeatureWizardButton: TButton;
+    FFeatureDescriptionLabel: TLabel;
+    FDemoResultsMemo: TMemo;
     _wizardTestButton: TButton;
     FWorkAreaButton: TButton;
     procedure btnNotifyTestClick(Sender: TObject);
+    procedure FeatureWizardClick(Sender: TObject);
     procedure FWorkAreaButtonClick(Sender: TObject);
     procedure _wizardTestButtonClick(Sender: TObject);
   private
@@ -34,9 +38,34 @@ var
 
 implementation
 
-uses variants;
+uses variants, UWizardFeatureModel, UWizardFeatureDemo;
 
 { TFRMMain }
+
+procedure TFRMMain.FeatureWizardClick(Sender: TObject);
+var
+  model : TWizardFeatureModel;
+  wizard : TWizardFeatureDemo;
+begin
+  model := TWizardFeatureModel.Create;
+  try
+    wizard := TWizardFeatureDemo.Create(self, model);
+    try
+      wizard.Start(model);
+    finally
+      wizard.Free; // Destroy screens while their borrowed model is still alive.
+    end;
+    FDemoResultsMemo.Lines.Assign(model.Events);
+    FDemoResultsMemo.Lines.Add('');
+    FDemoResultsMemo.Lines.Add(Format('Result: Name="%s", Age=%d, Finish attempts=%d, Cancel attempts=%d',
+      [model.Name, model.Age, model.FinishAttempts, model.CancelAttempts]));
+    FDemoResultsMemo.Lines.Add(Format('Lifetime: %d initialized screens, %d destroyed; Finished events=%d; Reentry rejected=%d',
+      [model.InitializedCount, model.DestroyedCount, model.FinishedCount, model.ReentryRejectedCount]));
+    FDemoResultsMemo.SelStart := Length(FDemoResultsMemo.Text);
+  finally
+    model.Free;
+  end;
+end;
 
 procedure TFRMMain._wizardTestButtonClick(Sender: TObject);
 

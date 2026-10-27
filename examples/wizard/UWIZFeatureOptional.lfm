@@ -1,0 +1,69 @@
+object WIZFeatureOptional: TWIZFeatureOptional
+  Left = 0
+  Height = 520
+  Top = 0
+  Width = 760
+  BorderStyle = bsNone
+  ClientHeight = 520
+  ClientWidth = 760
+  Caption = 'Optional notes'
+  Position = poDefault
+  LCLVersion = '2.1.0.0'
+  object FTitleLabel: TLabel
+    Left = 20
+    Height = 26
+    Top = 16
+    Width = 720
+    Caption = 'Optional notes'
+    Font.Height = -20
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object FDescriptionLabel: TLabel
+    Left = 20
+    Height = 38
+    Top = 54
+    Width = 720
+    Caption = 'This step is created on demand. Removing it from the route retains its form until the wizard is disposed.'
+    AutoSize = False
+    WordWrap = True
+    Anchors = [akTop, akLeft, akRight]
+  end
+  object FNotesLabel: TLabel
+    Left = 20
+    Height = 20
+    Top = 106
+    Width = 680
+    Caption = 'Notes to include in the final summary'
+  end
+  object FNotesMemo: TMemo
+    TabOrder = 0
+    Left = 20
+    Height = 132
+    Top = 136
+    Width = 720
+    Anchors = [akLeft, akTop, akRight]
+    ScrollBars = ssAutoVertical
+  end
+  object FStatusLabel: TLabel
+    Left = 20
+    Height = 36
+    Top = 296
+    Width = 720
+    Caption = 'Wizard events and state'
+    AutoSize = False
+    WordWrap = True
+    Anchors = [akLeft, akRight, akBottom]
+  end
+  object FEventLog: TMemo
+    Left = 20
+    Height = 166
+    Top = 338
+    Width = 720
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    ReadOnly = True
+    ScrollBars = ssAutoBoth
+    WordWrap = False
+    TabStop = False
+  end
+end

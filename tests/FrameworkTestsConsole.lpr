@@ -5,7 +5,7 @@ program FrameworkTestsConsole;
 uses
   Interfaces, Forms, consoletestrunner,
   UCommon.Tests, UCommon.Collections.Tests, UMemory.Tests,
-  UCache.Tests, UWizard.Tests;
+  UCache.Tests, UWizard.Tests, UWizardDemo.Tests;
 
 var
   runner : TTestRunner;

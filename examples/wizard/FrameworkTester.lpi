@@ -32,7 +32,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="22">
+    <Units Count="30">
       <Unit0>
         <Filename Value="FrameworkTester.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -151,6 +151,53 @@
         <Filename Value="..\..\src\Sphere10\UMemory.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit21>
+      <Unit22>
+        <Filename Value="UWizardFeatureModel.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="UWizardFeatureDemo.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="UWIZFeatureBase.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="UWIZFeatureName.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZFeatureName"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="UWIZFeatureAge.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZFeatureAge"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="UWIZFeatureOptional.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZFeatureOptional"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit27>
+      <Unit28>
+        <Filename Value="UWIZFeatureCommit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZFeatureCommit"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit28>
+      <Unit29>
+        <Filename Value="UWIZFeatureSummary.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZFeatureSummary"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit29>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -160,8 +207,8 @@
       <Filename Value="FrameworkTester"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\src\util\generics"/>
-      <OtherUnitFiles Value="..\src\util;..\src\util\generics;..\src\form;..\..\src\Sphere10;..\..\src\Generics.Collections"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\src\Sphere10;..\..\src\Generics.Collections\inc"/>
+      <OtherUnitFiles Value="..\..\src\Sphere10;..\..\src\Generics.Collections"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
