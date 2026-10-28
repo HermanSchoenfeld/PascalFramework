@@ -1,6 +1,35 @@
 # PascalFramework
 
-Delphi-mode desktop and core utilities for Free Pascal and Lazarus.
+PascalFramework is a reusable Object Pascal library for Free Pascal and Lazarus,
+written in Delphi mode. It provides data-bound visual grids, multi-step wizards
+and configurable caches, together with the supporting utilities applications
+need: scoped resource cleanup, generic collection helpers, data sources,
+multicast events, date/time helpers and UI event throttling.
+
+The components work together: visual grids consume data sources that handle
+filtering, sorting and paging; wizard screens share a typed model and can change
+their route at runtime; caches control how values are fetched, retained and
+released. Use the units directly in a project or add the optional
+[Lazarus package](packages/README.md). The examples below show their individual
+APIs, with runnable projects for the grid, cache and wizard.
+
+## Units
+
+| Unit | Description |
+| --- | --- |
+| [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound Lazarus grid with paging and automatic page sizes, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus and optional background fetching. |
+| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
+| [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
+| [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
+| [UCommon.pas](src/Sphere10/UCommon.pas) | Shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
+| [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
+| [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Named Variant rows and column schemas, text/numeric search expressions, filter/sort criteria and generic data sources with filtering, sorting and paging. |
+| [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, control docking and image helpers, and throttled/coalesced UI notifications. |
+
+The bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
+library supplies the lists, dictionaries, queues, stacks and sets used by these
+units. UI components use Lazarus LCL; the supplied projects configure their unit
+search paths.
 
 # Example uses:
 
@@ -545,7 +574,12 @@ Replace the tool paths for your installation. The native probe checks one stable
 wizard window, hidden inactive screens and retry/cancel behavior on a private
 desktop. See the [test guide](tests/README.md) for coverage and fixture selection.
 
-# License
+# License and copyright
 
-[MIT](LICENSE). Copyright Herman Schoenfeld; third-party notices are retained in
-their source directories.
+Copyright © 2017–2026 Herman Schoenfeld.
+
+[Sphere 10 Software](https://sphere10.com/)
+
+PascalFramework is distributed under the [MIT License](LICENSE). Third-party
+components retain their own licenses and copyright notices in their source
+directories.
