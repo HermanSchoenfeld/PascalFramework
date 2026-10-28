@@ -1,11 +1,107 @@
 # PascalFramework
 
-Delphi-mode utilities for Free Pascal and Lazarus: caches, wizards, disposal scopes,
-events, collections, data rows and grids.
+Delphi-mode desktop and core utilities for Free Pascal and Lazarus.
 
-## Cache a value
+# Example uses:
 
-Fetch on a miss, reuse on a hit, and expire entries after 30 seconds.
+## Visual grid
+
+[TVisualGrid](src/Sphere10/UVisualGrid.pas) combines [paging and automatic page sizes](src/Sphere10/UVisualGrid.pas),
+[single-expression or per-column search](src/Sphere10/UVisualGrid.pas),
+[single/multi-column sorting](src/Sphere10/UVisualGrid.pas) and
+[cell, row or multiple-row selection](src/Sphere10/UVisualGrid.pas). Configure column
+widths/stretching, fonts/alignment, custom cell renderers, selection callbacks,
+popup menus and extra toolbar controls through the same [grid unit](src/Sphere10/UVisualGrid.pas).
+
+![Native Lazarus Visual Grid with typed sample data, column filters and paging](resources/visualgrid/visualgrid.png)
+
+The native capture uses five columns, per-column filters, twelve-row pages and the
+built-in [DollarValue renderer](src/Sphere10/UVisualGrid.pas).
+
+Implement three methods in [TCustomDataSource<T>](src/Sphere10/UCommon.Data.pas);
+it supplies filtering, sorting, paging and conversion to named Variant rows.
+
+```pascal
+uses Classes, Variants, Generics.Collections, UCommon.Data;
+
+type
+  TNameSource = class(TCustomDataSource<AnsiString>)
+  protected
+    function GetColumns : TDataColumns; override;
+    procedure FetchAll(const AContainer : TList<AnsiString>); override;
+    function GetItemField(constref AItem : AnsiString;
+      const ABindingName : AnsiString) : Variant; override;
+  end;
+
+function TNameSource.GetColumns : TDataColumns;
+begin
+  Result := TDataColumns.Create(TDataColumn.From('Name'));
+end;
+
+procedure TNameSource.FetchAll(const AContainer : TList<AnsiString>);
+begin
+  AContainer.Add('Ada');
+  AContainer.Add('Grace');
+end;
+
+function TNameSource.GetItemField(constref AItem : AnsiString;
+  const ABindingName : AnsiString) : Variant;
+begin
+  Result := AItem;
+end;
+```
+
+Attach it to [TVisualGrid](src/Sphere10/UVisualGrid.pas) from your form:
+
+```pascal
+uses Forms, UCommon.Data, UCommon.UI, UVisualGrid;
+
+procedure ShowNames(AForm : TForm);
+var
+  source : TNameSource;
+  grid : TVisualGrid;
+begin
+  source := TNameSource.Create(AForm);
+  grid := TVisualGrid.Create(AForm);
+  grid.FetchDataInThread := false;
+  grid.PageSize := 25;
+  with grid.AddColumn('Name') do begin
+    Binding := 'Name';
+    Filters := SORTABLE_TEXT_FILTER;
+  end;
+  AForm.AddControlDockCenter(grid);
+  grid.DataSource := source; // Fetch the first page.
+end;
+```
+
+```mermaid
+flowchart LR
+    refresh["Refresh / page / search"] --> fetch["IDataSource.FetchPage"]
+    fetch --> rows["FetchAll"]
+    rows --> filter["Filter"]
+    filter --> sort["Sort"]
+    sort --> page["Select page"]
+    page --> bind["Convert to variant rows"]
+    bind --> draw["Render grid"]
+```
+
+Call [RefreshGrid](src/Sphere10/UVisualGrid.pas) after changing source data. For worker fetching, set
+`FetchDataInThread := true`, keep the grid/source alive until completion, and keep
+source callbacks free of LCL access. See the [grid demo](examples/visualgrid/fMain.pas)
+and [SQLite example](examples/visualgrid_sqlite/fMain.pas) for rendering and selection.
+
+## Caching
+
+[TActionCache<TKey, TValue>](src/Sphere10/UCache.pas) memoizes fetches, accepts explicit
+writes and supports invalidation. Configure [fixed or sliding expiration](src/Sphere10/UCache.pas),
+[least-used, largest, smallest, oldest, idle, ASAP or no-policy eviction](src/Sphere10/UCache.pas),
+[pinned entries](src/Sphere10/UCache.pas) and [on-demand staleness checks](src/Sphere10/UCache.pas).
+[Null handling](src/Sphere10/UCache.pas) can cache nil, return it without caching,
+or reject it; [fetch/removal events](src/Sphere10/UCache.pas) report each lifecycle
+phase. [Typed callback adapters](src/Sphere10/UCache.pas) accept global functions,
+object methods and nested functions.
+Subclasses supply [CheckStaleness](src/Sphere10/UCache.pas) for application-specific
+stale checks.
 
 ```pascal
 program BasicCache;
@@ -50,7 +146,7 @@ begin
 end.
 ```
 
-The estimator defines capacity units: `Length` counts string bytes; returning `1`
+The [size estimator](src/Sphere10/UCache.pas) defines capacity units: `Length` counts string bytes; returning `1`
 counts entries. Use `epSinceLastAccessedTime` for sliding expiration.
 
 ```mermaid
@@ -64,15 +160,18 @@ flowchart LR
     stale --> read
 ```
 
-Object caches use `idpFreeAndNil` to free admitted objects on removal or destruction.
+Object caches use [idpFreeAndNil](src/Sphere10/UMemory.pas) to free admitted objects on removal or destruction.
 A rejected explicit write leaves ownership with its caller. Returned metadata and
 owned values are borrowed. See [more cache examples](examples/cache/README.md) for
 object ownership, notifications, capacity and callback adapters.
 
-## Build a wizard
+## Wizards
 
-Run the included showcase from an LCL application. The wizard owns its screens;
-the caller owns the model.
+[TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens in
+one modal window, with validation, Back/Next navigation, dynamic branches and
+retryable finish/cancel vetoes. [Lifecycle events and busy-state guards](src/Sphere10/UWizard.pas)
+report changes and reject reentry. The wizard owns its screens; the caller owns
+the model. Run the included showcase from an LCL application.
 
 ```pascal
 uses Classes, UWizardFeatureModel, UWizardFeatureDemo;
@@ -158,15 +257,19 @@ begin
 end;
 ```
 
-Use `ptReplaceAllNext` to change the continuation, `ptReplaceAll` to replace the
-route, or `ptRemoveNext` to remove future steps. Identical contiguous injections
+Use [ptReplaceAllNext, ptReplaceAll and ptRemoveNext](src/Sphere10/UWizard.pas)
+to replace the continuation, replace the full route or remove future steps. Identical contiguous injections
 are idempotent. A rejected finish/cancel stays active for retry; accepted completion
 runs once. See the [wizard guide](examples/wizard/README.md) for callback signatures,
 Back navigation and screen lifetimes.
 
-## Dispose resources at scope exit
+## Scoped disposal
 
-`UMemory.TDisposables` releases registered objects even when a procedure raises.
+[TDisposables](src/Sphere10/UMemory.pas) frees registered objects and memory when
+a local scope exits, including through an exception. [AddObject/AddMem/GetMem](src/Sphere10/UMemory.pas)
+register ownership; [RemoveObject/RemoveMem](src/Sphere10/UMemory.pas) transfer it out.
+Explicit [disposal policies](src/Sphere10/UMemory.pas) select no cleanup, object
+freeing or raw-memory release.
 
 ```pascal
 uses Classes, UMemory;
@@ -185,10 +288,10 @@ end;
 Call `scope.RemoveObject(lines)` before transferring ownership to a caller. Keep
 the scope local and do not copy it.
 
-## Work with arrays and collections
+## Arrays and collections
 
-`UCommon.TArrayTool<T>` creates and edits arrays. Copies have independent array
-storage; object elements still refer to the same objects.
+[TArrayTool<T>](src/Sphere10/UCommon.pas) creates arrays, appends/removes values and
+copies array storage. Object elements in a copy still refer to the same objects.
 
 ```pascal
 uses Generics.Collections, UCommon;
@@ -204,8 +307,11 @@ begin
 end;
 ```
 
-`UCommon.Collections` adapts predicates and comparers to the bundled generic
-containers. `FilterBy` changes the supplied list.
+[UCommon.Collections](src/Sphere10/UCommon.Collections.pas) adapts global, object and
+nested callbacks for predicates, comparers and transformations. The bundled
+[Generics.Collections](src/Generics.Collections/generics.collections.pas) provides
+lists/object lists, dictionaries/object dictionaries, queues, stacks, hash sets and
+sorted hash sets. [FilterBy](src/Sphere10/UCommon.Collections.pas) changes the supplied list.
 
 ```pascal
 uses Generics.Collections, Generics.Defaults, UCommon, UCommon.Collections, UMemory;
@@ -232,12 +338,15 @@ begin
 end;
 ```
 
-Compose predicates with `AndMany`/`OrMany`, comparers with `Many`/`Inverted`, and
-map values with `TListTool<TSource, TResult>.Transform`.
+Compose [predicates with AndMany/OrMany](src/Sphere10/UCommon.Collections.pas),
+[comparers with Many/Inverted](src/Sphere10/UCommon.Collections.pas), and
+[transforms with TListTool<TSource, TResult>.Transform](src/Sphere10/UCommon.Collections.pas).
 
-## Return values with diagnostics
+## Results and diagnostics
 
-`UCommon.TResult` carries a Variant value plus info, warning and error messages.
+[TResult](src/Sphere10/UCommon.pas) carries a Variant value and timestamped debug,
+info, warning or error messages. [IsSuccess/IsFailure](src/Sphere10/UCommon.pas)
+reflect error status; [ToString](src/Sphere10/UCommon.pas) formats the collected diagnostics.
 
 ```pascal
 uses UCommon;
@@ -251,7 +360,13 @@ begin
 end;
 ```
 
-## Use dates, bytes and running statistics
+## Dates, bytes and statistics
+
+[TDateTimeHelper and TTimeSpan](src/Sphere10/UCommon.pas) provide calendar/duration
+arithmetic, parsing and formatting. [Hex2Bytes/Bytes2Hex](src/Sphere10/UCommon.pas)
+convert binary data; [TVariantTool](src/Sphere10/UCommon.pas) compares numeric/text
+Variants; [TStatistics](src/Sphere10/UCommon.pas) accumulates count, sum, min/max,
+mean and variance without keeping every sample.
 
 ```pascal
 uses SysUtils, UCommon;
@@ -274,13 +389,15 @@ begin
 end;
 ```
 
-`UCommon` also provides `TTimeSpan`, `TBox<T>`, `TFileTool.AppendText` and
-`TCPUTool.GetLogicalCPUCount`. Browse their [declarations](src/Sphere10/UCommon.pas)
-for the small supporting helpers.
+[TBox<T>](src/Sphere10/UCommon.pas) wraps a typed value in an object;
+[TFileTool.AppendText](src/Sphere10/UCommon.pas) appends to a text file, and
+[TCPUTool.GetLogicalCPUCount](src/Sphere10/UCommon.pas) reports logical processors.
 
-## Notify several listeners
+## Multicast events
 
-`UCommon.TNotifyManyEvent` stores object-method listeners.
+[TNotifyManyEvent](src/Sphere10/UCommon.pas) adds/removes several object-method
+listeners and invokes them together. [Thread notification helpers](src/Sphere10/UCommon.pas)
+can queue individual listeners for the LCL main thread.
 
 ```pascal
 uses Classes, UCommon;
@@ -313,10 +430,12 @@ end;
 `Add(HandleChanged, True)` queues delivery on the main thread. Queued senders and
 receivers must remain alive until delivery.
 
-## Coalesce UI events
+## Throttled UI events
 
-`UCommon.UI.TThrottledEvent` delivers a notification after a burst becomes idle.
-Create an owned event, then call its `Notify` from UI event handlers.
+[TThrottledEvent](src/Sphere10/UCommon.UI.pas) coalesces repeated UI events. Select
+[immediate, interval, burst-end or burst-start-and-end delivery](src/Sphere10/UCommon.UI.pas);
+inspect suppressed-call counts and notification timestamps. Create an owned event,
+then call its [Notify](src/Sphere10/UCommon.UI.pas) from UI handlers.
 
 ```pascal
 uses Classes, UCommon, UCommon.UI;
@@ -334,10 +453,13 @@ end;
 An active LCL message loop is required. Other modes notify immediately, at
 intervals, or at both the start and end of a burst.
 
-## Keep resources with a form
+## Form ownership and docking
 
-`TApplicationForm.AutoDispose` owns noncomponent objects until form destruction.
-Use component ownership for controls and `AddControlDockCenter` to fill a container.
+[TApplicationForm](src/Sphere10/UCommon.UI.pas) adds first-activation/destruction
+events, configurable close behavior and [AutoDispose](src/Sphere10/UCommon.UI.pas)
+for form-owned noncomponent objects. [AddControlDockCenter](src/Sphere10/UCommon.UI.pas)
+fills a container; [SetImageListPicture](src/Sphere10/UCommon.UI.pas) copies an image-list
+entry into a TImage. Controls retain normal component ownership.
 
 ```pascal
 uses Classes, Controls, ExtCtrls, UCommon.UI;
@@ -357,10 +479,14 @@ end;
 
 Application forms hide on Close by default; hidden forms still own their resources.
 
-## Describe rows and parse searches
+## Data rows and search expressions
 
-`UCommon.Data` exposes named fields through a managed Variant. Use one schema ID
-for each consistent set of columns; field names are case-sensitive.
+[TDataRow and TDataColumns](src/Sphere10/UCommon.Data.pas) expose named fields through
+a managed Variant. [Filter/sort criteria](src/Sphere10/UCommon.Data.pas) describe text
+and numeric comparisons and sort directions; [data sources choose null ordering](src/Sphere10/UCommon.Data.pas).
+[TSearchExpressionService](src/Sphere10/UCommon.Data.pas) parses numeric comparisons,
+inclusive/exclusive intervals and text-match expressions. Use one schema ID for
+each consistent column set; field names are case-sensitive.
 
 ```pascal
 uses SysUtils, Variants, UCommon.Data;
@@ -387,81 +513,7 @@ begin
 end;
 ```
 
-## Display a data source in a grid
-
-Implement three methods; `TCustomDataSource<T>` supplies filtering, sorting,
-paging and conversion to data rows.
-
-```pascal
-uses Classes, Variants, Generics.Collections, UCommon.Data;
-
-type
-  TNameSource = class(TCustomDataSource<AnsiString>)
-  protected
-    function GetColumns : TDataColumns; override;
-    procedure FetchAll(const AContainer : TList<AnsiString>); override;
-    function GetItemField(constref AItem : AnsiString;
-      const ABindingName : AnsiString) : Variant; override;
-  end;
-
-function TNameSource.GetColumns : TDataColumns;
-begin
-  Result := TDataColumns.Create(TDataColumn.From('Name'));
-end;
-
-procedure TNameSource.FetchAll(const AContainer : TList<AnsiString>);
-begin
-  AContainer.Add('Ada');
-  AContainer.Add('Grace');
-end;
-
-function TNameSource.GetItemField(constref AItem : AnsiString;
-  const ABindingName : AnsiString) : Variant;
-begin
-  Result := AItem;
-end;
-```
-
-Attach it to a `UVisualGrid.TVisualGrid` from your form:
-
-```pascal
-uses Forms, UCommon.Data, UCommon.UI, UVisualGrid;
-
-procedure ShowNames(AForm : TForm);
-var
-  source : TNameSource;
-  grid : TVisualGrid;
-begin
-  source := TNameSource.Create(AForm);
-  grid := TVisualGrid.Create(AForm);
-  grid.FetchDataInThread := false;
-  grid.PageSize := 25;
-  with grid.AddColumn('Name') do begin
-    Binding := 'Name';
-    Filters := SORTABLE_TEXT_FILTER;
-  end;
-  AForm.AddControlDockCenter(grid);
-  grid.DataSource := source; // Fetch the first page.
-end;
-```
-
-```mermaid
-flowchart LR
-    refresh["Refresh / page / search"] --> fetch["IDataSource.FetchPage"]
-    fetch --> rows["FetchAll"]
-    rows --> filter["Filter"]
-    filter --> sort["Sort"]
-    sort --> page["Select page"]
-    page --> bind["Convert to variant rows"]
-    bind --> draw["Render grid"]
-```
-
-Call `grid.RefreshGrid` after changing source data. For worker fetching, set
-`FetchDataInThread := true`, keep the grid/source alive until completion, and keep
-source callbacks free of LCL access. See the [grid demo](examples/visualgrid/fMain.pas)
-and [SQLite example](examples/visualgrid_sqlite/fMain.pas) for rendering and selection.
-
-## Open, build and test
+# Open, build and test
 
 Open [Sphere10Framework.lpg](Sphere10Framework.lpg) in Lazarus, or select a project:
 
@@ -493,7 +545,7 @@ Replace the tool paths for your installation. The native probe checks one stable
 wizard window, hidden inactive screens and retry/cancel behavior on a private
 desktop. See the [test guide](tests/README.md) for coverage and fixture selection.
 
-## License
+# License
 
 [MIT](LICENSE). Copyright Herman Schoenfeld; third-party notices are retained in
 their source directories.
