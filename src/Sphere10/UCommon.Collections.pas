@@ -594,7 +594,7 @@ end;
 // Shold be nested funcion but generics can't have in FPC!
 class function TPredicateTool<T>.FalseHandler({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: T) : boolean;
 begin
-  Result := true;
+  Result := false;
 end;
 
 { TNestedPredicate }
@@ -725,42 +725,49 @@ end;
 
 class function TListTool<T>.Copy(const AList: TList<T>; const AIndex, ACount : SizeInt) : TList<T>;
 var
-  i : Integer;
+  i : SizeInt;
 begin
+  // Count is a length, not an inclusive final index. Subtraction avoids an
+  // overflowing AIndex + ACount when rejecting an invalid requested range.
+  if (AIndex < 0) or (ACount < 0) or (AIndex > AList.Count) then
+    raise EArgumentOutOfRangeException.Create('Invalid list copy index/count');
+  if ACount > AList.Count - AIndex then
+    raise EArgumentOutOfRangeException.Create('List copy range exceeds the source');
   Result := TList<T>.Create;
-
-  for i := 0 to ACount do
+  try
+    for i := 0 to ACount - 1 do
       Result.Add(AList[AIndex + i]);
-
+  except
+    Result.Free;
+    raise;
+  end;
 end;
 
 class function TListTool<T>.Range(const AList: TList<T>; const AIndex, ACount : SizeInt) : SizeInt;
 var
-  from, to_, listCount : SizeInt;
+  from, keepCount, listCount : SizeInt;
 begin
-
   listCount := AList.Count;
-
-  from := ClipValue(AIndex, 0, listCount - 1);
-  to_ := ClipValue(AIndex + ACount, 0, listCount - 1);
-
-  if to_ <= from then begin
-    Result := 0;
-    exit;
-  end;
-
+  // Retain at most Count items from the clamped starting index. DeleteRange
+  // takes a remaining length; passing the whole list size after an index fails.
+  from := AIndex;
+  if from < 0 then from := 0
+  else if from > listCount then from := listCount;
+  keepCount := ACount;
+  if keepCount < 0 then keepCount := 0
+  else if keepCount > listCount - from then keepCount := listCount - from;
   if from > 0 then
     AList.DeleteRange(0, from);
-
-  if to_ < (listCount - 1) then
-    AList.DeleteRange(to_ - from, AList.Count);
-
+  if keepCount < AList.Count then
+    AList.DeleteRange(keepCount, AList.Count - keepCount);
+  // Preserve the existing signed size-delta return contract.
   Result := AList.Count - listCount;
 end;
 
 class function TListTool<T>.Skip(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
 begin
-  Result := Range(AList, 0 + ACount, AList.Count - ACount);
+  // Range clamps to the available suffix, without subtracting extreme counts.
+  Result := Range(AList, ACount, AList.Count);
 end;
 
 class function TListTool<T>.Take(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
@@ -797,8 +804,10 @@ begin
 end;
 
 class function TListTool<T>.FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt;
+var LRejected : IPredicate<T>;
 begin
-  Result := RemoveBy(AList, TPredicateTool<T>.NegatePredicate ( APredicate ) );
+  LRejected := TPredicateTool<T>.NegatePredicate(APredicate);
+  Result := RemoveBy(AList, LRejected, ADisposePolicy);
 end;
 
 class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);

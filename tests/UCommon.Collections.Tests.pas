@@ -49,6 +49,20 @@ type
       procedure NestedTransformsOwnTheirAdapters;
   end;
 
+  TPublicCollectionContractTests = class(TTestCase)
+  published
+    procedure ConstantPredicatesRespectTheirNames;
+    procedure CopyUsesExclusiveCount;
+    procedure CopyAcceptsEmptyAndExactEnd;
+    procedure CopyRejectsInvalidBounds;
+    procedure RangeRetainsRequestedItems;
+    procedure RangeHandlesEmptyAndZeroCount;
+    procedure RangeClampsToAvailableItems;
+    procedure SkipTakePreserveSignedDelta;
+    procedure FilterByDisposesOnlyRejectedObjects;
+    procedure FilterByPreservesBorrowedObjects;
+  end;
+
 implementation
 
 uses Generics.Defaults, Generics.Collections, UCommon, UCommon.Collections, UMemory, LazLogger;
@@ -488,8 +502,191 @@ begin
   CheckTransforms(2);
 end;
 
+{ Public count/bounds and ownership contracts used by the README examples. }
+
+procedure TPublicCollectionContractTests.ConstantPredicatesRespectTheirNames;
+var LTrue, LFalse: IPredicate<Integer>;
+begin
+  LTrue := TPredicateTool<Integer>.TruePredicate;
+  LFalse := TPredicateTool<Integer>.FalsePredicate;
+  AssertTrue(LTrue.Evaluate(0));
+  AssertTrue(LTrue.Evaluate(-1));
+  AssertFalse(LFalse.Evaluate(0));
+  AssertFalse(LFalse.Evaluate(1));
+end;
+
+procedure TPublicCollectionContractTests.CopyUsesExclusiveCount;
+var LSource, LCopy: TList<Integer>; LScope: TDisposables;
+begin
+  LSource := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LSource.AddRange([10,20,30,40]);
+  LCopy := LScope.AddObject(TListTool<Integer>.Copy(LSource,1,2)) as TList<Integer>;
+  AssertEquals(2,LCopy.Count);
+  AssertEquals(20,LCopy[0]);
+  AssertEquals(30,LCopy[1]);
+  LCopy[0] := 99;
+  AssertEquals('The source storage remains independent',20,LSource[1]);
+end;
+
+procedure TPublicCollectionContractTests.CopyAcceptsEmptyAndExactEnd;
+var LSource, LCopy: TList<Integer>; LScope: TDisposables;
+begin
+  LSource := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LCopy := LScope.AddObject(TListTool<Integer>.Copy(LSource,0,0)) as TList<Integer>;
+  AssertEquals(0,LCopy.Count);
+  LSource.AddRange([10,20,30]);
+  LCopy := LScope.AddObject(TListTool<Integer>.Copy(LSource,1,2)) as TList<Integer>;
+  AssertEquals(2,LCopy.Count);
+  AssertEquals(30,LCopy[1]);
+  LCopy := LScope.AddObject(TListTool<Integer>.Copy(LSource,3,0)) as TList<Integer>;
+  AssertEquals(0,LCopy.Count);
+end;
+
+procedure TPublicCollectionContractTests.CopyRejectsInvalidBounds;
+var LSource, LCopy: TList<Integer>; LScope: TDisposables;
+
+  procedure CheckRejected(AIndex, ACount: SizeInt);
+  var LRejected: Boolean;
+  begin
+    LRejected := False;
+    LCopy := nil;
+    try LCopy := TListTool<Integer>.Copy(LSource,AIndex,ACount);
+    except on E: EArgumentOutOfRangeException do LRejected := True; end;
+    LCopy.Free;
+    AssertTrue('Reject invalid Copy index/count',LRejected);
+    AssertEquals(2,LSource.Count);
+  end;
+
+begin
+  LSource := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LSource.AddRange([10,20]);
+  CheckRejected(-1,1);
+  CheckRejected(0,-1);
+  CheckRejected(3,0);
+  CheckRejected(1,2);
+  CheckRejected(0,High(SizeInt));
+end;
+
+procedure TPublicCollectionContractTests.RangeRetainsRequestedItems;
+var LItems: TList<Integer>; LScope: TDisposables; LDelta: SizeInt;
+begin
+  LItems := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LItems.AddRange([10,20,30,40,50]);
+  LDelta := TListTool<Integer>.Range(LItems,1,2);
+  AssertEquals(-3,LDelta);
+  AssertEquals(2,LItems.Count);
+  AssertEquals(20,LItems[0]);
+  AssertEquals(30,LItems[1]);
+end;
+
+procedure TPublicCollectionContractTests.RangeHandlesEmptyAndZeroCount;
+var LItems: TList<Integer>; LScope: TDisposables;
+begin
+  LItems := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  AssertEquals(0,TListTool<Integer>.Range(LItems,0,0));
+  AssertEquals(0,LItems.Count);
+  LItems.AddRange([10,20,30]);
+  AssertEquals(-3,TListTool<Integer>.Range(LItems,1,0));
+  AssertEquals(0,LItems.Count);
+end;
+
+procedure TPublicCollectionContractTests.RangeClampsToAvailableItems;
+var LItems: TList<Integer>; LScope: TDisposables;
+begin
+  LItems := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LItems.AddRange([10,20,30]);
+  AssertEquals(-1,TListTool<Integer>.Range(LItems,1,High(SizeInt)));
+  AssertEquals(2,LItems.Count);
+  AssertEquals(20,LItems[0]);
+  AssertEquals(30,LItems[1]);
+  AssertEquals(-2,TListTool<Integer>.Range(LItems,High(SizeInt),1));
+  AssertEquals(0,LItems.Count);
+  LItems.AddRange([10,20,30]);
+  AssertEquals(-1,TListTool<Integer>.Range(LItems,-100,2));
+  AssertEquals(2,LItems.Count);
+  AssertEquals(10,LItems[0]);
+  AssertEquals(20,LItems[1]);
+end;
+
+procedure TPublicCollectionContractTests.SkipTakePreserveSignedDelta;
+var LItems: TList<Integer>; LScope: TDisposables;
+begin
+  LItems := LScope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  LItems.AddRange([10,20,30,40]);
+  AssertEquals(-1,TListTool<Integer>.Skip(LItems,1));
+  AssertEquals(20,LItems[0]);
+  AssertEquals(-1,TListTool<Integer>.Take(LItems,2));
+  AssertEquals(2,LItems.Count);
+  AssertEquals(30,LItems[1]);
+  AssertEquals(0,TListTool<Integer>.Skip(LItems,Low(SizeInt)));
+  AssertEquals(-2,TListTool<Integer>.Skip(LItems,High(SizeInt)));
+  AssertEquals(0,LItems.Count);
+end;
+
+type
+  TFilterOwnedItem = class
+    Value: Integer;
+    Destroyed: PBoolean;
+    constructor Create(AValue: Integer; ADestroyed: PBoolean);
+    destructor Destroy; override;
+  end;
+
+constructor TFilterOwnedItem.Create(AValue: Integer; ADestroyed: PBoolean);
+begin
+  inherited Create;
+  Value := AValue;
+  Destroyed := ADestroyed;
+end;
+
+destructor TFilterOwnedItem.Destroy;
+begin
+  Destroyed^ := True;
+  inherited;
+end;
+
+function KeepFilterItem(constref AItem: TFilterOwnedItem): Boolean;
+begin Result := AItem.Value>1; end;
+
+procedure CheckFilterOwnership(ATest: TTestCase; APolicy: TDisposePolicy);
+var LItems: TList<TFilterOwnedItem>; LValues: array[0..2] of TFilterOwnedItem;
+  LDestroyed: array[0..2] of Boolean; LPredicate: IPredicate<TFilterOwnedItem>;
+  I: Integer;
+begin
+  FillChar(LDestroyed,SizeOf(LDestroyed),0);
+  FillChar(LValues,SizeOf(LValues),0);
+  LItems := TList<TFilterOwnedItem>.Create;
+  try
+    for I := 0 to High(LValues) do begin
+      LValues[I] := TFilterOwnedItem.Create(I+1,@LDestroyed[I]);
+      LItems.Add(LValues[I]);
+    end;
+    LPredicate := TPredicateTool<TFilterOwnedItem>.FromFunc(KeepFilterItem);
+    ATest.AssertEquals(1,TListTool<TFilterOwnedItem>.FilterBy(LItems,LPredicate,APolicy));
+    ATest.AssertEquals(2,LItems.Count);
+    ATest.AssertEquals(2,LItems[0].Value);
+    ATest.AssertEquals(3,LItems[1].Value);
+    ATest.AssertEquals('Only the rejected item follows the disposal policy',
+      APolicy=idpFreeAndNil,LDestroyed[0]);
+    ATest.AssertFalse(LDestroyed[1]);
+    ATest.AssertFalse(LDestroyed[2]);
+  finally
+    // Retain original pointers in the fixture so the failing pre-fix test does
+    // not itself leak the rejected object or double-free a successful removal.
+    LItems.Free;
+    for I := 0 to High(LValues) do
+      if Assigned(LValues[I]) and not LDestroyed[I] then LValues[I].Free;
+  end;
+end;
+
+procedure TPublicCollectionContractTests.FilterByDisposesOnlyRejectedObjects;
+begin CheckFilterOwnership(Self,idpFreeAndNil); end;
+
+procedure TPublicCollectionContractTests.FilterByPreservesBorrowedObjects;
+begin CheckFilterOwnership(Self,idpNone); end;
+
 initialization
   RegisterTest(TFilterTests);
   RegisterTest(TTransformTests);
+  RegisterTest(TPublicCollectionContractTests);
 end.
 
