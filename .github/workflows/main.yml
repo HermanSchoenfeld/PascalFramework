@@ -90,7 +90,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $lazbuild @common --build-all --no-write-project Sphere10Framework.lpk *> package-build.log
           if ($LASTEXITCODE -ne 0) { Get-Content package-build.log -Tail 80; exit $LASTEXITCODE }
-          & $lazbuild @common --build-all --no-write-project PascalFramework.lpi *> demo-build.log
+          & $lazbuild @common --build-all --no-write-project Sphere10PascalFramework.lpi *> demo-build.log
           if ($LASTEXITCODE -ne 0) { Get-Content demo-build.log -Tail 80; exit $LASTEXITCODE }
 
       - name: Run the FPCUnit suite

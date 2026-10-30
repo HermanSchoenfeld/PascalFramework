@@ -79,9 +79,10 @@ end;
 
 procedure TThrottleDemoForm.InitializeDemo;
 begin
+  if Assigned(FGrid) then Exit;
   // CreateNew bypasses VCL's main-form construction flag. Recreate the empty
-  // window after CreateForm has registered MainForm, before creating child HWNDs.
-  {$IFNDEF FPC}RecreateWnd;{$ENDIF}
+  // standalone window only; a hosted form already has its final native parent.
+  {$IFNDEF FPC}if not Assigned(Parent) then RecreateWnd;{$ENDIF}
   BuildControls;
   FDisplayTimer := TTimer.Create(Self);
   FDisplayTimer.Interval := 100;
@@ -151,6 +152,8 @@ end;
 
 procedure TThrottleDemoForm.DisplayTick(Sender: TObject);
 begin
+  // A hidden tab must not establish its baseline before its first real layout.
+  if not Showing then Exit;
   if not FInitialized then begin
     // Let first-show geometry settle before measuring user-driven requests.
     FBaseFetches := FSource.PageFetches;

@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectGroup FileVersion="2">
     <Targets>
-      <Target FileName="PascalFramework.lpi">
+      <Target FileName="Sphere10PascalFramework.lpi">
         <BuildModes>
           <Mode Name="Default" Compile="True" />
         </BuildModes>

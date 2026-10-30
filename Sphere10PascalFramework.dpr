@@ -1,4 +1,4 @@
-﻿program PascalFramework;
+program Sphere10PascalFramework;
 
 { Copyright © 2026 Herman Schoenfeld <https://sphere10.com>. MIT license. }
 
@@ -13,6 +13,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'Sphere 10 Pascal Framework';
   {$IFNDEF FPC}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.CreateForm(TFRMDemoMain, DemoMainForm);
   Application.Run;
