@@ -7,6 +7,12 @@ runs on the disposable GitHub-hosted runner. Version and checksum updates belong
 together; obtain both from the [official release](https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%204.8/)
 and [published checksums](https://www.lazarus-ide.org/index.php?page=checksums).
 
+Downloads start with the [publisher's mirror](https://download.lazarus-ide.org/)
+and have bounded SourceForge fallbacks because a mirror can return an HTML
+download page with HTTP 200. Every attempt logs its size, content type and
+SHA256; only the pinned checksum permits installation. A failed download never
+weakens verification or runs the returned page.
+
 Checkout and artifact upload use the official [checkout v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1)
 and [upload-artifact v7.0.2](https://github.com/actions/upload-artifact/releases/tag/v7.0.2)
 commits, pinned by SHA. The checkout step does not retain Git credentials.
