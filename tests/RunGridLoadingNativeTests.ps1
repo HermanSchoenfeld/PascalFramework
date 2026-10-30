@@ -10,7 +10,7 @@ $compiler = (Resolve-Path -LiteralPath $FpcPath).Path
 $lazarus = (Resolve-Path -LiteralPath $LazarusDirectory).Path
 if (-not $LibraryDirectory) { $LibraryDirectory = Join-Path $PSScriptRoot '..\src\Sphere10' }
 $library = (Resolve-Path -LiteralPath $LibraryDirectory).Path
-foreach ($unit in @('UVisualGrid.pas', 'ULoadingCircle.pas')) {
+foreach ($unit in @('UVisualGrid.pas')) {
     if (-not (Test-Path -LiteralPath (Join-Path $library $unit))) { throw "Missing library unit: $unit" }
 }
 $targetInfo = ((& $compiler '-iTP' '-iTO') -join ' ').Trim() -split '\s+'
