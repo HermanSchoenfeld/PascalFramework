@@ -32,7 +32,7 @@ The supplied projects target **Delphi 13 Community Edition**, **Lazarus 2.1 /
 Free Pascal 3.2.0** and **Lazarus 4.8 / Free Pascal 3.2.2** on Windows. Delphi
 uses VCL; Lazarus uses LCL's Win32 widgetset, including for Win64 applications.
 See [build instructions](#open-build-and-test) and the [test guide](tests/README.md)
-for the compiler-specific commands and verification scope. The [CI workflow](.github/README.md)
+for the compiler-specific commands and verification scope. The [CI workflow](.github/CI.md)
 builds the Lazarus package and demo and runs FPCUnit; its badge reports hosted
 GitHub results separately from local Delphi and Lazarus checks.
 The cache and wizard designs draw from the [Sphere10 C# framework](https://github.com/HermanSchoenfeld/Sphere10.Framework),
