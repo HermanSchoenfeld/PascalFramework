@@ -1,9 +1,11 @@
-# Sphere10 library packages
+# Sphere 10 Pascal Framework packages
 
 The packages contain Sphere10 units for common utilities, collections,
 disposal scopes, caching, data sources, application forms, the loading circle,
-visual grid, wizard and reader/writer locking through `UConcurrency`.
-Choose the project for your compiler.
+visual grid, wizard and shared-memory read/write locking through `UConcurrency`.
+The `Sphere10Framework.*` files are optional reusable library packages and
+project groups. They are build targets, not runnable applications; the main
+[demo](../examples/demo/README.md) has one Delphi and one Lazarus project.
 
 ## Delphi 13
 
@@ -29,7 +31,7 @@ its unit search path and use the units normally:
 ```pascal
 uses
   UMemory, UCommon, UCommon.Collections, UCache, UCommon.Data,
-  UCommon.UI, UConcurrency, ULoadingCircle, UVisualGrid, UWizard;
+  UCommon.UI, UConcurrency, UVisualGrid, UWizard;
 ```
 
 When using the grid sources directly, also add
@@ -62,7 +64,7 @@ requires Lazarus's LCLBase and FCL packages. `UVisualGrid` retains its existing
 design-time registration procedure.
 
 Choose Compile in the package editor to build the library. This is a library
-and component package; run [PascalFramework.lpi](../PascalFramework.lpi) for the
+and component package; run [Sphere10PascalFramework.lpi](../Sphere10PascalFramework.lpi) for the
 unified grid, wizard and cache demonstration. Installing design-time controls into an IDE is optional and
 requires an IDE rebuild; ordinary project builds do not require installation.
 

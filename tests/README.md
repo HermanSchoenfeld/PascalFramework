@@ -10,17 +10,17 @@ or VCL controls.
 
 | Fixture | Coverage |
 | --- | --- |
-| [UCache.Tests](UCache.Tests.pas) | Fetch/admission callbacks, hits, explicit writes, expiration, invalidation, staleness, null policies, every eviction policy, capacity accounting, pins, reentrant removal, failures and value ownership. |
+| [UCache.Tests](UCache.Tests.pas) | Per-key and whole-source fetching, preloaded snapshots, bulk writes, missing keys, fetch-once retention, expiration/invalidation, eviction, pins, callbacks, failures and value ownership. |
 | [UWizard.Tests](UWizard.Tests.pas) | Shared-model initialization, validation order, dynamic routes, Back navigation, finish/cancel vetoes and retry, terminal states, reentry, host closure and screen ownership. |
 | [UWizardDemo.Tests](UWizardDemo.Tests.pas) | The actual designer-backed showcase screens, command buttons, Name/Age validation, optional branches, route actions and retryable lifecycle outcomes. |
 | [UConcurrency.Tests](UConcurrency.Tests.pas) | Concurrent readers, exclusive writers, recursive ownership, upgradeable-read promotion/downgrade, finite/zero/infinite waits, rejected read promotion, wrong-thread release, writer preference, ownership/waiter counts and safe disposal. |
 | [UCommon.UI.Tests](UCommon.UI.Tests.pas) | Physical timer resets, leading/trailing/periodic modes, one-input completion, reentry, exceptions, cancellation, mode changes, stale callbacks, exact quiet deadlines and queued-listener ownership. Three boundary cases use real five-second waits. |
-| [UVisualGrid.Refresh.Tests](UVisualGrid.Refresh.Tests.pas) | Refresh admission, paging/filter/sort/source changes, visual resizing, latest-request retention, automatic page sizes, loading cards, cooperative suspension/cancellation, discarded obsolete results and event-driven worker completion without polling. |
+| [UVisualGrid.Refresh.Tests](UVisualGrid.Refresh.Tests.pas) | Refresh admission, paging/filter/sort/source changes, visual resizing, latest-request retention, native row-fit boundaries, automatic page sizes, loading cards, cooperative suspension/cancellation, discarded obsolete results and event-driven worker completion without polling. |
 | [UVisualGrid.Tests](UVisualGrid.Tests.pas) | Unique displayed-order rows from disjoint/overlapping selections and selection clearing. |
 | [UCommon.Data.Tests](UCommon.Data.Tests.pas) | Raw/query snapshot reuse, page-only conversion, counted filtering/sorting, nonblocking invalidation, retry, empty results, page bounds, named/positional Variant dispatch and Unicode schema names/values. |
 | [UFramework.UI.Integration.Tests](UFramework.UI.Integration.Tests.pas) | Duration values, docked forms, main-thread completion, worker lifetime, source replacement, recovery and concurrent schemas. |
-| [UCommon.Tests](UCommon.Tests.pas) | General utilities, signed/unsigned Variant classification and queued-listener disposal. |
-| [UCommon.Collections.Tests](UCommon.Collections.Tests.pas) | Collection helpers, array/list callback adapters, empty inputs, callback failures and repeated cleanup. |
+| [UCommon.Tests](UCommon.Tests.pas) | General utilities, exact log metadata, sample/population variance, byte-exact UTF-8 appends, signed/unsigned Variants and queued-listener disposal. |
+| [UCommon.Collections.Tests](UCommon.Collections.Tests.pas) | Array/list adapters, predicate inversion, exact-count copying, range boundaries, filtered object ownership, empty inputs, failures and cleanup. |
 | [UMemory.Tests](UMemory.Tests.pas) | Scoped object/memory ownership, allocation and disposal behavior. |
 
 [UWizard.TestScreens](UWizard.TestScreens.pas) keeps a reference-model generic
@@ -78,13 +78,15 @@ runner. See the [native guide](native/README.md) for arguments and expected resu
 
 | Project | Native behavior |
 | --- | --- |
+| [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared whole-source cache assertions and public API recipes. |
+| [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Actual cell bounds at pixel/DPI/header/scrollbar/resize boundaries. |
 | [ReadWriteLockProbe.dproj](native/ReadWriteLockProbe.dproj) | Real concurrent read/write/upgradeable ownership, recursion and timeout/cleanup behavior. |
 | [NativeThrottleProbe.dproj](native/NativeThrottleProbe.dproj) | Real five-second VCL timer scenarios, including physical callback resets, independent bursts, cancellation and exception recovery. |
 | [GridThrottleProbe.dproj](native/GridThrottleProbe.dproj) | Actual grid/provider admission, hidden/parentless controls, retained requests, selection bounds, queued completion and cooperative refresh suspension. |
 | [GridLoadingProbe.dproj](native/GridLoadingProbe.dproj) | Copied custom artwork, title/subtitle, input gating, fetch/error precedence, deferred loading and modeless focus/activation preservation. |
 | [DataRowVariantProbe.dproj](native/DataRowVariantProbe.dproj) | Positional/named row dispatch, copied values, actual grid cells and Unicode schema/wizard messages. |
 
-Build the root [PascalFramework.dproj](../PascalFramework.dproj) as well: it combines
+Build the root [Sphere10PascalFramework.dproj](../Sphere10PascalFramework.dproj) as well: it combines
 the real cache, grid and wizard examples in one executable. A native probe or
 source build does not establish runtime-package compatibility; build the optional
 [Sphere10Framework.dproj](../Sphere10Framework.dproj) separately.
@@ -117,24 +119,24 @@ desktop. Build/runtime logs remain in ignored `tests/lib` folders.
 
 ## Build and verification scope
 
-Verified locally on **30 October 2026**:
+Verified with the actual compilers and native controls:
 
-| Compiler/runtime | Builds | Executed checks |
+| Compiler/runtime | Build targets | Executed checks |
 | --- | --- | --- |
-| Lazarus 2.1 / Free Pascal 3.2.0, Win64 with the Win32 widgetset | Library package, unified demo, throttle demo and GUI test runner | **276 unit tests**, zero errors/failures; real modal wizard and loading-card checks; unified/throttle application startup and natural close. |
-| Lazarus 4.8 / Free Pascal 3.2.2, Win64 with the Win32 widgetset | The same four targets | **276 unit tests**, zero errors/failures; real modal wizard and loading-card checks; unified/throttle application startup and natural close. |
-| Delphi 13 Community Edition, VCL | Runtime package and unified demo, each in Win32/Win64 Debug/Release (**8 builds**) | Actual Delphi compiler builds; configuration defines and Debug/Release compiler settings checked. Native probe commands are documented above. |
+| Lazarus 2.1 / Free Pascal 3.2.0, Win64 / Win32 widgetset | Library package, unified demo and GUI test runner | FPCUnit suite and focused follow-up regressions; native viewport, loading and modal wizard checks; all demo actions and natural close. |
+| Lazarus 4.8 / Free Pascal 3.2.2, Win64 / Win32 widgetset | The same three targets | The same suite and shared recipes, native viewport/loading/wizard checks and application lifecycle checks. |
+| Delphi 13 Community Edition, VCL | Runtime package and unified demo, Win32/Win64 Debug/Release | Actual IDE compilation; native cache, grid, wizard and timer checks, complete API recipes and natural application close. |
 
-The Lazarus suite totals include 51 cache, 22 wizard, 10 actual wizard-demo,
-31 reader/writer-lock, 14 data-source and 47 grid refresh/admission/completion
-cases. The remaining cases cover shared utilities, collections, memory, UI
-integration, throttle behavior and queued notifications. The full suites exited
-normally. These local results are separate from hosted CI.
+The bulk cache probe runs the same assertions as the FPCUnit fixture through
+[UBulkCacheChecks](UBulkCacheChecks.pas). Grid viewport checks likewise share
+[UVisualGrid.Viewport.Checks](UVisualGrid.Viewport.Checks.pas) across FPCUnit and
+both native toolkits. Compiler-specific APIs are guarded in the shared recipes;
+FPC-only checks do not establish VCL compatibility.
 
 The source projects support Delphi 13 VCL and Lazarus/FPC LCL. Keep `.dfm` and
 `.lfm` companions together and verify the actual compiler for each UI runtime.
-Build the package, combined demo, GUI test runner and focused throttle demo as
-separate targets. The [CI job](../.github/CI.md) builds the root Lazarus package
+Build the optional package, combined demo and separate GUI test runner. The
+five-second throttle walkthrough is a tab in the combined demo. The [CI job](../.github/CI.md) builds the root Lazarus package
 and combined demo and runs the public console-test command with pinned Lazarus
 4.8/FPC 3.2.2. Its hosted status is shown on the
 [Actions page](https://github.com/HermanSchoenfeld/PascalFramework/actions/workflows/main.yml).
