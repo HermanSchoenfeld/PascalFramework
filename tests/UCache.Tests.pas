@@ -17,7 +17,7 @@ unit UCache.Tests;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, fpcunit, testregistry, UCache, UCommon, UMemory;
+  Classes, SysUtils, Generics.Collections, fpcunit, testregistry, UCache, UCommon, UMemory, UBulkCacheChecks;
 
 type
   TStringPair = TPair<Integer, AnsiString>;
@@ -91,6 +91,10 @@ type
       procedure ReplacementCreditsExistingSize;
       procedure SetPreservesFetchTimestamp;
       procedure BulkLoadDoesNotFetch;
+      procedure BulkLoadPreservesEarlierWritesOnFailure;
+      procedure BulkLoadRespectsPinsAndCapacity;
+      procedure BulkLoadRejectedOwnedValueRemainsCallerOwned;
+      procedure BulkLoadHonorsNullPolicies;
       procedure RemoveMissingIsHarmless;
       procedure FlushClearsMembershipAndSize;
       procedure ReapReturnsReleasedSize;
@@ -117,6 +121,37 @@ type
       procedure GlobalAdapters;
       procedure ObjectAdapters;
       procedure NestedAdapters;
+  end;
+
+  TBulkCacheTests = class(TTestCase)
+  published
+    procedure InitialGetLoadsCompleteSnapshot;
+    procedure InitialMissingKeyFetchesOnce;
+    procedure ContainsLoadsOnlyOnce;
+    procedure AllValuesReturnsCopiedSnapshot;
+    procedure FetchOnceIgnoresInvalidation;
+    procedure FetchOnceIgnoresExpiration;
+    procedure FetchOnceIgnoresStaleness;
+    procedure FetchOnceMissingDoesNotReload;
+    procedure PurgeStartsNewSnapshot;
+    procedure NullPoliciesKeepBorrowedOwnership;
+    procedure InvalidatedSnapshotReloads;
+    procedure ExpiredSnapshotReloads;
+    procedure StaleSnapshotReloads;
+    procedure ProviderFailurePurgesAndCanRetry;
+    procedure PreloadedBorrowsOriginalDictionary;
+    procedure MissingKeyThrowFetchesOnce;
+    procedure RemoveIsUnsupportedThroughBaseReference;
+    procedure GlobalObjectNestedAndInterfaceAdapters;
+    procedure NilProvidersRejected;
+    procedure ConcurrentReadsShareInitialBatch;
+    procedure CallbackReentryIsBounded;
+    procedure ConfiguredComparer;
+    procedure InitiallyStaleFetchesOnce;
+      procedure ReapRetainsInvalidatedFetchOnceEntry;
+      procedure ReapRetainsExpiredFetchOnceEntry;
+      procedure ReapPreservesRefreshableSnapshot;
+      procedure ReapKeepsArgumentAndDestructionGuards;
   end;
 
 implementation
@@ -621,6 +656,137 @@ begin
   end;
 end;
 
+procedure TCacheTests.BulkLoadPreservesEarlierWritesOnFailure;
+var
+  values : TStringPairList;
+begin
+  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  values := TStringPairList.Create;
+  try
+    values.Add(TStringPair.Create(1, 'a'));
+    values.Add(TStringPair.Create(2, 'oversized'));
+    values.Add(TStringPair.Create(3, 'b'));
+    try
+      FCache.BulkLoad(values);
+      Fail('An oversized batch value must be rejected');
+    except
+      on E: EInvalidOperation do ;
+    end;
+    AssertEquals('a', FCache[1]);
+    AssertFalse(FCache.ContainsCachedItem(2));
+    AssertFalse(FCache.ContainsCachedItem(3));
+    AssertEquals(1, FCache.ItemCount);
+    AssertEquals(1, Integer(FCache.CurrentSize));
+    AssertEquals(0, FCache.FetchCount);
+  finally values.Free; end;
+end;
+
+procedure TCacheTests.BulkLoadRespectsPinsAndCapacity;
+var
+  values : TStringPairList;
+begin
+  NewCache(6, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  FCache[1] := 'pin';
+  FCache.Get(1).CanPurge := false;
+  values := TStringPairList.Create;
+  try
+    values.Add(TStringPair.Create(2, 'two'));
+    values.Add(TStringPair.Create(3, 'new'));
+    FCache.BulkLoad(values);
+    AssertEquals('pin', FCache[1]);
+    AssertFalse(FCache.ContainsCachedItem(2));
+    AssertEquals('new', FCache[3]);
+    AssertEquals(2, FCache.ItemCount);
+    AssertEquals(6, Integer(FCache.CurrentSize));
+    AssertEquals(0, FCache.FetchCount);
+  finally values.Free; end;
+end;
+
+procedure TCacheTests.BulkLoadRejectedOwnedValueRemainsCallerOwned;
+type
+  TObjectPair = TPair<Integer, TObject>;
+var
+  cache : TObjectActionCache;
+  values : TList<TObjectPair>;
+  first, second : TObject;
+begin
+  DisposedObjectCount := 0;
+  FObjectSize := 1;
+  cache := TObjectActionCache.Create(nil,
+    TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject),
+    TObjectActionCache.TSizeEstimator.FromObjectFunction(EstimateObject),
+    idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone,
+    TObjectActionCache.TExpirationPolicy.epNone,
+    TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
+  values := TList<TObjectPair>.Create;
+  first := TTrackedObject.Create;
+  second := TTrackedObject.Create;
+  try
+    values.Add(TObjectPair.Create(1, first));
+    values.Add(TObjectPair.Create(2, second));
+    try
+      cache.BulkLoad(values);
+      Fail('A full non-reaping cache must reject the second batch value');
+    except
+      on E: EInvalidOperation do ;
+    end;
+    AssertEquals(0, DisposedObjectCount);
+    AssertTrue(first = cache[1]);
+    AssertFalse(cache.ContainsCachedItem(2));
+    second.Free;
+    second := nil;
+    AssertEquals(1, DisposedObjectCount);
+  finally
+    // Only admitted values transfer ownership; the list itself owns no values.
+    if Assigned(second) and (not cache.ContainsCachedItem(2)) then second.Free;
+    cache.Free;
+    values.Free;
+  end;
+  AssertEquals(2, DisposedObjectCount);
+end;
+
+procedure TCacheTests.BulkLoadHonorsNullPolicies;
+type
+  TObjectPair = TPair<Integer, TObject>;
+var
+  cache : TObjectActionCache;
+  values : TList<TObjectPair>;
+  value : TObject;
+  policy : TObjectActionCache.TNullValuePolicy;
+begin
+  FObjectFetchCount := 0;
+  values := TList<TObjectPair>.Create;
+  value := TObject.Create;
+  try
+    values.Add(TObjectPair.Create(1, nil));
+    values.Add(TObjectPair.Create(2, value));
+    for policy := Low(TObjectActionCache.TNullValuePolicy) to High(TObjectActionCache.TNullValuePolicy) do begin
+      cache := TObjectActionCache.Create(nil,
+        TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil,
+        idpNone, TObjectActionCache.TCacheReapPolicy.crpNone,
+        TObjectActionCache.TExpirationPolicy.epNone, policy, 1, TTimeSpan.MaxValue);
+      try
+        // Prefetched nulls obey the configured policy when read, just as SetValue does.
+        cache.BulkLoad(values);
+        AssertEquals(2, cache.ItemCount);
+        if policy = TObjectActionCache.TNullValuePolicy.nvpThrow then begin
+          try
+            cache.Get(1);
+            Fail('A prohibited prefetched null must throw on read');
+          except on E: EInvalidOperation do ; end;
+          AssertEquals(2, cache.ItemCount);
+        end else begin
+          AssertNull(cache[1]);
+          AssertEquals(policy = TObjectActionCache.TNullValuePolicy.nvpCacheNormally,
+            cache.ContainsCachedItem(1));
+        end;
+        AssertTrue(value = cache[2]);
+      finally cache.Free; end;
+    end;
+    AssertEquals(0, FObjectFetchCount);
+  finally value.Free; values.Free; end;
+end;
+
 procedure TCacheTests.RemoveMissingIsHarmless;
 begin
   NewCache;
@@ -1039,6 +1205,88 @@ begin
   end;
 end;
 
+procedure TBulkCacheTests.InitialGetLoadsCompleteSnapshot;
+begin RunBulkCacheCheck(1); end;
+
+procedure TBulkCacheTests.InitialMissingKeyFetchesOnce;
+begin RunBulkCacheCheck(2); end;
+
+procedure TBulkCacheTests.ContainsLoadsOnlyOnce;
+begin RunBulkCacheCheck(3); end;
+
+procedure TBulkCacheTests.AllValuesReturnsCopiedSnapshot;
+begin RunBulkCacheCheck(4); end;
+
+procedure TBulkCacheTests.FetchOnceIgnoresInvalidation;
+begin RunBulkCacheCheck(5); end;
+
+procedure TBulkCacheTests.FetchOnceIgnoresExpiration;
+begin RunBulkCacheCheck(6); end;
+
+procedure TBulkCacheTests.FetchOnceIgnoresStaleness;
+begin RunBulkCacheCheck(7); end;
+
+procedure TBulkCacheTests.FetchOnceMissingDoesNotReload;
+begin RunBulkCacheCheck(8); end;
+
+procedure TBulkCacheTests.PurgeStartsNewSnapshot;
+begin RunBulkCacheCheck(9); end;
+
+procedure TBulkCacheTests.NullPoliciesKeepBorrowedOwnership;
+begin RunBulkCacheCheck(10); end;
+
+procedure TBulkCacheTests.InvalidatedSnapshotReloads;
+begin RunBulkCacheCheck(11); end;
+
+procedure TBulkCacheTests.ExpiredSnapshotReloads;
+begin RunBulkCacheCheck(12); end;
+
+procedure TBulkCacheTests.StaleSnapshotReloads;
+begin RunBulkCacheCheck(13); end;
+
+procedure TBulkCacheTests.ProviderFailurePurgesAndCanRetry;
+begin RunBulkCacheCheck(14); end;
+
+procedure TBulkCacheTests.PreloadedBorrowsOriginalDictionary;
+begin RunBulkCacheCheck(15); end;
+
+procedure TBulkCacheTests.MissingKeyThrowFetchesOnce;
+begin RunBulkCacheCheck(16); end;
+
+procedure TBulkCacheTests.RemoveIsUnsupportedThroughBaseReference;
+begin RunBulkCacheCheck(17); end;
+
+procedure TBulkCacheTests.GlobalObjectNestedAndInterfaceAdapters;
+begin RunBulkCacheCheck(18); end;
+
+procedure TBulkCacheTests.NilProvidersRejected;
+begin RunBulkCacheCheck(19); end;
+
+procedure TBulkCacheTests.ConcurrentReadsShareInitialBatch;
+begin RunBulkCacheCheck(20); end;
+
+procedure TBulkCacheTests.CallbackReentryIsBounded;
+begin RunBulkCacheCheck(21); end;
+
+procedure TBulkCacheTests.ConfiguredComparer;
+begin RunBulkCacheCheck(22); end;
+
+procedure TBulkCacheTests.InitiallyStaleFetchesOnce;
+begin RunBulkCacheCheck(23); end;
+
+procedure TBulkCacheTests.ReapRetainsInvalidatedFetchOnceEntry;
+begin RunBulkCacheCheck(24); end;
+
+procedure TBulkCacheTests.ReapRetainsExpiredFetchOnceEntry;
+begin RunBulkCacheCheck(25); end;
+
+procedure TBulkCacheTests.ReapPreservesRefreshableSnapshot;
+begin RunBulkCacheCheck(26); end;
+
+procedure TBulkCacheTests.ReapKeepsArgumentAndDestructionGuards;
+begin RunBulkCacheCheck(27); end;
+
 initialization
   RegisterTest(TCacheTests);
+  RegisterTest(TBulkCacheTests);
 end.
