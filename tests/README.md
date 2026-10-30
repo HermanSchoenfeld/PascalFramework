@@ -134,7 +134,7 @@ normally. These local results are separate from hosted CI.
 The source projects support Delphi 13 VCL and Lazarus/FPC LCL. Keep `.dfm` and
 `.lfm` companions together and verify the actual compiler for each UI runtime.
 Build the package, combined demo, GUI test runner and focused throttle demo as
-separate targets. The [CI job](../.github/README.md) builds the root Lazarus package
+separate targets. The [CI job](../.github/CI.md) builds the root Lazarus package
 and combined demo and runs the public console-test command with pinned Lazarus
 4.8/FPC 3.2.2. Its hosted status is shown on the
 [Actions page](https://github.com/HermanSchoenfeld/PascalFramework/actions/workflows/main.yml).
