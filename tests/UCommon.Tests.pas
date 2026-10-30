@@ -70,12 +70,15 @@ type
     published
       procedure TestBasic;
       procedure Test100kData;
+      procedure VarianceOfThreeKnownValues;
+      procedure VarianceSmallSampleDomains;
+      procedure VarianceWithLargeCountDoesNotOverflow;
   end;
 
 implementation
 
 uses
-    Variants, Generics.Defaults, Generics.Collections, UCommon, UMemory,
+    Variants, Math, Generics.Defaults, Generics.Collections, UCommon, UMemory,
     UCommon.Collections;
 
 { TLogMessageTests }
@@ -613,9 +616,8 @@ begin
   AssertEquals(4, LStats.Mean);
   AssertEquals(6, LStats.PopulationVariance);
   AssertEquals(RoundEx(2.4495, 4), RoundEx(LStats.PopulationStandardDeviation, 4));
-  // note: inaccurate estimate, since using running algo
-  AssertEquals(RoundEx(9.3750, 4), LStats.SampleVariance);
-  AssertEquals(RoundEx(3.0619, 4), RoundEx(LStats.SampleStandardDeviation, 4));
+  AssertEquals(7.5, LStats.SampleVariance);
+  AssertEquals(2.7386, RoundEx(LStats.SampleStandardDeviation, 4));
 end;
 
 
@@ -629,6 +631,40 @@ begin
     LStats.AddDatum(i);
   AssertEquals(1, LStats.Minimum);
   AssertEquals(100000, LStats.Maximum);
+end;
+
+procedure TStatsTests.VarianceOfThreeKnownValues;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  LStats.AddDatum(1);
+  LStats.AddDatum(2);
+  LStats.AddDatum(3);
+  AssertEquals(2.0 / 3.0, LStats.PopulationVariance, EPSILON);
+  AssertEquals(1.0, LStats.SampleVariance, EPSILON);
+end;
+
+procedure TStatsTests.VarianceSmallSampleDomains;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  AssertTrue('Empty population variance is undefined', IsNaN(LStats.PopulationVariance));
+  AssertTrue('Empty sample variance is undefined', IsNaN(LStats.SampleVariance));
+  LStats.AddDatum(1);
+  AssertEquals(0.0, LStats.PopulationVariance);
+  AssertTrue('One value cannot estimate sample variance', IsNaN(LStats.SampleVariance));
+  LStats.AddDatum(3);
+  AssertEquals(1.0, LStats.PopulationVariance);
+  AssertEquals(2.0, LStats.SampleVariance);
+end;
+
+procedure TStatsTests.VarianceWithLargeCountDoesNotOverflow;
+var LStats: TStatistics;
+begin
+  LStats.Reset;
+  LStats.AddDatum(1, 100000);
+  AssertEquals(0.0, LStats.PopulationVariance);
+  AssertEquals(0.0, LStats.SampleVariance);
 end;
 
 initialization

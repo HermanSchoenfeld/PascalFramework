@@ -442,6 +442,8 @@ type
     property Maximum : Double read FMax;
     procedure Reset;
     function Mean : Double; inline;
+    // Population variance needs one value; sample variance needs two.
+    // Undefined variances return NaN, without changing the accumulated data.
     function PopulationVariance : Double; inline;
     function PopulationStandardDeviation : Double; inline;
     function PopulationVariationCoefficient : Double; inline;
@@ -2192,11 +2194,12 @@ begin
 end;
 
 function TStatistics.PopulationVariance : Double;
-var LSum : Double;
+var LSum, LCount : Double;
 begin
   LSum := Sum;
-  if SampleCount > 2 then
-    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / (SampleCount * SampleCount)
+  LCount := SampleCount;
+  if SampleCount > 0 then
+    Result := ((LCount * SquaredSum) - (LSum * LSum)) / (LCount * LCount)
   else
     Result := Nan;
 end;
@@ -2250,11 +2253,14 @@ begin
 end;
 
 function TStatistics.SampleVariance : Double;
-var LSum : Double;
+var LSum, LCount : Double;
 begin
   LSum := Sum;
-  if SampleCount > 2 then
-    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / ((SampleCount - 1) * (SampleCount - 1))
+  LCount := SampleCount;
+  // Bessel's correction divides the population numerator by n*(n-1).
+  // Keep the count real so large populations do not multiply integer counts.
+  if SampleCount >= 2 then
+    Result := ((LCount * SquaredSum) - (LSum * LSum)) / (LCount * (LCount - 1))
   else
     Result := Nan;
 end;
