@@ -66,6 +66,15 @@ type
       procedure TestStringListReleaseOnly;
   end;
 
+  TFileToolTests = class(TTestCase)
+    private
+      procedure CheckAppends(const ATexts: array of String; const AExpected: array of Byte);
+    published
+      procedure EmptyAppendWritesOnlyCRLF;
+      procedure ASCIIAppendHasNoBOMOrLengthPrefix;
+      procedure UnicodeAppendIncludesSupplementaryCharacter;
+      procedure RepeatedAppendsPreserveExactUTF8Lines;
+  end;
   TStatsTests = class(TTestCase)
     published
       procedure TestBasic;
@@ -597,6 +606,76 @@ begin
   strList.Free;
 end;
 
+{ TFileToolTests }
+
+function FileExampleUnicodeText: String;
+var LText: UnicodeString;
+  {$IFDEF FPC}LUTF8: UTF8String;{$ENDIF}
+begin
+  LText := #$0041#$03A9#$6F22#$D83D#$DE80;
+  {$IFDEF FPC}
+  // Emulate Lazarus UTF-8 String bytes even in a console using Windows ANSI.
+  // An ordinary assignment would transcode the fixture before AppendText runs.
+  LUTF8 := UTF8Encode(LText);
+  SetLength(Result, Length(LUTF8));
+  Move(LUTF8[1], Result[1], Length(LUTF8));
+  {$ELSE}
+  Result := LText;
+  {$ENDIF}
+end;
+
+procedure TFileToolTests.CheckAppends(const ATexts: array of String;
+  const AExpected: array of Byte);
+var
+  LGuid: TGUID;
+  LFileName: String;
+  LFile: TFileStream;
+  LActual: TBytes;
+  I: Integer;
+begin
+  CreateGUID(LGuid);
+  LFileName := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
+    'Sphere10UTF8-' + GUIDToString(LGuid) + '.tmp';
+  try
+    for I := 0 to High(ATexts) do TFileTool.AppendText(LFileName, ATexts[I]);
+    LFile := TFileStream.Create(LFileName, fmOpenRead or fmShareDenyWrite);
+    try
+      AssertEquals('Exact byte length, without a BOM or length prefix',
+        Int64(Length(AExpected)), LFile.Size);
+      SetLength(LActual, Length(AExpected));
+      if Length(LActual) > 0 then LFile.ReadBuffer(LActual[0], Length(LActual));
+    finally
+      LFile.Free;
+    end;
+    for I := 0 to High(AExpected) do
+      AssertEquals('UTF-8 byte ' + IntToStr(I), Integer(AExpected[I]), Integer(LActual[I]));
+  finally
+    if FileExists(LFileName) then DeleteFile(LFileName);
+  end;
+end;
+
+procedure TFileToolTests.EmptyAppendWritesOnlyCRLF;
+begin
+  CheckAppends([''], [$0D, $0A]);
+end;
+
+procedure TFileToolTests.ASCIIAppendHasNoBOMOrLengthPrefix;
+begin
+  CheckAppends(['ABC'], [$41, $42, $43, $0D, $0A]);
+end;
+
+procedure TFileToolTests.UnicodeAppendIncludesSupplementaryCharacter;
+begin
+  CheckAppends([FileExampleUnicodeText],
+    [$41, $CE, $A9, $E6, $BC, $A2, $F0, $9F, $9A, $80, $0D, $0A]);
+end;
+
+procedure TFileToolTests.RepeatedAppendsPreserveExactUTF8Lines;
+begin
+  CheckAppends([FileExampleUnicodeText, '', 'END'],
+    [$41, $CE, $A9, $E6, $BC, $A2, $F0, $9F, $9A, $80, $0D, $0A,
+     $0D, $0A, $45, $4E, $44, $0D, $0A]);
+end;
 { TStatsTests }
 
 procedure TStatsTests.TestBasic;
@@ -673,6 +752,7 @@ initialization
   RegisterTest(TLogMessageTests);
   RegisterTest(TResultTests);
   RegisterTest(TVariantToolTests);
+  RegisterTest(TFileToolTests);
   RegisterTest(TStatsTests);
 end.
 

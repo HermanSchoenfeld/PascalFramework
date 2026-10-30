@@ -2086,11 +2086,25 @@ begin
   Result := (lowercmp = 1) AND (uppercmp = -1);
 end;
 
+// Encode only at the file boundary. Lazarus String values contain UTF-8;
+// Delphi String values are UTF-16. GetBytes emits neither a BOM nor a prefix.
+procedure WriteUTF8Text(AStream: TStream; const AText: String);
+var LBytes: TBytes;
+begin
+  {$IFDEF FPC}
+  LBytes := TEncoding.UTF8.GetBytes(UTF8Decode(AText));
+  {$ELSE}
+  LBytes := TEncoding.UTF8.GetBytes(AText);
+  {$ENDIF}
+  if Length(LBytes) > 0 then
+    AStream.WriteBuffer(LBytes[0], Length(LBytes));
+end;
+
 { TFileStreamHelper }
 {$IFNDEF FPC}
 procedure TFileStreamHelper.WriteString(const AString : String);
 begin
-   Self.WriteBuffer(Pointer(AString)^, Length(AString));
+  WriteUTF8Text(Self, AString);
 end;
 {$ENDIF}
 
@@ -2108,7 +2122,7 @@ begin
     fstream.Seek(0, soFromEnd);
   end;
   try
-    fstream.{$IFDEF FPC}WriteAnsiString{$ELSE}WriteString{$ENDIF}(AText+#13#10);
+    WriteUTF8Text(fstream, AText + #13#10);
   finally
     fstream.Free;
   end;
