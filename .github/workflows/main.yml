@@ -37,12 +37,34 @@ jobs:
             throw 'This installation step is for an ephemeral GitHub-hosted runner.'
           }
           $file = "lazarus-$env:LAZARUS_VERSION-fpc-$env:FPC_VERSION-win64.exe"
-          $url = "https://downloads.sourceforge.net/project/lazarus/Lazarus%20Windows%2064%20bits/Lazarus%20$env:LAZARUS_VERSION/$file"
+          $path = "Lazarus%20Windows%2064%20bits/Lazarus%20$env:LAZARUS_VERSION/$file"
           $installer = Join-Path $env:RUNNER_TEMP $file
-          Invoke-WebRequest -Uri $url -OutFile $installer
-          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne $env:LAZARUS_SHA256) {
-            throw 'The Lazarus installer does not match the published release checksum.'
+          $downloadLog = Join-Path $env:RUNNER_TEMP 'lazarus-download.log'
+          # A mirror may return an HTML download page with HTTP 200. Try other
+          # official routes, but never run anything without the pinned checksum.
+          $verified = $false
+          $routes = @("https://download.lazarus-ide.org/$path",
+            "https://downloads.sourceforge.net/project/lazarus/$path",
+            "https://ixpeering.dl.sourceforge.net/project/lazarus/$path")
+          foreach ($route in $routes) {
+            $hostName = ([uri]$route).Host
+            $url = "${route}?download=1&ci=$env:GITHUB_RUN_ID"
+            try {
+              $response = Invoke-WebRequest -Uri $url -OutFile $installer -PassThru -TimeoutSec 180 -MaximumRetryCount 1 -RetryIntervalSec 2
+              $size = (Get-Item -LiteralPath $installer).Length
+              $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+              $type = $response.Headers['Content-Type'] -join ', '
+              $line = "$hostName bytes=$size content-type=$type sha256=$hash"
+              Write-Host $line
+              $line | Add-Content -LiteralPath $downloadLog
+              if ($hash -eq $env:LAZARUS_SHA256) { $verified = $true; break }
+            } catch {
+              $line = "$hostName download failed: $($_.Exception.Message)"
+              Write-Warning $line
+              $line | Add-Content -LiteralPath $downloadLog
+            }
           }
+          if (-not $verified) { throw 'No official mirror supplied the pinned Lazarus installer; see lazarus-download.log.' }
           $lazarus = Join-Path $env:RUNNER_TEMP "lazarus-$env:LAZARUS_VERSION"
           $installLog = Join-Path $env:RUNNER_TEMP 'lazarus-install.log'
           $arguments = @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
@@ -85,6 +107,7 @@ jobs:
             package-build.log
             demo-build.log
             tests/lib/console-*/build.log
+            ${{ runner.temp }}/lazarus-download.log
             ${{ runner.temp }}/lazarus-install.log
           if-no-files-found: ignore
           retention-days: 14
