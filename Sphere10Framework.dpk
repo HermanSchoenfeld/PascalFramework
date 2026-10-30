@@ -1,0 +1,29 @@
+package Sphere10Framework;
+
+{ Copyright © 2026 Herman Schoenfeld <https://www.sphere10.com>
+  Distributed under the MIT software license, see the accompanying LICENSE. }
+
+{$R *.res}
+{$DESCRIPTION 'Sphere10 Pascal utilities, cache, data sources, visual grid and wizard'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl,
+  vclx,
+  vclimg;
+
+contains
+  UConcurrency in 'src\Sphere10\UConcurrency.pas',
+  UMemory in 'src\Sphere10\UMemory.pas',
+  UCommon in 'src\Sphere10\UCommon.pas',
+  UCommon.Collections in 'src\Sphere10\UCommon.Collections.pas',
+  UCache in 'src\Sphere10\UCache.pas',
+  UCommon.Data in 'src\Sphere10\UCommon.Data.pas',
+  UCommon.UI in 'src\Sphere10\UCommon.UI.pas',
+  ULoadingCircle in 'src\Sphere10\ULoadingCircle.pas',
+  UVisualGrid in 'src\Sphere10\UVisualGrid.pas',
+  UWizard in 'src\Sphere10\UWizard.pas';
+
+end.

@@ -21,7 +21,13 @@ unit UCache;
 interface
 
 uses
-  Classes, SysUtils, SyncObjs, Generics.Collections, Generics.Defaults, UCommon, UMemory;
+  {$IFDEF FPC}
+  Classes, SysUtils, SyncObjs, Generics.Collections, Generics.Defaults,
+  {$ELSE}
+  System.Classes, System.SysUtils, System.SyncObjs, System.Generics.Collections,
+  System.Generics.Defaults, System.TimeSpan,
+  {$ENDIF}
+  UCommon, UMemory;
 
 type
   TItemDisposePolicy = TDisposePolicy;
@@ -178,16 +184,30 @@ type
 
   TActionCache<TKey, TValue> = class(TCacheBase<TKey, TValue>)
     public type
+      {$IFNDEF FPC}
+      TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
+      TCacheReapPolicy = TCacheBase<TKey,TValue>.TCacheReapPolicy;
+      TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
+      TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
+      {$ENDIF}
       IValueFetcher = interface
         function Fetch(const AKey: TKey): TValue;
       end;
       ISizeEstimator = interface
         function Estimate(const AValue: TValue) : SizeInt;
       end;
+      {$IFDEF FPC}
       TNestedFetchFunc = function (const AKey : TKey) : TValue is nested;
+      {$ELSE}
+      TNestedFetchFunc = reference to function (const AKey : TKey) : TValue;
+      {$ENDIF}
       TObjectFetchFunc = function (const AKey : TKey) : TValue of object;
       TGlobalFetchFunc = function (const AKey : TKey) : TValue;
+      {$IFDEF FPC}
       TNestedEstimateFunc = function (const AValue : TValue) : SizeInt is nested;
+      {$ELSE}
+      TNestedEstimateFunc = reference to function (const AValue : TValue) : SizeInt;
+      {$ENDIF}
       TObjectEstimateFunc = function (const AValue : TValue) : SizeInt of object;
       TGlobalEstimateFunc = function (const AValue : TValue) : SizeInt;
       TValueFetcher = class (TInterfacedObject, IValueFetcher)
@@ -266,7 +286,7 @@ type
 implementation
 
 uses
-  TypInfo, Math;
+  {$IFDEF FPC}TypInfo, Math{$ELSE}System.TypInfo, System.Math{$ENDIF};
 
 { TCachedItem }
 
@@ -300,7 +320,7 @@ end;
 
 { TCacheBase }
 
-constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TStaleValuePolicy);
+constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TCacheReapPolicy; const AExpirationPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy; const ANullValuePolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy);
 begin
   inherited Create(AOwner);
   if AMaxCapacity < 0 then
@@ -397,7 +417,7 @@ function TCacheBase<TKey, TValue>.IsNullValue(const AValue: TValue) : boolean;
 begin
   Result := false;
   case PTypeInfo(TypeInfo(TValue))^.Kind of
-    tkClass, tkInterface, tkPointer, tkClassRef, tkProcVar:
+    tkClass, tkInterface, tkPointer, tkClassRef, {$IFDEF FPC}tkProcVar{$ELSE}tkProcedure{$ENDIF}:
       Result := PPointer(@AValue)^ = nil;
   end;
 end;
@@ -901,7 +921,7 @@ end;
 
 { TActionCache }
 
-constructor TActionCache<TKey, TValue>.Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullPolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TStaleValuePolicy);
+constructor TActionCache<TKey, TValue>.Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TCacheReapPolicy; const AExpirationPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy; const ANullPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy);
 begin
   inherited Create(AOwner, AItemDisposePolicy, AReapPolicy, AExpirationPolicy, ANullPolicy, AMaxCapacity, AExpirationDuration, AReapLevel, AStaleValuePolicy);
   if not Assigned(AValueFetcher) then

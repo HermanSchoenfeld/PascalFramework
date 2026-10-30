@@ -32,6 +32,9 @@
 # FPC Lib folder
 lib/
 
+# VCL grid resource compiled from the checked-in RC and PNG.
+/src/Sphere10/UVisualGrid.VCL.res
+
 # FPC Backup
 backup/
 
@@ -73,3 +76,9 @@ __recovery/
 
 # Castalia statistics file (since XE7 Castalia is distributed with Delphi)
 *.stat
+
+# Compiler logs and Free Pascal compiler caches.
+*.err
+*.log
+*.compiled
+*.ppu

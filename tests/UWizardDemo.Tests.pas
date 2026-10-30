@@ -16,10 +16,10 @@ type
       function GetTestHost : TWizardHostForm;
     protected
       procedure ShowHost; override;
-      procedure ShowError(const message : AnsiString); override;
+      procedure ShowError(const message : String); override;
     public
       Run : TNotifyEvent;
-      LastError : AnsiString;
+      LastError : String;
       property TestHost : TWizardHostForm read GetTestHost;
   end;
 
@@ -70,7 +70,7 @@ begin
   if Assigned(Run) then Run(self);
 end;
 
-procedure TFeatureProbeWizard.ShowError(const message : AnsiString);
+procedure TFeatureProbeWizard.ShowError(const message : String);
 begin
   LastError := message;
 end;
@@ -172,12 +172,12 @@ end;
 
 procedure TWizardDemoTests.VerifyAgeAndNoBack(Sender : TObject);
 const
-  invalidAges : array[0..3] of AnsiString = ('', '-1', 'abc', '2147483648');
+  invalidAges : array[0..3] of String = ('', '-1', 'abc', '2147483648');
 var
   screen : TWIZFeatureAge;
   value : string;
   originalAge : Integer;
-  message : AnsiString;
+  message : String;
 begin
   EnterName;
   screen := TWIZFeatureAge(FWizard.CurrentScreen);
@@ -291,7 +291,7 @@ end;
 
 procedure TWizardDemoTests.VerifyFinishRetry(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   EnterSummary;
   TWIZFeatureSummary(FWizard.CurrentScreen).FFinishOutcomeComboBox.ItemIndex := Ord(FOutcome);
@@ -328,7 +328,7 @@ end;
 
 procedure TWizardDemoTests.VerifyCancelRetry(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   FModel.CancelOutcome := FOutcome;
   AssertFalse(FWizard.Cancel(message));
@@ -351,7 +351,7 @@ end;
 
 procedure TWizardDemoTests.VerifyCancellationLock(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   FWizard.SetCancellationAllowed(false);
   AssertFalse(FWizard.IsCancellable);

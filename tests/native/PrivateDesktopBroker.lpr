@@ -43,7 +43,7 @@ begin
         RaiseLastOSError;
       try
         Writeln('Started own QA child PID ', child.dwProcessId, ' on private desktop ', desktopPath, '; input desktop unchanged');
-        waitResult := WaitForSingleObject(child.hProcess, 20000);
+        waitResult := WaitForSingleObject(child.hProcess, 40000);
         if waitResult = WAIT_TIMEOUT then begin
           TerminateProcess(child.hProcess, 124);
           WaitForSingleObject(child.hProcess, 5000);

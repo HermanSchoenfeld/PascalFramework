@@ -1,21 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <CONFIG>
   <ProjectGroup FileVersion="2">
     <Targets>
-      <Target FileName="examples/wizard/FrameworkTester.lpi">
+      <Target FileName="PascalFramework.lpi">
         <BuildModes>
-          <Mode Name="Default" Compile="True"/>
+          <Mode Name="Default" Compile="True" />
         </BuildModes>
       </Target>
-      <Target FileName="packages/Sphere10Framework.lpk"/>
-      <Target FileName="examples/cache/CacheExample.lpi">
-        <BuildModes>
-          <Mode Name="Default" Compile="True"/>
-        </BuildModes>
-      </Target>
+      <Target FileName="Sphere10Framework.lpk" />
       <Target FileName="tests/FrameworkTests.lpi">
         <BuildModes>
-          <Mode Name="Default" Compile="True"/>
+          <Mode Name="Default" Compile="True" />
         </BuildModes>
       </Target>
     </Targets>

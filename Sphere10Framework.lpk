@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="Sphere10Framework"/>
+    <Type Value="RunAndDesignTime"/>
+    <Description Value="Sphere10 Pascal Framework cache, wizard, collections, data and visual grid components."/>
+    <License Value="MIT"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="src\Sphere10;src\Generics.Collections\inc"/>
+        <OtherUnitFiles Value="src\Sphere10;src\Generics.Collections"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(LCLWidgetType)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files Count="20">
+      <Item1>
+        <Filename Value="src\Sphere10\UCache.pas"/>
+        <UnitName Value="UCache"/>
+      </Item1>
+      <Item2>
+        <Filename Value="src\Sphere10\UCommon.pas"/>
+        <UnitName Value="UCommon"/>
+      </Item2>
+      <Item3>
+        <Filename Value="src\Sphere10\UCommon.Collections.pas"/>
+        <UnitName Value="UCommon.Collections"/>
+      </Item3>
+      <Item4>
+        <Filename Value="src\Sphere10\UCommon.Data.pas"/>
+        <UnitName Value="UCommon.Data"/>
+      </Item4>
+      <Item5>
+        <Filename Value="src\Sphere10\UCommon.UI.pas"/>
+        <UnitName Value="UCommon.UI"/>
+      </Item5>
+      <Item6>
+        <Filename Value="src\Sphere10\UMemory.pas"/>
+        <UnitName Value="UMemory"/>
+      </Item6>
+      <Item7>
+        <Filename Value="src\Sphere10\UVisualGrid.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="UVisualGrid"/>
+      </Item7>
+      <Item8>
+        <Filename Value="src\Sphere10\UWizard.pas"/>
+        <UnitName Value="UWizard"/>
+      </Item8>
+      <Item9>
+        <Filename Value="src\Generics.Collections\generics.collections.pas"/>
+        <UnitName Value="Generics.Collections"/>
+      </Item9>
+      <Item10>
+        <Filename Value="src\Generics.Collections\generics.defaults.pas"/>
+        <UnitName Value="Generics.Defaults"/>
+      </Item10>
+      <Item11>
+        <Filename Value="src\Generics.Collections\generics.hashes.pas"/>
+        <UnitName Value="Generics.Hashes"/>
+      </Item11>
+      <Item12>
+        <Filename Value="src\Generics.Collections\generics.helpers.pas"/>
+        <UnitName Value="Generics.Helpers"/>
+      </Item12>
+      <Item13>
+        <Filename Value="src\Generics.Collections\generics.memoryexpanders.pas"/>
+        <UnitName Value="Generics.MemoryExpanders"/>
+      </Item13>
+      <Item14>
+        <Filename Value="src\Generics.Collections\generics.strings.pas"/>
+        <UnitName Value="Generics.Strings"/>
+      </Item14>
+      <Item15>
+        <Filename Value="src\Sphere10\UVisualGrid.inc"/>
+        <Type Value="Include"/>
+      </Item15>
+      <Item16>
+        <Filename Value="src\Generics.Collections\inc\generics.dictionaries.inc"/>
+        <Type Value="Include"/>
+      </Item16>
+      <Item17>
+        <Filename Value="src\Generics.Collections\inc\generics.dictionariesh.inc"/>
+        <Type Value="Include"/>
+      </Item17>
+      <Item18>
+        <Filename Value="src\Sphere10\UWizard.lfm"/>
+        <Type Value="LFM"/>
+      </Item18>
+      <Item19>
+        <Filename Value="src\Sphere10\ULoadingCircle.pas"/>
+        <UnitName Value="ULoadingCircle"/>
+      </Item19>
+      <Item20>
+        <Filename Value="src\Sphere10\UConcurrency.pas"/>
+        <UnitName Value="UConcurrency"/>
+      </Item20>
+    </Files>
+    <RequiredPkgs Count="2">
+      <Item1>
+        <PackageName Value="LCLBase"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

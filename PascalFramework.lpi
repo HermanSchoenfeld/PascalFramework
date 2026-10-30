@@ -1,0 +1,157 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12" />
+    <PathDelim Value="\" />
+    <General>
+      <SessionStorage Value="InProjectDir" />
+      <MainUnit Value="0" />
+      <Title Value="PascalFramework" />
+      <ResourceType Value="res" />
+      <UseXPManifest Value="True" />
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True" />
+    </BuildModes>
+    <RequiredPackages Count="2">
+      <Item1>
+        <PackageName Value="RunTimeTypeInfoControls" />
+      </Item1>
+      <Item2>
+        <PackageName Value="LCL" />
+      </Item2>
+    </RequiredPackages>
+    <Units Count="20">
+      <Unit0>
+        <Filename Value="PascalFramework.dpr" />
+        <IsPartOfProject Value="True" />
+        <UnitName Value="PascalFramework" />
+      </Unit0>
+      <Unit1>
+        <Filename Value="examples\demo\fMain.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit1>
+      <Unit2>
+        <Filename Value="examples\demo\UCacheDemo.pas" />
+        <IsPartOfProject Value="True" />
+      </Unit2>
+      <Unit3>
+        <Filename Value="examples\demo\UFRMDemoMain.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit3>
+      <Unit4>
+        <Filename Value="examples\demo\UFRMMain.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit4>
+      <Unit5>
+        <Filename Value="examples\demo\UFRMNotifyManyTest.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit5>
+      <Unit6>
+        <Filename Value="examples\demo\UFRMWorkArea.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit6>
+      <Unit7>
+        <Filename Value="examples\demo\USplitterTest.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit7>
+      <Unit8>
+        <Filename Value="examples\demo\UWizardFeatureDemo.pas" />
+        <IsPartOfProject Value="True" />
+      </Unit8>
+      <Unit9>
+        <Filename Value="examples\demo\UWizardFeatureModel.pas" />
+        <IsPartOfProject Value="True" />
+      </Unit9>
+      <Unit10>
+        <Filename Value="examples\demo\UWIZFeatureAge.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit10>
+      <Unit11>
+        <Filename Value="examples\demo\UWIZFeatureBase.pas" />
+        <IsPartOfProject Value="True" />
+      </Unit11>
+      <Unit12>
+        <Filename Value="examples\demo\UWIZFeatureCommit.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit12>
+      <Unit13>
+        <Filename Value="examples\demo\UWIZFeatureName.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit13>
+      <Unit14>
+        <Filename Value="examples\demo\UWIZFeatureOptional.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit14>
+      <Unit15>
+        <Filename Value="examples\demo\UWIZFeatureSummary.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit15>
+      <Unit16>
+        <Filename Value="examples\demo\UWIZName_Step1.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit16>
+      <Unit17>
+        <Filename Value="examples\demo\UWIZName_Step1A.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit17>
+      <Unit18>
+        <Filename Value="examples\demo\UWIZName_Step1B.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit18>
+      <Unit19>
+        <Filename Value="examples\demo\UWIZName_Step2.pas" />
+        <IsPartOfProject Value="True" />
+        <HasResources Value="True" />
+        <ResourceBaseClass Value="Form" />
+      </Unit19>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11" />
+    <PathDelim Value="\" />
+    <Target>
+      <Filename Value="lib\FPC\$(TargetCPU)-$(TargetOS)\demo\PascalFramework" />
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);examples\demo;src\Sphere10;src\Generics.Collections\inc" />
+      <OtherUnitFiles Value="examples\demo;src\Sphere10;src\Generics.Collections" />
+      <UnitOutputDirectory Value="lib\FPC\$(TargetCPU)-$(TargetOS)\demo" />
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True" />
+        </Win32>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+</CONFIG>

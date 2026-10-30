@@ -1,9 +1,10 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string] $FpcPath,
     [Parameter(Mandatory = $true)]
     [string] $LazarusDirectory,
-    [string[]] $TestArguments = @('--all', '--format=plain')
+    [string[]] $TestArguments = @('--all', '--format=plain'),
+    [string] $OutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,15 +18,16 @@ $target = "$($targetInfo[0])-$($targetInfo[1])"
 if ($targetInfo[1] -ne 'win64' -and $targetInfo[1] -ne 'win32') {
     throw 'This script uses the Lazarus Win32 widgetset. Use the Lazarus project for other platforms.'
 }
-$outputDirectory = Join-Path $PSScriptRoot "lib\console-$target"
-New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $PSScriptRoot "lib\console-$target" }
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+$outputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $buildLog = Join-Path $outputDirectory 'build.log'
 $testExecutable = Join-Path $outputDirectory 'FrameworkTestsConsole.exe'
 $compilerArguments = @(
-    '-MDelphi', '-gl', '-dUNITTEST',
+    '-B', '-MDelphi', '-gl', '-dUNITTEST',
     "-Fu$PSScriptRoot\..\src\Sphere10",
     "-Fu$PSScriptRoot\..\src\Generics.Collections",
-    "-Fu$PSScriptRoot\..\examples\wizard",
+    "-Fu$PSScriptRoot\..\examples\demo",
     "-Fu$lazarus\lcl\units\$target",
     "-Fu$lazarus\lcl\units\$target\win32",
     "-Fu$lazarus\components\lazutils\lib\$target",

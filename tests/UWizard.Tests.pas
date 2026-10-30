@@ -2,6 +2,7 @@ unit UWizard.Tests;
 
 {$mode delphi}
 {$H+}
+{$codepage UTF8}
 
 interface
 
@@ -19,6 +20,7 @@ type
       NextCount : Integer;
       PreviousCount : Integer;
       AllowNext : boolean;
+      FailureMessage : String;
       InjectedScreen : TComponentClass;
       NextAction : TNotifyEvent;
       class var DestroyCount : Integer;
@@ -29,7 +31,7 @@ type
       procedure Initialize; override;
       procedure OnNext; override;
       procedure OnPrevious; override;
-      function Validate(out message : AnsiString) : boolean; override;
+      function Validate(out message : String) : boolean; override;
   end;
 
   TFirstWizardScreen = class(TProbeWizardScreen);
@@ -45,18 +47,19 @@ type
       function GetTestHost : TWizardHostForm;
     protected
       procedure ShowHost; override;
-      procedure ShowError(const message : AnsiString); override;
-      function FinishRequested(out message : AnsiString) : boolean; override;
-      function CancelRequested(out message : AnsiString) : boolean; override;
+      procedure ShowError(const message : String); override;
+      function FinishRequested(out message : String) : boolean; override;
+      function CancelRequested(out message : String) : boolean; override;
     public
       Run : TNotifyEvent;
       FinishAction : TNotifyEvent;
       CancelAction : TNotifyEvent;
       AllowFinish : boolean;
       AllowCancel : boolean;
+      FailureMessage : String;
       FinishCount : Integer;
       CancelCount : Integer;
-      LastError : AnsiString;
+      LastError : String;
       constructor Create(const screens : array of TComponentClass);
       property TestHost : TWizardHostForm read GetTestHost;
   end;
@@ -97,6 +100,7 @@ type
       procedure CountFinished(Sender : TObject);
       procedure VerifyReferenceModel(Sender : TObject);
       procedure VerifyHiddenDetachment(Sender : TObject);
+      procedure VerifyNativeStringMessages(Sender : TObject);
     protected
       procedure TearDown; override;
     published
@@ -121,6 +125,7 @@ type
       procedure InitializationFailureReleasesHostAndRetainsScreenOwnership;
       procedure ReferenceModelScreensAcrossUnitsNavigateAndFinish;
       procedure NavigationAndHostCleanupHideScreensBeforeDetaching;
+      procedure NativeStringMessagesAndCaptionsPreserveText;
   end;
 
 implementation
@@ -172,11 +177,14 @@ begin
   Model := Model + 1;
 end;
 
-function TProbeWizardScreen.Validate(out message : AnsiString) : boolean;
+function TProbeWizardScreen.Validate(out message : String) : boolean;
 begin
   message := '';
   Result := AllowNext;
-  if NOT Result then message := 'Choose a branch';
+  if NOT Result then begin
+    message := FailureMessage;
+    if message = '' then message := 'Choose a branch';
+  end;
 end;
 
 procedure TFailingWizardScreen.Initialize;
@@ -202,27 +210,33 @@ begin
   if Assigned(Run) then Run(self);
 end;
 
-procedure TProbeWizard.ShowError(const message : AnsiString);
+procedure TProbeWizard.ShowError(const message : String);
 begin
   LastError := message;
 end;
 
-function TProbeWizard.FinishRequested(out message : AnsiString) : boolean;
+function TProbeWizard.FinishRequested(out message : String) : boolean;
 begin
   inc(FinishCount);
   if Assigned(FinishAction) then FinishAction(self);
   Result := AllowFinish;
   message := '';
-  if NOT Result then message := 'Keep editing';
+  if NOT Result then begin
+    message := FailureMessage;
+    if message = '' then message := 'Keep editing';
+  end;
 end;
 
-function TProbeWizard.CancelRequested(out message : AnsiString) : boolean;
+function TProbeWizard.CancelRequested(out message : String) : boolean;
 begin
   inc(CancelCount);
   if Assigned(CancelAction) then CancelAction(self);
   Result := AllowCancel;
   message := '';
-  if NOT Result then message := 'Cannot cancel yet';
+  if NOT Result then begin
+    message := FailureMessage;
+    if message = '' then message := 'Cannot cancel yet';
+  end;
 end;
 
 function TReferenceProbeWizard.GetTestHost : TWizardHostForm;
@@ -257,7 +271,7 @@ end;
 
 procedure TWizardTests.VerifyInitializationAndNavigation(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   first, second : TProbeWizardScreen;
 begin
   first := TProbeWizardScreen(FWizard.CurrentScreen);
@@ -287,7 +301,7 @@ end;
 
 procedure TWizardTests.VerifyValidation(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   first : TProbeWizardScreen;
 begin
   first := TProbeWizardScreen(FWizard.CurrentScreen);
@@ -318,7 +332,7 @@ end;
 
 procedure TWizardTests.VerifyDynamicBranch(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   first : TProbeWizardScreen;
 begin
   first := TProbeWizardScreen(FWizard.CurrentScreen);
@@ -340,7 +354,7 @@ end;
 
 procedure TWizardTests.RejectedFinishStaysActiveAndAcceptedFinishRunsOnce;
 var
-  message : AnsiString;
+  message : String;
 begin
   RunWizard([TFirstWizardScreen], VerifyFinishVeto);
   AssertTrue(FWizard.Finish(message));
@@ -356,7 +370,7 @@ end;
 
 procedure TWizardTests.VerifyFinishVeto(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   FWizard.FinishedEvent.Add(CountFinished);
   FWizard.AllowFinish := false;
@@ -388,7 +402,7 @@ end;
 
 procedure TWizardTests.VerifyFinishException(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   raised : boolean;
 begin
   FWizard.FinishAction := RaiseCallbackError;
@@ -411,7 +425,7 @@ end;
 
 procedure TWizardTests.FailedCancellationCanBeRetried;
 var
-  message : AnsiString;
+  message : String;
 begin
   RunWizard([TFirstWizardScreen], VerifyCancelException);
   AssertTrue('Accepted cancellation remains idempotent after the host closes', FWizard.Cancel(message));
@@ -422,7 +436,7 @@ end;
 
 procedure TWizardTests.VerifyCancelException(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   raised : boolean;
 begin
   FWizard.CancelAction := RaiseCallbackError;
@@ -451,7 +465,7 @@ end;
 
 procedure TWizardTests.VerifyCancellation(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   FWizard.IsCancellable := false;
   AssertFalse(FWizard.Cancel(message));
@@ -482,7 +496,7 @@ end;
 
 procedure TWizardTests.VerifyCancellationRecheck(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   FWizard.CancelAction := DisableCancellation;
   AssertFalse(FWizard.Cancel(message));
@@ -500,7 +514,7 @@ end;
 
 procedure TWizardTests.RejectNestedNavigation(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   AssertTrue(FWizard.IsBusy);
   AssertFalse(FWizard.TryNext(message));
@@ -511,7 +525,7 @@ end;
 
 procedure TWizardTests.RejectNestedTerminal(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   AssertEquals(Ord(wsFinishing), Ord(FWizard.State));
   AssertFalse(FWizard.Finish(message));
@@ -520,7 +534,7 @@ end;
 
 procedure TWizardTests.VerifyReentry(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   TProbeWizardScreen(FWizard.CurrentScreen).NextAction := RejectNestedNavigation;
   AssertTrue(FWizard.TryNext(message));
@@ -538,7 +552,7 @@ end;
 
 procedure TWizardTests.VerifyReplaceAndRemove(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   path : TWizardScreenPath;
 begin
   path := FWizard.Screens;
@@ -564,7 +578,7 @@ end;
 
 procedure TWizardTests.VerifyBacktracking(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   first : TProbeWizardScreen;
 begin
   first := TProbeWizardScreen(FWizard.CurrentScreen);
@@ -589,7 +603,7 @@ end;
 
 procedure TWizardTests.VerifyExplicitFinish(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
 begin
   AssertFalse(FWizard.Finish(message));
   AssertEquals(0, FWizard.FinishCount);
@@ -610,7 +624,7 @@ end;
 
 procedure TWizardTests.VerifyHostClose(Sender : TObject);
 var
-  message : AnsiString;
+  message : String;
   canClose : boolean;
 begin
   FWizard.IsCancellable := false;
@@ -695,7 +709,7 @@ end;
 
 procedure TWizardTests.UnstartedWizardCannotCompleteWithAnUnassignedModel;
 var
-  message : AnsiString;
+  message : String;
   raised : boolean;
 begin
   FWizard := TProbeWizard.Create([TFirstWizardScreen]);
@@ -806,6 +820,43 @@ begin
   AssertFalse(second.Visible);
   AssertTrue(second.Parent = nil);
   AssertTrue(first.Visible);
+end;
+
+procedure TWizardTests.NativeStringMessagesAndCaptionsPreserveText;
+begin
+  FWizard := TProbeWizard.Create([TFirstWizardScreen]);
+  FWizard.TitleText := 'Résumé — 漢字';
+  FWizard.FinishText := FWizard.TitleText;
+  FWizard.Run := VerifyNativeStringMessages;
+  FWizard.Start(42);
+  AssertTrue(FWizard.TestHost = nil);
+end;
+
+procedure TWizardTests.VerifyNativeStringMessages(Sender : TObject);
+var
+  LMessage, LText : String;
+  LScreen : TProbeWizardScreen;
+begin
+  // Native String out parameters must pass captions and errors without ANSI adapters.
+  LText := FWizard.TitleText;
+  AssertEquals(LText, FWizard.TestHost.TitleText);
+  AssertEquals(LText, FWizard.TestHost.NextText);
+  LScreen := TProbeWizardScreen(FWizard.CurrentScreen);
+  LScreen.AllowNext := False;
+  LScreen.FailureMessage := LText;
+  AssertFalse(FWizard.Finish(LMessage));
+  AssertEquals(LText, LMessage);
+  LScreen.AllowNext := True;
+  FWizard.AllowFinish := False;
+  FWizard.FailureMessage := LText;
+  AssertFalse(FWizard.Finish(LMessage));
+  AssertEquals(LText, LMessage);
+  AssertEquals(1, FWizard.FinishCount);
+  FWizard.AllowCancel := False;
+  AssertFalse(FWizard.Cancel(LMessage));
+  AssertEquals(LText, LMessage);
+  FWizard.AllowCancel := True;
+  AssertTrue(FWizard.Cancel(LMessage));
 end;
 
 initialization

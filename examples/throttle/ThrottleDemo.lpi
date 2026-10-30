@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12" />
+    <PathDelim Value="\" />
+    <General>
+      <SessionStorage Value="InProjectDir" />
+      <MainUnit Value="0" />
+      <Title Value="Five-second grid throttle" />
+      <Flags><MainUnitHasCreateFormStatements Value="True" /></Flags>
+    </General>
+    <BuildModes Count="1"><Item1 Name="Default" Default="True" /></BuildModes>
+    <RequiredPackages Count="1"><Item1><PackageName Value="LCL" /></Item1></RequiredPackages>
+    <Units Count="2">
+      <Unit0><Filename Value="ThrottleDemo.dpr" /><IsPartOfProject Value="True" /></Unit0>
+      <Unit1><Filename Value="UThrottleDemo.pas" /><IsPartOfProject Value="True" /></Unit1>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11" />
+    <PathDelim Value="\" />
+    <Target><Filename Value="..\..\lib\FPC\$(TargetCPU)-$(TargetOS)\throttle-demo\ThrottleDemo" /></Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);..\..\src\Sphere10;..\..\src\Generics.Collections\inc" />
+      <OtherUnitFiles Value="..\..\src\Sphere10;..\..\src\Generics.Collections" />
+      <UnitOutputDirectory Value="..\..\lib\FPC\$(TargetCPU)-$(TargetOS)\throttle-demo\obj" />
+    </SearchPaths>
+    <Parsing><SyntaxOptions><SyntaxMode Value="Delphi" /></SyntaxOptions></Parsing>
+    <Linking><Options><Win32><GraphicApplication Value="True" /></Win32></Options></Linking>
+  </CompilerOptions>
+</CONFIG>

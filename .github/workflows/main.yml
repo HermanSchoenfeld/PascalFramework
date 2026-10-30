@@ -1,0 +1,90 @@
+name: Lazarus / FPC
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Windows x64 / Lazarus 4.8 / FPC 3.2.2
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      LAZARUS_VERSION: '4.8'
+      FPC_VERSION: '3.2.2'
+      # Published by the Lazarus project: https://www.lazarus-ide.org/index.php?page=checksums
+      LAZARUS_SHA256: ED25EE171D55E23CF14E0633159FDD2325EFBA56E186F8AB817AD3BF97D267D7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned official Lazarus distribution
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
+            throw 'This installation step is for an ephemeral GitHub-hosted runner.'
+          }
+          $file = "lazarus-$env:LAZARUS_VERSION-fpc-$env:FPC_VERSION-win64.exe"
+          $url = "https://downloads.sourceforge.net/project/lazarus/Lazarus%20Windows%2064%20bits/Lazarus%20$env:LAZARUS_VERSION/$file"
+          $installer = Join-Path $env:RUNNER_TEMP $file
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne $env:LAZARUS_SHA256) {
+            throw 'The Lazarus installer does not match the published release checksum.'
+          }
+          $lazarus = Join-Path $env:RUNNER_TEMP "lazarus-$env:LAZARUS_VERSION"
+          $installLog = Join-Path $env:RUNNER_TEMP 'lazarus-install.log'
+          $arguments = @('/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
+            '/NOICONS', '/TASKS=""', '/TYPE=custom', '/COMPONENTS=""',
+            ('/DIR="{0}"' -f $lazarus), ('/LOG="{0}"' -f $installLog))
+          $setup = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Lazarus installation failed: $($setup.ExitCode)" }
+          $fpc = Join-Path $lazarus "fpc\$env:FPC_VERSION\bin\x86_64-win64\fpc.exe"
+          if (-not (Test-Path -LiteralPath $fpc)) { throw 'The bundled x64 Free Pascal compiler was not installed.' }
+          "LAZARUS_DIR=$lazarus" | Add-Content -LiteralPath $env:GITHUB_ENV
+          "FPC_EXE=$fpc" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Build the package and unified demo
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:FPC_EXE -iV
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $lazbuild = Join-Path $env:LAZARUS_DIR 'lazbuild.exe'
+          $config = Join-Path $env:RUNNER_TEMP 'lazarus-config'
+          $common = @("--lazarusdir=$env:LAZARUS_DIR", "--compiler=$env:FPC_EXE", "--pcp=$config", '--ws=win32')
+          # Register the demo's property-editor package in this isolated profile.
+          & $lazbuild @common --add-package-link "$env:LAZARUS_DIR\components\rtticontrols\runtimetypeinfocontrols.lpk"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $lazbuild @common --build-all --no-write-project Sphere10Framework.lpk *> package-build.log
+          if ($LASTEXITCODE -ne 0) { Get-Content package-build.log -Tail 80; exit $LASTEXITCODE }
+          & $lazbuild @common --build-all --no-write-project PascalFramework.lpi *> demo-build.log
+          if ($LASTEXITCODE -ne 0) { Get-Content demo-build.log -Tail 80; exit $LASTEXITCODE }
+
+      - name: Run the FPCUnit suite
+        run: |
+          & .\tests\RunTests.ps1 -FpcPath $env:FPC_EXE -LazarusDirectory $env:LAZARUS_DIR
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lazarus-fpc-logs
+          path: |
+            package-build.log
+            demo-build.log
+            tests/lib/console-*/build.log
+            ${{ runner.temp }}/lazarus-install.log
+          if-no-files-found: ignore
+          retention-days: 14
