@@ -15,7 +15,7 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(LCLWidgetType)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="20">
+    <Files Count="19">
       <Item1>
         <Filename Value="src\Sphere10\UCache.pas"/>
         <UnitName Value="UCache"/>
@@ -90,13 +90,9 @@
         <Type Value="LFM"/>
       </Item18>
       <Item19>
-        <Filename Value="src\Sphere10\ULoadingCircle.pas"/>
-        <UnitName Value="ULoadingCircle"/>
-      </Item19>
-      <Item20>
         <Filename Value="src\Sphere10\UConcurrency.pas"/>
         <UnitName Value="UConcurrency"/>
-      </Item20>
+      </Item19>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

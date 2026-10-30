@@ -32,7 +32,7 @@ uses
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Controls, Vcl.Grids, Vcl.Graphics, Vcl.Menus,
   Vcl.Buttons, Vcl.ComCtrls, Vcl.CheckLst, Vcl.Forms, Winapi.Windows, Winapi.Messages,
   {$ENDIF}
-  UCommon, UCommon.UI, UCommon.Data, UCommon.Collections, ULoadingCircle;
+  UCommon, UCommon.UI, UCommon.Data, UCommon.Collections;
 
 {$IFNDEF FPC}
   {$DEFINE VISUALGRID_VCL_DECLARATIONS}

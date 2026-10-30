@@ -9,7 +9,7 @@ unit UVisualGrid.Refresh.Tests;
 interface
 
 uses Classes, SysUtils, Types, Forms, Controls, StdCtrls, ExtCtrls, Graphics, SyncObjs, Variants, Generics.Collections,
-  fpcunit, testregistry, UCommon, UCommon.UI, UCommon.Data, UVisualGrid, ULoadingCircle;
+  fpcunit, testregistry, UCommon, UCommon.UI, UCommon.Data, UVisualGrid;
 
 type
   { Reused by product tests which add their own notification source. }

@@ -22,7 +22,6 @@ contains
   UCache in 'src\Sphere10\UCache.pas',
   UCommon.Data in 'src\Sphere10\UCommon.Data.pas',
   UCommon.UI in 'src\Sphere10\UCommon.UI.pas',
-  ULoadingCircle in 'src\Sphere10\ULoadingCircle.pas',
   UVisualGrid in 'src\Sphere10\UVisualGrid.pas',
   UWizard in 'src\Sphere10\UWizard.pas';
 

@@ -12,7 +12,7 @@ procedure InitializeGridLoadingProbe(AForm:TForm;const ALog:String);
 function GridLoadingProbePassed:Boolean;
 implementation
 uses SysUtils,Windows,Controls,ExtCtrls,StdCtrls,Graphics,SyncObjs,Generics.Collections,Variants,
- UCommon.Data,UVisualGrid,ULoadingCircle;
+ UCommon.Data,UVisualGrid,UCommon.UI;
 type
  TSource=class(TCustomDataSource<Integer>)
  public FetchCount:LongInt;BlockRead,FailRead:Boolean;Entered,ReleaseRead:TEvent;

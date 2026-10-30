@@ -10,7 +10,7 @@ uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Variants,
   System.SyncObjs, System.Generics.Collections, Vcl.Forms, Vcl.Controls,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics,
-  UCommon, UCommon.UI, UCommon.Data, UVisualGrid, ULoadingCircle;
+  UCommon, UCommon.UI, UCommon.Data, UVisualGrid;
 
 type
   TProbeSource = class(TCustomDataSource<Integer>)
