@@ -119,6 +119,9 @@ type
       function EstimateSize(const AVal: TValue) : SizeInt; virtual; abstract;
       function Fetch(const AKey: TKey): TValue; virtual; abstract;
       function CheckStaleness(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean; virtual;
+      // Derived snapshot caches may prepare a complete read before delegating
+      // to Get. Ordinary caches retain their per-entry expiry/staleness check.
+      function ShouldFetch(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean; virtual;
       procedure MakeSpace(const requestedSpace: SizeInt);
       procedure MakeSpaceFast(const requestedSpace: SizeInt);
       procedure OnItemFetching(const AKey: TKey); virtual;
@@ -165,17 +168,19 @@ type
       // policy. A rejected explicit value remains owned by its caller; rejected
       // fetched values are disposed by the cache. Set preserves FetchedOn.
       procedure SetValue(const AKey: TKey; const AValue: TValue); virtual;
-      function ContainsCachedItem(const AKey : TKey) : boolean;
+      function ContainsCachedItem(const AKey : TKey) : boolean; virtual;
       function IsExpired(ACachedItem: __TCachedItem_TValue) : boolean;
       function IsStale(const AKey: TKey; AItem: __TCachedItem_TValue) : boolean;
       procedure BulkLoad(const ABulkValues : TEnumerable<__TPair_TKey_TValue>);
+      // Copies current values; object payloads remain borrowed from their owner.
+      function GetAllCachedValues : TArray<TValue>; virtual;
       procedure Invalidate(const AKey: TKey);
-      procedure Remove(const AKey: TKey);
+      procedure Remove(const AKey: TKey); virtual;
       // Reap respects pins and selects expired entries first. crpNone reaps only
       // expired/invalidated entries; explicit Remove/Purge ignore pins.
-      function Reap(AMinimumRelease: SizeInt) : SizeInt;
+      function Reap(AMinimumRelease: SizeInt) : SizeInt; virtual;
       // Purge/Flush remove only original membership, retaining callback additions.
-      procedure Purge;
+      procedure Purge; virtual;
       procedure Flush;
       property Values[const AKey: TKey] : TValue read GetValue write SetValue; default;
   end;
@@ -281,6 +286,118 @@ type
       function Fetch(const AKey: TKey): TValue; override;
     public
       constructor Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullPolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale); overload;
+  end;
+
+  { A whole-source cache. A first read loads every entry; an ordinary missing,
+    expired or stale read reloads once. FetchOnceOnly retains its initial
+    snapshot until explicit ForceRefresh or Purge. Payload objects are borrowed;
+    the fetch callback fills a temporary dictionary owned by the cache. }
+  TBulkFetchCacheBase<TKey, TValue> = class(TCacheBase<TKey, TValue>)
+  public type
+    {$IFNDEF FPC}
+    TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
+    TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
+    TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
+    {$ENDIF}
+    TBulkValues = TDictionary<TKey, TValue>;
+  private
+    FFetchOnceOnly, FLoaded, FRefreshing: Boolean;
+    FFetchCount: Cardinal;
+    FKeyComparer: IEqualityComparer<TKey>;
+  protected
+    function EstimateSize(const AVal: TValue) : SizeInt; override;
+    function Fetch(const AKey: TKey): TValue; override;
+    function ShouldFetch(const AKey: TKey; AItem: TCachedItem<TValue>) : boolean; override;
+    procedure BulkFetch(AValues: TBulkValues); virtual; abstract;
+  public
+    constructor Create(AOwner: TComponent; const AExpirationPolicy: TExpirationPolicy;
+      const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean = false;
+      ANullValuePolicy: TNullValuePolicy = nvpCacheNormally;
+      AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale;
+      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
+    function Get(const AKey: TKey): TCachedItem<TValue>; override;
+    function ContainsCachedItem(const AKey: TKey): Boolean; override;
+    function GetAllCachedValues: TArray<TValue>; override;
+    // Purge-first refresh: a failed provider leaves no previous snapshot.
+    procedure ForceRefresh;
+    procedure Purge; override;
+    procedure Remove(const AKey: TKey); override;
+    // Whole snapshots have zero-sized entries; per-entry reaping cannot release
+    // capacity and must not turn an otherwise retained snapshot into partial data.
+    function Reap(AMinimumRelease: SizeInt): SizeInt; override;
+    property FetchOnceOnly: Boolean read FFetchOnceOnly;
+    property FetchCount: Cardinal read FFetchCount;
+  end;
+
+  TBulkFetchActionCache<TKey, TValue> = class(TBulkFetchCacheBase<TKey, TValue>)
+  public type
+    {$IFNDEF FPC}
+    TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
+    TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
+    TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
+    {$ENDIF}
+    TBulkValues = TDictionary<TKey, TValue>;
+    IBulkValueFetcher = interface
+      procedure Fetch(AValues: TBulkValues);
+    end;
+    {$IFDEF FPC}
+    TNestedBulkFetchProc = procedure(AValues: TBulkValues) is nested;
+    {$ELSE}
+    TNestedBulkFetchProc = reference to procedure(AValues: TBulkValues);
+    {$ENDIF}
+    TObjectBulkFetchProc = procedure(AValues: TBulkValues) of object;
+    TGlobalBulkFetchProc = procedure(AValues: TBulkValues);
+    TBulkValueFetcher = class(TInterfacedObject, IBulkValueFetcher)
+    private
+      FFetcher: IBulkValueFetcher;
+    public
+      constructor Create(const AFetcher: IBulkValueFetcher);
+      procedure Fetch(AValues: TBulkValues);
+      class function FromNestedFunction(const AProc: TNestedBulkFetchProc): IBulkValueFetcher; static;
+      class function FromObjectFunction(const AProc: TObjectBulkFetchProc): IBulkValueFetcher; static;
+      class function FromGlobalFunction(const AProc: TGlobalBulkFetchProc): IBulkValueFetcher; static;
+    end;
+  private type
+    TGlobalFetcher = class(TInterfacedObject, IBulkValueFetcher)
+    private FProc: TGlobalBulkFetchProc;
+    public
+      constructor Create(const AProc: TGlobalBulkFetchProc);
+      procedure Fetch(AValues: TBulkValues);
+    end;
+    TObjectFetcher = class(TInterfacedObject, IBulkValueFetcher)
+    private FProc: TObjectBulkFetchProc;
+    public
+      constructor Create(const AProc: TObjectBulkFetchProc);
+      procedure Fetch(AValues: TBulkValues);
+    end;
+    TNestedFetcher = class(TInterfacedObject, IBulkValueFetcher)
+    private FProc: TNestedBulkFetchProc;
+    public
+      constructor Create(const AProc: TNestedBulkFetchProc);
+      procedure Fetch(AValues: TBulkValues);
+    end;
+  private
+    FFetcher: IBulkValueFetcher;
+  protected
+    procedure BulkFetch(AValues: TBulkValues); override;
+  public
+    constructor Create(AOwner: TComponent; const AFetcher: IBulkValueFetcher;
+      const AExpirationPolicy: TExpirationPolicy; const AExpirationDuration: TTimeSpan;
+      AFetchOnceOnly: Boolean = false; ANullValuePolicy: TNullValuePolicy = nvpCacheNormally;
+      AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale;
+      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
+  end;
+
+  { Borrows both the supplied dictionary and its object values. Keep the source
+    alive until this cache is freed. ForceRefresh sees edits made to the source. }
+  TPreloadedCache<TKey, TValue> = class(TBulkFetchCacheBase<TKey, TValue>)
+  private
+    FValues: TDictionary<TKey, TValue>;
+  protected
+    procedure BulkFetch(AValues: TDictionary<TKey, TValue>); override;
+  public
+    constructor Create(AOwner: TComponent; AValues: TDictionary<TKey, TValue>;
+      const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
   end;
 
 implementation
@@ -438,7 +555,7 @@ begin
       // retained last result. Keep our own reference until this operation ends.
       original := item;
       original._AddRef;
-      requiresFetch := (not item.FRemoving) and (IsExpired(item) or IsStale(AKey, item));
+      requiresFetch := ShouldFetch(AKey, item);
     end;
     if requiresFetch then begin
       RemoveItemInternal(AKey);
@@ -714,6 +831,26 @@ end;
 procedure TCacheBase<TKey, TValue>.Flush;
 begin
   Purge;
+end;
+
+function TCacheBase<TKey, TValue>.ShouldFetch(const AKey: TKey; AItem: __TCachedItem_TValue): boolean;
+begin
+  Result := (not AItem.FRemoving) and (IsExpired(AItem) or IsStale(AKey, AItem));
+end;
+
+function TCacheBase<TKey, TValue>.GetAllCachedValues: TArray<TValue>;
+var item: __TCachedItem_TValue; i: Integer;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    SetLength(Result,FInternalStorage.Count);
+    i := 0;
+    for item in FInternalStorage.Values do begin
+      Result[i] := item.Value;
+      Inc(i);
+    end;
+  finally FLock.Release; end;
 end;
 
 procedure TCacheBase<TKey, TValue>.BulkLoad(const ABulkValues: TEnumerable<__TPair_TKey_TValue>);
@@ -1075,6 +1212,225 @@ end;
 function TActionCache<TKey, TValue>.NestedFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
 begin
   Result := FFunc(AValue);
+end;
+
+{ TBulkFetchCacheBase }
+
+constructor TBulkFetchCacheBase<TKey, TValue>.Create(AOwner: TComponent;
+  const AExpirationPolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy;
+  const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
+  ANullValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy;
+  AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy;
+  const AKeyComparer: IEqualityComparer<TKey>);
+begin
+  inherited Create(AOwner,idpNone,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TCacheReapPolicy.{$ENDIF}crpNone,
+    AExpirationPolicy,ANullValuePolicy,High(SizeInt),AExpirationDuration,0.1,AStaleValuePolicy);
+  FFetchOnceOnly := AFetchOnceOnly;
+  FKeyComparer := AKeyComparer;
+  if Assigned(AKeyComparer) then begin
+    FreeAndNil(FInternalStorage);
+    FInternalStorage := TDictionary<TKey,{$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF}>.Create(AKeyComparer);
+  end;
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.EstimateSize(const AVal: TValue): SizeInt;
+begin
+  Result := 0; // A complete source snapshot has no per-entry capacity eviction.
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.ShouldFetch(const AKey: TKey; AItem: {$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF}): boolean;
+begin
+  // Get has already checked/refreshed the whole snapshot. Rechecking here would
+  // remove fetch-once values or refetch twice for one initial missing-key read.
+  Result := False;
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.Fetch(const AKey: TKey): TValue;
+var item: {$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF};
+begin
+  if FInternalStorage.TryGetValue(AKey,item) then Result := item.Value
+  else if FNullValuePolicy = {$IFNDEF FPC}TCacheBase<TKey,TValue>.TNullValuePolicy.{$ENDIF}nvpThrow then
+    raise EInvalidOperation.Create('The bulk cache source does not contain the requested key.')
+  else Result := Default(TValue);
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.Get(const AKey: TKey): {$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF};
+var item: {$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF}; refresh: Boolean;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    if not FRefreshing then begin
+      refresh := not FLoaded;
+      if FLoaded and not FFetchOnceOnly then begin
+        refresh := not FInternalStorage.TryGetValue(AKey,item);
+        if not refresh then begin
+          item._AddRef;
+          try refresh := (not item.FRemoving) and (IsExpired(item) or IsStale(AKey,item));
+          finally item._Release; end;
+        end;
+      end;
+      if refresh then ForceRefresh;
+    end;
+    Result := inherited Get(AKey);
+  finally FLock.Release; end;
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.ContainsCachedItem(const AKey: TKey): Boolean;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    if (not FLoaded) and (not FRefreshing) then ForceRefresh;
+    if FFetchOnceOnly then Result := FInternalStorage.ContainsKey(AKey)
+    else Result := inherited ContainsCachedItem(AKey);
+  finally FLock.Release; end;
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.GetAllCachedValues: TArray<TValue>;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    if (not FLoaded) and (not FRefreshing) then ForceRefresh;
+    Result := inherited GetAllCachedValues;
+  finally FLock.Release; end;
+end;
+
+procedure TBulkFetchCacheBase<TKey, TValue>.ForceRefresh;
+var values: TBulkValues; pair: TPair<TKey,TValue>;
+begin
+  FLock.Acquire;
+  try
+    CheckAvailable;
+    if FRefreshing then
+      raise EInvalidOperation.Create('A bulk refresh is already running on this cache.');
+    FRefreshing := True;
+    try
+      // Keep purge-first semantics explicit: provider/admission failure does not
+      // resurrect the previous snapshot. The temporary container is always ours;
+      // class/pointer payloads stay borrowed from the provider/source owner.
+      Purge;
+      if Assigned(FKeyComparer) then values := TBulkValues.Create(FKeyComparer)
+      else values := TBulkValues.Create;
+      try
+        BulkFetch(values);
+        for pair in values do SetValue(pair.Key,pair.Value);
+        FLoaded := True;
+        Inc(FFetchCount);
+      finally values.Free; end;
+    finally FRefreshing := False; end;
+  finally FLock.Release; end;
+end;
+
+procedure TBulkFetchCacheBase<TKey, TValue>.Purge;
+begin
+  FLock.Acquire;
+  try
+    inherited;
+    FLoaded := False;
+    FFetchCount := 0;
+  finally FLock.Release; end;
+end;
+
+procedure TBulkFetchCacheBase<TKey, TValue>.Remove(const AKey: TKey);
+begin
+  raise ENotSupportedException.Create('Items cannot be manually removed from a bulk-fetch cache.');
+end;
+
+function TBulkFetchCacheBase<TKey, TValue>.Reap(AMinimumRelease: SizeInt): SizeInt;
+begin
+  if AMinimumRelease < 0 then
+    raise EArgumentException.Create('The requested release must be nonnegative.');
+  // Reap(0) still performs the base lifecycle check under its lock, without
+  // removing any entry or asking the whole-source provider to run.
+  Result := inherited Reap(0);
+end;
+
+{ TBulkFetchActionCache }
+
+constructor TBulkFetchActionCache<TKey, TValue>.Create(AOwner: TComponent;
+  const AFetcher: IBulkValueFetcher;
+  const AExpirationPolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy;
+  const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
+  ANullValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy;
+  AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy;
+  const AKeyComparer: IEqualityComparer<TKey>);
+begin
+  inherited Create(AOwner,AExpirationPolicy,AExpirationDuration,AFetchOnceOnly,
+    ANullValuePolicy,AStaleValuePolicy,AKeyComparer);
+  if not Assigned(AFetcher) then raise EArgumentNilException.Create('AFetcher');
+  FFetcher := AFetcher;
+end;
+
+procedure TBulkFetchActionCache<TKey, TValue>.BulkFetch(AValues: TBulkValues);
+begin FFetcher.Fetch(AValues); end;
+
+constructor TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Create(const AFetcher: IBulkValueFetcher);
+begin
+  inherited Create;
+  if not Assigned(AFetcher) then raise EArgumentNilException.Create('AFetcher');
+  FFetcher := AFetcher;
+end;
+
+procedure TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Fetch(AValues: TBulkValues);
+begin FFetcher.Fetch(AValues); end;
+
+class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromGlobalFunction(const AProc: TGlobalBulkFetchProc): IBulkValueFetcher;
+begin Result := TGlobalFetcher.Create(AProc); end;
+
+class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromObjectFunction(const AProc: TObjectBulkFetchProc): IBulkValueFetcher;
+begin Result := TObjectFetcher.Create(AProc); end;
+
+class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromNestedFunction(const AProc: TNestedBulkFetchProc): IBulkValueFetcher;
+begin Result := TNestedFetcher.Create(AProc); end;
+
+constructor TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Create(const AProc: TGlobalBulkFetchProc);
+begin
+  inherited Create;
+  if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
+  FProc := AProc;
+end;
+
+procedure TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Fetch(AValues: TBulkValues);
+begin FProc(AValues); end;
+
+constructor TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Create(const AProc: TObjectBulkFetchProc);
+begin
+  inherited Create;
+  if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
+  FProc := AProc;
+end;
+
+procedure TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Fetch(AValues: TBulkValues);
+begin FProc(AValues); end;
+
+constructor TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Create(const AProc: TNestedBulkFetchProc);
+begin
+  inherited Create;
+  if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
+  FProc := AProc;
+end;
+
+procedure TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Fetch(AValues: TBulkValues);
+begin FProc(AValues); end;
+
+{ TPreloadedCache }
+
+constructor TPreloadedCache<TKey, TValue>.Create(AOwner: TComponent;
+  AValues: TDictionary<TKey, TValue>; const AKeyComparer: IEqualityComparer<TKey>);
+begin
+  inherited Create(AOwner,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TExpirationPolicy.{$ENDIF}epNone,
+    TTimeSpan.MaxValue,True,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TNullValuePolicy.{$ENDIF}nvpCacheNormally,
+    {$IFNDEF FPC}TCacheBase<TKey,TValue>.TStaleValuePolicy.{$ENDIF}svpAssumeNeverStale,AKeyComparer);
+  if not Assigned(AValues) then raise EArgumentNilException.Create('AValues');
+  FValues := AValues;
+end;
+
+procedure TPreloadedCache<TKey, TValue>.BulkFetch(AValues: TDictionary<TKey, TValue>);
+var pair: TPair<TKey,TValue>;
+begin
+  for pair in FValues do AValues.AddOrSetValue(pair.Key,pair.Value);
 end;
 
 end.
