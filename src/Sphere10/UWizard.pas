@@ -2,7 +2,8 @@ unit UWizard;
 
 { Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
-  Wizard scren framework for Lazarus/FPC.
+  Typed-model wizard screens with validation and dynamic routes for Delphi/VCL
+  and Lazarus/LCL.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.

@@ -15,7 +15,7 @@ foreach ($unit in @('UVisualGrid.pas')) {
 }
 $targetInfo = ((& $compiler '-iTP' '-iTO') -join ' ').Trim() -split '\s+'
 if ($LASTEXITCODE -ne 0 -or $targetInfo.Count -ne 2 -or $targetInfo[1] -notin @('win64','win32')) {
-    throw 'The native grid loading probe requires a Windows FPC compiler.'
+    throw 'The native grid viewport probe requires a Windows FPC compiler.'
 }
 $target = "$($targetInfo[0])-$($targetInfo[1])"
 if (-not $OutputDirectory) {

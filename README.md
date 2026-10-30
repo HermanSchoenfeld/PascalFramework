@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://sphere10.com/"><img src="resources/branding/sphere-10-framework-logo.jpg" alt="Sphere10 Framework" width="720"></a>
+  <a href="https://sphere10.com/"><img src="resources/branding/sphere10-pascal-framework-logo.png" alt="Sphere 10 Pascal Framework" width="720"></a>
 </p>
 
 [![Lazarus / FPC build and tests](https://github.com/HermanSchoenfeld/PascalFramework/actions/workflows/main.yml/badge.svg)](https://github.com/HermanSchoenfeld/PascalFramework/actions/workflows/main.yml)
@@ -10,9 +10,9 @@
 [![Free Pascal 3.2.2 tested](https://img.shields.io/badge/tested_Free_Pascal-3.2.2-blue)](tests/README.md)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-# PascalFramework
+# Sphere 10 Pascal Framework
 
-PascalFramework is [Sphere10's](https://sphere10.com/) reusable Object Pascal
+Sphere 10 Pascal Framework is [Sphere10's](https://sphere10.com/) reusable Object Pascal
 library for **Lazarus/Free Pascal (LCL) and Delphi (VCL)**. It provides data-bound visual grids, multi-step wizards
 and configurable caches, together with the supporting utilities applications
 need: scoped resource cleanup, generic collection helpers, data sources,
@@ -23,10 +23,10 @@ filtering, sorting and paging; wizard screens share a typed model and can change
 their route at runtime; caches control how values are fetched, retained and
 released. Use the units directly in a project or add the optional
 [Lazarus or Delphi package](packages/README.md). The examples below show their individual
-APIs. Open [PascalFramework.dproj](PascalFramework.dproj) in Delphi or
-[PascalFramework.lpi](PascalFramework.lpi) in Lazarus to run one application with
-Visual grid, Wizard/events and Cache sections. Both projects use the same
-[entry point](PascalFramework.dpr) and [demo sources](examples/demo/README.md).
+APIs. Open [Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) in Delphi or
+[Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) in Lazarus to run one application with
+Visual grid, Wizard/events, Cache, Refresh throttle and Utilities sections. Both projects use the same
+[entry point](Sphere10PascalFramework.dpr) and [demo sources](examples/demo/README.md).
 
 The supplied projects target **Delphi 13 Community Edition**, **Lazarus 2.1 /
 Free Pascal 3.2.0** and **Lazarus 4.8 / Free Pascal 3.2.2** on Windows. Delphi
@@ -35,23 +35,21 @@ See [build instructions](#open-build-and-test) and the [test guide](tests/README
 for the compiler-specific commands and verification scope. The [CI workflow](.github/CI.md)
 builds the Lazarus package and demo and runs FPCUnit; its badge reports hosted
 GitHub results separately from local Delphi and Lazarus checks.
-The cache and wizard designs draw from the [Sphere10 C# framework](https://github.com/HermanSchoenfeld/Sphere10.Framework),
-using Pascal units, component ownership and native controls here.
+
 
 ## Units
 
 | Unit | Description |
 | --- | --- |
 | [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with paging and automatic page sizes, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
-| [ULoadingCircle.pas](src/Sphere10/ULoadingCircle.pas) | Native LCL/VCL loading animation adapted from Sphere10's rounded-spoke LoadingCircle, with an owned timer, fading spokes, configurable color and explicit start/stop control. |
-| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
+| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, whole-source and preloaded snapshots, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
 | [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
 | [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
 | [UCommon.pas](src/Sphere10/UCommon.pas) | Shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
 | [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
 | [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Named Variant rows and column schemas, text/numeric search expressions, filter/sort criteria and generic data sources with filtering, sorting, paging and opt-in invalidatable snapshots. |
-| [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, control docking and image helpers, and throttled/coalesced UI notifications. |
-| [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Reader/writer synchronization with concurrent readers, exclusive writes, one upgradeable reader, configurable recursion, timed/nonblocking acquisition, thread ownership checks and recursion/waiter counts. |
+| [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
+| [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Shared-memory synchronization with concurrent readers, one exclusive writer, upgradeable reads, optional recursion, timed acquisition and thread ownership checks. |
 
 The bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
 library supplies the Free Pascal lists, dictionaries, queues, stacks and sets;
@@ -69,12 +67,12 @@ VCL through compiler conditionals. The supplied projects configure those paths.
 widths/stretching, fonts/alignment, custom cell renderers, selection callbacks,
 popup menus and extra toolbar controls through the same [grid unit](src/Sphere10/UVisualGrid.pas).
 
-![Unified Delphi demo displaying eight grid columns, a live property editor and paging](resources/demo/unified-grid.png)
+![Unified Lazarus demo with eight columns and an automatically fitted 28-row page](resources/demo/unified-grid.png)
 
-The native Delphi capture shows the unified demo's eight columns, generated
-10,000-record source, live property editor, 100-row pages and built-in
-[DollarValue renderer](src/Sphere10/UVisualGrid.pas). The same application also
-contains the wizard launcher and cache demonstrations.
+The native Lazarus capture shows eight columns, a generated 10,000-record source,
+a live property editor and an automatic page size of 28 complete rows. The Real
+column uses the [DollarValue renderer](src/Sphere10/UVisualGrid.pas). The same
+application contains the wizard, cache, throttle and utility demonstrations.
 
 Implement three methods in [TCustomDataSource<T>](src/Sphere10/UCommon.Data.pas);
 it supplies filtering, sorting, paging and conversion to named Variant rows.
@@ -135,22 +133,9 @@ end;
 
 ```mermaid
 flowchart LR
-    refresh["Refresh / page / filter / sort / source / resize"] --> admission["Own RefreshThrottle"]
-    admission -->|"temNone / leading / final admission"| fetch["IDataSource.FetchPage"]
-    admission -->|"Further input while waiting"| latest["Retain latest parameters; reset timer"]
-    latest -->|"Quiet with a pending request"| fetch
-    fetch --> enabled{"Snapshot caching?"}
-    enabled -->|No| rows["FetchAll"]
-    enabled -->|Yes| current{"Raw snapshot current?"}
-    current -->|No| rows
-    current -->|Yes| view{"Same search / sort?"}
-    view -->|No| filter["Filter"]
-    view -->|Yes| page["Select page"]
-    rows --> filter["Filter"]
-    filter --> sort["Sort"]
-    sort --> page["Select page"]
-    page --> bind["Convert to variant rows"]
-    bind --> draw["Render grid"]
+    request["Refresh request"] --> throttle["Grid throttle"]
+    throttle --> source["Data source<br/>filter, sort, page"]
+    source --> grid["Display page"]
 ```
 
 Each grid owns a [RefreshThrottle](src/Sphere10/UVisualGrid.pas), whose default
@@ -164,7 +149,8 @@ uses UCommon, UCommon.UI, UVisualGrid;
 procedure TMyForm.ConfigureGridRefresh;
 begin
   FGrid.RefreshThrottle.Interval := TTimeSpan.FromSeconds(5);
-  FGrid.RefreshThrottle.Mode := temNotifyOnEventBurstStartAndFinished;
+  FGrid.RefreshThrottle.Mode :=
+    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
   FGrid.RefreshThrottle.OnWaitingChanged.Add(GridWaitingChanged);
 end;
 
@@ -256,7 +242,7 @@ complete selected query before choosing its page.
 
 Outstanding grid refreshes retain the previous rows and show a compact bordered
 loading card after 200 ms, including requests waiting for the refresh throttle.
-The card uses [TLoadingCircle](src/Sphere10/ULoadingCircle.pas), stays visible
+The card uses [TLoadingCircle](src/Sphere10/UCommon.UI.pas), stays visible
 through fetch admission and disappears after completion or cancellation; quick
 cached pages avoid flashing it.
 
@@ -283,13 +269,12 @@ property. Call these UI methods on the main thread.
 
 ## Loading circle
 
-[TLoadingCircle](src/Sphere10/ULoadingCircle.pas) ports the rounded-spoke animation
-used by Sphere10's WinForms framework to LCL and VCL. Its component-owned timer drives
-twelve fading spokes; set `Active` on the UI thread and keep the message loop
-running. Destroying the control stops its timer.
+[TLoadingCircle](src/Sphere10/UCommon.UI.pas) displays an animated loading
+indicator. Set `Active` on the UI thread while work runs; freeing the control
+stops its owned animation timer. The same control supports LCL and VCL.
 
 ```pascal
-uses Classes, Controls, ULoadingCircle;
+uses Classes, Controls, UCommon.UI;
 
 function AddLoadingCircle(AOwner : TComponent; AParent : TWinControl) : TLoadingCircle;
 begin
@@ -302,7 +287,7 @@ end;
 ```
 
 The port retains Martin R. Gagné's original copyright and license in the
-[unit source](src/Sphere10/ULoadingCircle.pas).
+[unit source](src/Sphere10/UCommon.UI.pas).
 
 ## Caching
 
@@ -371,14 +356,22 @@ entries and object values alive while using them outside an operation. The value
 indexer copies its result while the lock is held.
 
 ```mermaid
-flowchart LR
-    read["cache[key]"] --> fresh{"Present and fresh?"}
-    fresh -->|Yes| hit["Return cached value"]
-    fresh -->|No| fetch["Fetch source value"]
-    fetch --> space["Reap expired entries, then apply eviction policy"]
-    space --> store["Store and return value"]
-    invalidate["Invalidate(key)"] --> stale["Next read must fetch again"]
-    stale --> read
+sequenceDiagram
+    participant App as Application
+    participant Cache as TActionCache
+    participant Source as Fetch callback
+    App->>Cache: cache[key]
+    alt Present and fresh
+        Cache-->>App: Cached value
+    else Missing, expired or stale
+        Cache->>Cache: Remove old entry, if present
+        Cache->>Source: Fetch(key)
+        Source-->>Cache: Value
+        Cache->>Cache: Make space if needed and store
+        Cache-->>App: Value
+    end
+    App->>Cache: Invalidate(key)
+    Note over Cache: Mark stale. Next read fetches again
 ```
 
 Object caches use [idpFreeAndNil](src/Sphere10/UMemory.pas) to free admitted objects on removal or destruction.
@@ -386,6 +379,71 @@ A rejected explicit write leaves ownership with its caller. Returned metadata an
 owned values are borrowed. See [more cache examples](examples/demo/README.md) for
 object ownership, notifications, capacity and callback adapters.
 
+## Whole-source cache snapshots
+
+[TBulkFetchActionCache<TKey,TValue>](src/Sphere10/UCache.pas) loads a complete dictionary in one provider call. Its first read, `ContainsCachedItem` or `GetAllCachedValues` loads that snapshot. Ordinary missing, expired or stale reads refresh the source at most once per request. With `FetchOnceOnly = True`, reads retain loaded values despite expiry or invalidation. `ForceRefresh` replaces the snapshot; `Purge` clears it for a later reload. Bulk `Reap` validates its arguments and returns zero without evicting snapshot entries.
+
+```pascal
+uses Classes, SysUtils, Generics.Collections, UCommon, UMemory, UCache;
+
+type
+  TCatalogue = TBulkFetchActionCache<Integer,String>;
+  TCatalogueBase = TCacheBase<Integer,String>;
+
+procedure FetchCatalogue(AValues: TCatalogue.TBulkValues);
+begin
+  // Replace these entries with one database/query result for the whole catalogue.
+  AValues.Add(1,'apple');
+  AValues.Add(2,'pear');
+end;
+
+procedure ShowCatalogue(AOutput: TStrings);
+var
+  resources: TDisposables;
+  cache: TCatalogue;
+  snapshot: TArray<String>;
+begin
+  cache := TCatalogue(resources.AddObject(TCatalogue.Create(nil,
+    TCatalogue.TBulkValueFetcher.FromGlobalFunction(FetchCatalogue),
+    TCatalogueBase.TExpirationPolicy.epNone,TTimeSpan.MaxValue,True)));
+  AOutput.Add(cache[1]);                 // One provider call loads keys 1 and 2.
+  AOutput.Add(cache[2]);                 // Uses the already loaded snapshot.
+  cache.Invalidate(1);
+  AOutput.Add(cache[1]);                 // Fetch-once retains the original value.
+  cache.ForceRefresh;                   // Purge first, then fetch the whole source.
+  snapshot := cache.GetAllCachedValues; // A copied array of the current values.
+  AOutput.Add(IntToStr(Length(snapshot)));
+end; // resources frees the cache automatically.
+```
+
+The provider fills a temporary dictionary owned by the cache and must not retain that container. Object/pointer payloads are borrowed, so their owner must keep them alive while the cache or returned values use them. `ForceRefresh` purges before fetching: provider failure propagates and leaves the old snapshot unavailable; the next read can retry. Individual `Remove` is unsupported. `GetAllCachedValues` materializes an array without a per-key fetch; ordinary caches only return current entries, while bulk caches first load an uninitialized snapshot. Object values in that array remain borrowed.
+
+[TPreloadedCache<TKey,TValue>](src/Sphere10/UCache.pas) borrows an existing dictionary and reads it into a fetch-once snapshot. Keep that original dictionary and its payloads alive until the cache is freed; `ForceRefresh` sees later edits.
+
+```pascal
+type
+  TCatalogueValues = TDictionary<Integer,String>;
+  TPreloadedCatalogue = TPreloadedCache<Integer,String>;
+
+procedure ShowPreloaded(AOutput: TStrings);
+var
+  resources: TDisposables;
+  source: TCatalogueValues;
+  cache: TPreloadedCatalogue;
+begin
+  source := TCatalogueValues(resources.AddObject(TCatalogueValues.Create));
+  source.Add(1,'apple');
+  cache := TPreloadedCatalogue(resources.AddObject(
+    TPreloadedCatalogue.Create(nil,source)));
+  AOutput.Add(cache[1]);   // apple
+  source[1] := 'apricot';
+  AOutput.Add(cache[1]);   // apple: existing snapshot
+  cache.ForceRefresh;
+  AOutput.Add(cache[1]);   // apricot: refreshed source
+end; // reverse registration order frees cache before source.
+```
+
+The [complete executable examples](examples/demo/UCacheApiExamples.pas) cover ordinary global/object/nested callbacks, interface wrappers, typed notifications, a cache subclass with stale detection, entry metadata, explicit `BulkLoad`, whole-source snapshots and preloaded dictionaries. `BulkLoad` remains sequential explicit admission: duplicate keys use the last value, a later failure keeps earlier successful writes, and no provider is called.
 ## Wizards
 
 [TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens in
@@ -419,22 +477,18 @@ begin
 end;
 ```
 
-Open [PascalFramework.lpi](PascalFramework.lpi) in Lazarus or
-[PascalFramework.dproj](PascalFramework.dproj) in Delphi, select **Wizard and events**
+Open [Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) in Lazarus or
+[Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) in Delphi, select **Wizard and events**
 and choose **Wizard feature showcase**. Both projects include these demo units.
 
 ```mermaid
 flowchart LR
-    name["Name"] --> valid{"Valid input?"}
-    valid -->|No| name
-    valid -->|Yes| age["Age and route choice"]
-    age -->|Include notes| notes["Optional notes"]
-    age -->|Skip notes| confirm["Confirmation"]
-    notes --> confirm
+    name["Name"] -->|Validate| age["Age and route"]
+    age --> notes["Optional notes"] --> confirm["Confirm"]
+    age -->|Skip notes| confirm
     confirm --> summary["Summary"]
-    summary --> accept{"Finish accepted?"}
-    accept -->|No: correct or retry| summary
-    accept -->|Yes| done["Finished"]
+    summary -->|Accepted| done["Finished"]
+    summary -->|Veto or exception: retry| summary
 ```
 
 Actual native LCL screens from the showcase:
@@ -487,82 +541,426 @@ Back navigation and screen lifetimes.
 
 ## Scoped disposal
 
-[TDisposables](src/Sphere10/UMemory.pas) frees registered objects and memory when
-a local scope exits, including through an exception. [AddObject/AddMem/GetMem](src/Sphere10/UMemory.pas)
-register ownership; [RemoveObject/RemoveMem](src/Sphere10/UMemory.pas) transfer it out.
-Explicit [disposal policies](src/Sphere10/UMemory.pas) select no cleanup, object
-freeing or raw-memory release.
+[TDisposables](src/Sphere10/UMemory.pas) owns several objects and memory blocks
+through one record. It releases them in reverse registration order when the
+record's scope ends, including when a procedure raises an exception.
 
 ```pascal
 uses Classes, UMemory;
 
-procedure BuildReport;
+function BuildLocalReport : String;
 var
   scope : TDisposables;
   lines : TStringList;
+  text : TStringStream;
+  output : TMemoryStream;
+  scratch : Pointer;
 begin
   lines := scope.AddObject(TStringList.Create) as TStringList;
+  text := scope.AddObject(TStringStream.Create('Report: ')) as TStringStream;
+  output := scope.AddObject(TMemoryStream.Create) as TMemoryStream;
+  scope.GetMem(scratch, 256);
+  scope.ReallocMem(scratch, 512);
+  FillChar(scratch^, 512, 0);
   lines.Add('Ready');
-  // Use lines here. The scope frees it when this procedure exits.
+  text.Position := text.Size;
+  text.WriteString(lines.Text);
+  output.CopyFrom(text, 0);
+  Result := text.DataString;
+  // Reverse cleanup: scratch, output, text, lines.
 end;
 ```
 
-Call `scope.RemoveObject(lines)` before transferring ownership to a caller. Keep
-the scope local and do not copy it.
+Keep the bag in a class field when resources should live as long as their owner:
+
+```pascal
+type
+  TReportBuilder = class
+  private
+    FResources : TDisposables;
+    FLines : TStringList;
+    FText : TStringStream;
+    FOutput : TMemoryStream;
+  public
+    constructor Create;
+    function Build : String;
+  end;
+
+constructor TReportBuilder.Create;
+begin
+  inherited Create;
+  FLines := FResources.AddObject(TStringList.Create) as TStringList;
+  FText := FResources.AddObject(TStringStream.Create('')) as TStringStream;
+  FOutput := FResources.AddObject(TMemoryStream.Create) as TMemoryStream;
+end;
+
+function TReportBuilder.Build : String;
+begin
+  FLines.Clear;
+  FText.Size := 0;
+  FOutput.Size := 0;
+  FLines.Add('Ready');
+  FText.WriteString(FLines.Text);
+  FOutput.CopyFrom(FText, 0);
+  Result := FText.DataString;
+end;
+
+function BuildClassReport : String;
+var
+  report : TReportBuilder;
+begin
+  report := TReportBuilder.Create;
+  try
+    Result := report.Build;
+  finally
+    report.Free; // Finalizes FResources and frees its three objects.
+  end;
+end;
+```
+
+`TReportBuilder` needs no destructor solely for those three resources. The
+compiler finalizes its managed `FResources` field when the owner is freed; a
+failed constructor also releases resources already registered. If a destructor
+must perform additional shutdown work using those resources, do that work before
+`inherited Destroy`; leave their final release to the bag. Register each object
+once, and keep component-owned objects with their existing component owner.
+
+Transfer ownership explicitly when a resource must outlive its bag:
+
+```pascal
+function CreateReadyLines : TStringList;
+var
+  scope : TDisposables;
+begin
+  Result := scope.AddObject(TStringList.Create) as TStringList;
+  Result.Add('Ready');
+  scope.RemoveObject(Result); // Caller now owns the returned object.
+end;
+
+function CreateOwnedBuffer : Pointer;
+var
+  scope : TDisposables;
+begin
+  scope.GetMem(Result, 256);
+  FillChar(Result^, 256, 0);
+  scope.RemoveMem(Result); // Caller must eventually call System.FreeMem.
+end;
+```
+
+Use `AddMem` to adopt an existing `System.GetMem` allocation; use the bag's
+`FreeMem` to release a registered allocation early. `Objects[...]` is the default
+property form of `AddObject`, for example
+`lines := scope[TStringList.Create] as TStringList`. Keep a bag in its original
+local variable or class field: do not copy the record or free its registered
+objects manually.
+
+[TDisposePolicy](src/Sphere10/UMemory.pas) is the shared cleanup-policy enum.
+`AddObject` selects `idpFree`, and `AddMem`/`GetMem` select `idpFreeMem`.
+Consumers such as object caches also accept `idpNone`, `idpNil` and
+`idpFreeAndNil`; a cleared stored pointer does not clear a caller's separate
+variable. `idpRelease` is declared, but `TDisposables` does not implement interface
+release through that policy. For reference-counted interfaces, retain an ordinary
+interface variable and let the compiler release it.
 
 ## Arrays and collections
 
-[TArrayTool<T>](src/Sphere10/UCommon.pas) creates arrays, appends/removes values and
-copies array storage. Object elements in a copy still refer to the same objects.
+[TArrayTool<T>](src/Sphere10/UCommon.pas) searches and edits dynamic arrays.
+[UCommon.Collections](src/Sphere10/UCommon.Collections.pas) adds list slicing,
+filtering, sorting and transformations with reusable callbacks.
+### Array construction, searching, editing and copying
+
+`TArrayTool<T>` supplies all sixteen operations shown below. Arrays use zero-based
+indexes. `Remove` removes every matching element. `InsertAt` inserts before an
+existing index; use `Append` to add at the end. `Copy` allocates independent array
+storage but object references still refer to the same objects. Pass the exact
+number of enumerable elements to `ToArray`.
+
+| Operation | Example/result |
+| --- | --- |
+| `Empty`, `Create` | Empty array or overloads with one through six values. |
+| `Contains` | Boolean membership, optionally returning the index and accepting an equality comparer. |
+| `IndexOf` | Index of a match, or `-1`; default or supplied equality comparer. |
+| `Add`, `Append`, `Prepend`, `InsertAt` | Grow and insert values. |
+| `Remove`, `RemoveAt` | Remove all equal values, or one indexed value. |
+| `Swap`, `MoveItem` | Exchange positions, or move one item while preserving the others' order. |
+| `Copy`, `Concat` | Copy a whole array/slice, or combine arrays. |
+| `_Length`, `ToArray` | Open-array length, or materialize an enumerable of known size. |
+
+### Comparers, predicates and transformations
+
+The normal entry points are `TComparerTool<T>`, `TPredicateTool<T>`,
+`TListTool<T>` and `TListTool<TSource,TResult>`. They adapt global functions,
+object methods and nested callbacks, compose comparisons/predicates, filter lists
+and transform either lists or arrays. Interface variables own their adapters;
+the object supplying an object-method callback must outlive every use.
+
+The complete example below also constructs every public adapter class directly:
+`TNestedComparer`, `TObjectComparer`, `TGlobalComparer`, `TManyComparer`,
+`TInvertedComparer`; `TNestedPredicate`, `TObjectPredicate`, `TGlobalPredicate`,
+`TNotPredicate`, `TAndManyPredicate`, `TOrManyPredicate`; and
+`TNestedTransformer`, `TObjectTransformer`, `TGlobalTransformer`. These are public
+for compiler compatibility; the factories are usually simpler for application code.
+
+`TListTool.Copy` takes a start index and a **count**, returning a caller-owned new
+list. `Range`, `Skip` and `Take` mutate the supplied list and return the signed
+size change (`new count - old count`). Filtering normally keeps object ownership
+with the caller; supply `idpFreeAndNil` only for rejected objects this list owns.
+The public spelling of the explicit slot-policy method is `DiposeItem`.
+
+`TSortedHashSetTool<T>.Pop` is available only with FPC. It removes and returns
+one enumerated value, and rejects an empty set. It is intentionally guarded in
+the shared example because Delphi uses its RTL collection types.
+
+<details>
+<summary>Complete checked example: every array operation and every collection adapter type</summary>
 
 ```pascal
-uses Generics.Collections, UCommon;
+program ArrayCollectionExamples;
+{$IFDEF FPC}{$mode Delphi}{$H+}{$modeswitch nestedprocvars}{$ENDIF}
+uses Classes, SysUtils, Generics.Collections, Generics.Defaults,
+  UCommon, UCommon.Collections, UMemory;
 
-procedure ArrayExample;
-var
-  values, snapshot : TArray<Integer>;
+type
+  TIntArrays = TArrayTool<Integer>;
+  TIntComparerArrays = TArrayTool<IComparer<Integer>>;
+  TIntPredicateArrays = TArrayTool<IPredicate<Integer>>;
+  TIntComparerTools = TComparerTool<Integer>;
+  TIntPredicateTools = TPredicateTool<Integer>;
+  TIntListTools = TListTool<Integer>;
+  TIntTextTransforms = TListTool<Integer,String>;
+  {$IFDEF FPC}TIntSetTools = TSortedHashSetTool<Integer>;{$ENDIF}
+
+procedure Require(ACondition: Boolean; const AMessage: String);
 begin
-  values := TArrayTool<Integer>.Create(10, 20, 30);
-  TArrayTool<Integer>.Append(values, 40);
-  TArrayTool<Integer>.Remove(values, 20);
-  snapshot := TArrayTool<Integer>.Copy(values); // 10, 30, 40.
+  if not ACondition then raise Exception.Create(AMessage);
 end;
+
+procedure RequireArray(const AActual: TArray<Integer>; const AExpected: array of Integer);
+var I: Integer;
+begin
+  Require(Length(AActual)=Length(AExpected),'Array length');
+  for I:=0 to High(AActual) do Require(AActual[I]=AExpected[I],'Array value');
+end;
+
+procedure ArrayMethods;
+var
+  values, snapshot, middle, combined: TArray<Integer>;
+  equality: IEqualityComparer<Integer>;
+  index: SizeInt;
+  scope: TDisposables;
+  list: TList<Integer>;
+begin
+  values := TIntArrays.Empty;
+  Require(Length(values)=0,'Empty');
+  // Create has overloads for one through six values.
+  values := TIntArrays.Create(10);
+  RequireArray(values,[10]);
+  values := TIntArrays.Create(10,20);
+  RequireArray(values,[10,20]);
+  values := TIntArrays.Create(10,20,30);
+  RequireArray(values,[10,20,30]);
+  values := TIntArrays.Create(10,20,30,40);
+  RequireArray(values,[10,20,30,40]);
+  values := TIntArrays.Create(10,20,30,40,50);
+  RequireArray(values,[10,20,30,40,50]);
+  values := TIntArrays.Create(10,20,30,40,50,60);
+  RequireArray(values,[10,20,30,40,50,60]);
+
+  values := TIntArrays.Create(10,20,30);
+  TIntArrays.Add(values,40);               // 10,20,30,40
+  TIntArrays.Append(values,50);            // 10,20,30,40,50
+  TIntArrays.Prepend(values,0);            // 0,10,20,30,40,50
+  TIntArrays.InsertAt(values,2,15);         // 0,10,15,20,30,40,50
+  TIntArrays.Swap(values,0,6);             // 50,10,15,20,30,40,0
+  TIntArrays.MoveItem(values,6,0);         // 0,50,10,15,20,30,40
+  TIntArrays.Remove(values,20);            // 0,50,10,15,30,40
+  equality := TEqualityComparer<Integer>.Default;
+  TIntArrays.Remove(values,50,equality);   // 0,10,15,30,40
+  TIntArrays.RemoveAt(values,0);           // 10,15,30,40
+  RequireArray(values,[10,15,30,40]);
+
+  snapshot := TIntArrays.Copy(values);
+  middle := TIntArrays.Copy(values,1,2);   // 15,30
+  combined := TIntArrays.Concat([
+    middle,TIntArrays.Create(50,60)]);     // 15,30,50,60
+  values[0] := 99;                                 // snapshot still starts with 10.
+  RequireArray(snapshot,[10,15,30,40]);
+  RequireArray(middle,[15,30]);
+  RequireArray(combined,[15,30,50,60]);
+  Require(TIntArrays.Contains(combined,30,index),'Contains/out');
+  Require(index=1,'Contains/out index');
+  Require(TIntArrays.Contains(combined,60,equality,index),'Contains/comparer');
+  Require(index=3,'Contains/comparer index');
+  Require(not TIntArrays.Contains(combined,999),'Contains/bool');
+  Require(TIntArrays.IndexOf(combined,50)=2,'IndexOf');
+  Require(TIntArrays.IndexOf(combined,15,equality)=0,'IndexOf/comparer');
+  Require(TIntArrays._Length(combined)=4,'_Length');
+  list := scope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  list.AddRange(combined);
+  values := TIntArrays.ToArray(list,list.Count);
+  RequireArray(values,[15,30,50,60]);
+  Writeln('PASS all TArrayTool methods and overloads');
+end;
+
+function Ascending({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+begin Result := TComparer<Integer>.Default.Compare(ALeft,ARight); end;
+
+function Even({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
+begin Result := (AValue mod 2)=0; end;
+
+function NumberText({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
+begin Result := 'item '+IntToStr(AValue); end;
+
+type
+  TCallbacks = class
+    function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+    function Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
+    function Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
+  end;
+
+function TCallbacks.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+begin Result := Ascending(ALeft,ARight); end;
+function TCallbacks.Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
+begin Result := AValue>0; end;
+function TCallbacks.Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
+begin Result := 'object '+IntToStr(AValue); end;
+
+procedure CollectionAdapters;
+var
+  scope: TDisposables;
+  callbacks: TCallbacks;
+  globalCompare: TGlobalComparerFunc<Integer>;
+  objectCompare: TObjectComparerFunc<Integer>;
+  nestedCompare: TNestedComparerFunc<Integer>;
+  globalPredicate: TGlobalPredicateFunc<Integer>;
+  objectPredicate: TObjectPredicateFunc<Integer>;
+  nestedPredicate: TNestedPredicateFunc<Integer>;
+  globalTransform: TGlobalTransformFunc<Integer,String>;
+  objectTransform: TObjectTransformFunc<Integer,String>;
+  nestedTransform: TNestedTransformFunc<Integer,String>;
+  globalComparer,objectComparer,nestedComparer,combinedComparer,invertedComparer: IComparer<Integer>;
+  globalFilter,objectFilter,nestedFilter,both,either,negated: IPredicate<Integer>;
+  globalTransformer,objectTransformer,nestedTransformer: ITransformer<Integer,String>;
+  list, copied: TList<Integer>;
+  numbers: TArray<Integer>;
+  texts: TArray<String>;
+  {$IFDEF FPC}setOfNumbers: TSortedHashSet<Integer>; popped: Integer;{$ENDIF}
+
+  {$IFDEF FPC}
+  function CompareInScope(constref ALeft,ARight: Integer): Integer;
+  begin Result := Ascending(ALeft,ARight); end;
+  function UnderTen(constref AValue: Integer): Boolean;
+  begin Result := AValue<10; end;
+  function ScopedText(constref AValue: Integer): String;
+  begin Result := 'nested '+IntToStr(AValue); end;
+  {$ENDIF}
+begin
+  callbacks := scope.AddObject(TCallbacks.Create) as TCallbacks;
+  globalCompare := Ascending; objectCompare := callbacks.Compare;
+  globalPredicate := Even; objectPredicate := callbacks.Positive;
+  globalTransform := NumberText; objectTransform := callbacks.Text;
+  {$IFDEF FPC}
+  nestedCompare := CompareInScope; nestedPredicate := UnderTen; nestedTransform := ScopedText;
+  {$ELSE}
+  nestedCompare := function(const L,R: Integer): Integer begin Result := Ascending(L,R); end;
+  nestedPredicate := function(const V: Integer): Boolean begin Result := V<10; end;
+  nestedTransform := function(const V: Integer): String begin Result := 'nested '+IntToStr(V); end;
+  {$ENDIF}
+
+  // The factories return reference-counted interfaces. These concrete adapters
+  // are also public, although declared for compiler compatibility.
+  globalComparer := TGlobalComparer<Integer>.Create(globalCompare);
+  objectComparer := TObjectComparer<Integer>.Create(objectCompare);
+  nestedComparer := TNestedComparer<Integer>.Create(nestedCompare);
+  combinedComparer := TManyComparer<Integer>.Create(
+    TIntComparerArrays.Create(globalComparer,objectComparer));
+  invertedComparer := TInvertedComparer<Integer>.Create(combinedComparer);
+  Require(invertedComparer.Compare(1,2)>0,'Concrete comparer adapters');
+  Require(nestedComparer.Compare(1,2)<0,'Nested comparer');
+  globalComparer := TIntComparerTools.FromFunc(globalCompare);
+  objectComparer := TIntComparerTools.FromFunc(objectCompare);
+  nestedComparer := TIntComparerTools.FromFunc(nestedCompare);
+  combinedComparer := TIntComparerTools.Many([globalComparer,objectComparer]);
+  invertedComparer := TIntComparerTools.Inverted(combinedComparer);
+  Require(invertedComparer.Compare(1,2)>0,'Comparer tool');
+  Require(TIntComparerTools.AlwaysEqual.Compare(1,2)=0,'AlwaysEqual');
+
+  globalFilter := TGlobalPredicate<Integer>.Create(globalPredicate);
+  objectFilter := TObjectPredicate<Integer>.Create(objectPredicate);
+  nestedFilter := TNestedPredicate<Integer>.Create(nestedPredicate);
+  both := TAndManyPredicate<Integer>.Create(
+    TIntPredicateArrays.Create(globalFilter,objectFilter));
+  either := TOrManyPredicate<Integer>.Create(
+    TIntPredicateArrays.Create(globalFilter,nestedFilter));
+  negated := TNotPredicate<Integer>.Create(globalFilter);
+  Require(both.Evaluate(2) and not both.Evaluate(-2),'And predicate');
+  Require(either.Evaluate(3) and not either.Evaluate(11),'Or predicate');
+  Require(negated.Evaluate(3),'Not predicate');
+  both := TIntPredicateTools.AndMany([globalFilter,objectFilter]);
+  either := TIntPredicateTools.OrMany([globalFilter,nestedFilter]);
+  negated := TIntPredicateTools.NegatePredicate(globalFilter);
+  Require(both.Evaluate(2) and either.Evaluate(3) and negated.Evaluate(3),'Predicate tool');
+  globalFilter := TIntPredicateTools.FromFunc(globalPredicate);
+  objectFilter := TIntPredicateTools.FromFunc(objectPredicate);
+  nestedFilter := TIntPredicateTools.FromFunc(nestedPredicate);
+  both := TIntPredicateTools.TruePredicate;
+  either := TIntPredicateTools.FalsePredicate;
+  Require(both.Evaluate(0) and not either.Evaluate(0),'Constant predicates');
+
+  globalTransformer := TGlobalTransformer<Integer,String>.Create(globalTransform);
+  objectTransformer := TObjectTransformer<Integer,String>.Create(objectTransform);
+  nestedTransformer := TNestedTransformer<Integer,String>.Create(nestedTransform);
+  Require(globalTransformer.Transform(2)='item 2','Global transformer');
+  Require(objectTransformer.Transform(2)='object 2','Object transformer');
+  Require(nestedTransformer.Transform(2)='nested 2','Nested transformer');
+  numbers := TIntArrays.Create(1,2,3,4);
+  texts := TIntTextTransforms.Transform(numbers,globalTransformer);
+  Require((Length(texts)=4) and (texts[3]='item 4'),'Interface array transform');
+  list := scope.AddObject(TList<Integer>.Create) as TList<Integer>;
+  list.AddRange(numbers);
+  texts := TIntTextTransforms.Transform(list,objectTransformer);
+  Require(texts[0]='object 1','Interface list transform');
+  // Function-adapter overloads work on both arrays and lists.
+  texts := TIntTextTransforms.Transform(numbers,globalTransform);
+  Require(texts[0]='item 1','Global array transform');
+  texts := TIntTextTransforms.Transform(numbers,objectTransform);
+  Require(texts[0]='object 1','Object array transform');
+  texts := TIntTextTransforms.Transform(numbers,nestedTransform);
+  Require(texts[0]='nested 1','Nested array transform');
+  texts := TIntTextTransforms.Transform(list,globalTransform);
+  Require(texts[0]='item 1','Global list transform');
+  texts := TIntTextTransforms.Transform(list,objectTransform);
+  Require(texts[0]='object 1','Object list transform');
+  texts := TIntTextTransforms.Transform(list,nestedTransform);
+  Require(texts[0]='nested 1','Nested list transform');
+  TIntListTools.FilterBy(list,globalFilter); // list now contains 2,4.
+  list.Sort(invertedComparer); // 4,2.
+  Require((list.Count=2) and (list[0]=4) and (list[1]=2),'List filter/sort');
+  Require(TIntListTools.RemoveBy(list,objectFilter)=2,'Remove matching items');
+  list.AddRange([10,20,30,40]);
+  copied := scope.AddObject(TIntListTools.Copy(list,1,2)) as TList<Integer>;
+  Require((copied.Count=2) and (copied[0]=20) and (copied[1]=30),'Copy count');
+  Require(TIntListTools.Range(list,1,3)=-1,'Range size delta'); // 20,30,40
+  Require(TIntListTools.Skip(list,1)=-1,'Skip size delta');    // 30,40
+  Require(TIntListTools.Take(list,1)=-1,'Take size delta');    // 30
+  TIntListTools.DiposeItem(list,0,idpNil); // Zero the slot; this does not remove it.
+  Require((list.Count=1) and (list[0]=0),'Explicit item policy');
+  {$IFDEF FPC}
+  setOfNumbers := scope.AddObject(TSortedHashSet<Integer>.Create) as TSortedHashSet<Integer>;
+  setOfNumbers.Add(1); setOfNumbers.Add(3);
+  popped := TIntSetTools.Pop(setOfNumbers);
+  Require((setOfNumbers.Count=1) and not setOfNumbers.Contains(popped),'Sorted set Pop');
+  {$ENDIF}
+  Writeln('PASS public comparer, predicate, transformer and collection adapter types');
+end;
+
+begin
+  ArrayMethods;
+  CollectionAdapters;
+end.
 ```
 
-[UCommon.Collections](src/Sphere10/UCommon.Collections.pas) adapts global, object and
-nested callbacks for predicates, comparers and transformations. For Free Pascal, the bundled
-[Generics.Collections](src/Generics.Collections/generics.collections.pas) provides
-lists/object lists, dictionaries/object dictionaries, queues, stacks, hash sets and
-sorted hash sets. [FilterBy](src/Sphere10/UCommon.Collections.pas) changes the supplied list.
-
-```pascal
-uses Generics.Collections, Generics.Defaults, UCommon, UCommon.Collections, UMemory;
-
-function IsEven({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue : Integer) : boolean;
-begin
-  Result := (AValue mod 2) = 0;
-end;
-
-function Descending({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight : Integer) : Integer;
-begin
-  Result := TCompare.Integer(ARight, ALeft);
-end;
-
-procedure FilterAndSort;
-var
-  scope : TDisposables;
-  values : TList<Integer>;
-begin
-  values := scope.AddObject(TList<Integer>.Create) as TList<Integer>;
-  values.AddRange([1, 2, 3, 4, 5, 6]);
-  TListTool<Integer>.FilterBy(values, TPredicateTool<Integer>.FromFunc(IsEven));
-  values.Sort(TComparerTool<Integer>.FromFunc(Descending)); // 6, 4, 2.
-end;
-```
-
-Compose [predicates with AndMany/OrMany](src/Sphere10/UCommon.Collections.pas),
-[comparers with Many/Inverted](src/Sphere10/UCommon.Collections.pas), and
-[transforms with TListTool<TSource, TResult>.Transform](src/Sphere10/UCommon.Collections.pas).
+</details>
 
 ## Results and diagnostics
 
@@ -612,8 +1010,12 @@ end;
 ```
 
 [TBox<T>](src/Sphere10/UCommon.pas) wraps a typed value in an object;
-[TFileTool.AppendText](src/Sphere10/UCommon.pas) appends to a text file, and
+[TFileTool.AppendText](src/Sphere10/UCommon.pas) appends plain UTF-8 text followed by CRLF, without a BOM or binary length prefix;
 [TCPUTool.GetLogicalCPUCount](src/Sphere10/UCommon.pas) reports logical processors.
+
+Delphi's `TFileStreamHelper.WriteString` writes UTF-8 bytes without adding a newline.
+File encoding happens at the stream boundary: Delphi supplies native Unicode;
+FPC callers use Lazarus's UTF-8 `String` convention.
 
 ## Multicast events
 
@@ -649,18 +1051,19 @@ begin
 end;
 ```
 
-`Add(HandleChanged, True)` queues delivery on the main thread. Queued senders and
-receivers must remain alive until delivery.
+`Add(HandleChanged, True)` dispatches on the main thread: calls already there run
+immediately; worker calls are queued. Queued senders and receivers must remain
+alive until delivery.
 
-## Reader/writer locking
+## Read/Write Locking
 
-[TReadWriteLock](src/Sphere10/UConcurrency.pas) is modeled after the read, write
-and upgradeable-read contract of the .NET lock used by Sphere10's C# framework.
-This implementation uses Pascal RTL critical sections and event waits; no .NET
-runtime implementation was copied. Ordinary readers share access. One thread
-can reserve upgradeable-read ownership while ordinary readers continue; its
-write acquisition waits for those other readers to leave. Writers have exclusive
-access.
+[TReadWriteLock](src/Sphere10/UConcurrency.pas) protects shared memory with
+**multiple concurrent readers or one exclusive writer**. Hold a read lock while
+inspecting shared data and a write lock while changing it.
+
+Use upgradeable read when an inspection may lead to a change. One thread can
+reserve that mode while other readers continue; its write waits for those readers
+to leave. Timed acquisition and optional recursion support controlled contention.
 
 ```pascal
 uses UConcurrency;
@@ -735,10 +1138,10 @@ cancellation between waits. See the [shared regression cases](tests/UConcurrency
 
 ## Throttled UI events
 
-Run the small [five-second grid throttle demo](examples/throttle/README.md) to
-test repeated **Notify** clicks against the real grid, its owned throttle and a
-counted data source. It includes Delphi and Lazarus projects, a quiet-time
-countdown and a timestamped event log.
+Open **Refresh throttle** in the [shared demo](examples/demo/README.md) to test
+repeated **Notify** clicks against a real grid and counted data source. Its
+countdown and event log show immediate delivery, quiet-period resets and one
+trailing refresh. [Timing walkthrough](examples/throttle/README.md).
 
 [TThrottledEvent](src/Sphere10/UCommon.UI.pas) coalesces repeated UI events. Select
 [immediate, interval, burst-end or burst-start-and-end delivery](src/Sphere10/UCommon.UI.pas);
@@ -753,7 +1156,8 @@ function CreateRefreshEvent(AOwner : TComponent;
 begin
   Result := TThrottledEvent.Create(AOwner);
   Result.Interval := TTimeSpan.FromMilliseconds(250);
-  Result.Mode := temNotifyOnEventBurstFinished;
+  Result.Mode :=
+    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstFinished;
   Result.Add(AHandler);
 end;
 ```
@@ -867,25 +1271,42 @@ begin
 end;
 ```
 
+## Complete API recipes
+
+Run **Utilities** in the shared Delphi/Lazarus demo for the complete array,
+disposal, core and UI recipes. The Cache tab also has **Run complete cache API**.
+Recipes display their results in the memo. Array, core and UI recipes also check expected outcomes.
+
+| Recipe | Demonstrates |
+| --- | --- |
+| [Arrays and collections](examples/demo/UArrayCollectionExamples.pas) | Every array operation and overload; all public comparer, predicate, list and transformation adapters. |
+| [Scoped resources](examples/demo/UDisposalReadmeExamples.pas) | Several owned objects and memory blocks; automatic cleanup in local scopes and class-owned bags; ownership transfer. |
+| [Caches](examples/demo/UCacheApiExamples.pas) | Per-key and whole-source caches, preloaded dictionaries, callback families, entry metadata, notifications and subclassed stale checks. |
+| [Core utilities](examples/demo/UCoreApiExamples.pas) | Results, dates, statistics, Variants, files, queued notifications, read/write locking, data sources, search expressions and common UI helpers. |
+| [Grid and wizard APIs](examples/demo/UUiApiExamples.pas) | Column callbacks, selection, native adapters, typed wizard models, dynamic routes, host windows and lifecycle callbacks. |
+
+The [public type index](docs/public-api-examples.md) maps each public Framework
+type to its worked example, including aliases, records and helpers. Empty
+placeholders and platform-only APIs are identified explicitly. Bundled third-party
+collection types are outside this index.
+
 # Open, build and test
 
-Open [Sphere10Framework.lpg](Sphere10Framework.lpg) in Lazarus, or select a project:
+Open the appropriate main project from the repository root:
 
 | Project | Purpose |
 | --- | --- |
-| [PascalFramework.dproj](PascalFramework.dproj) | Run the unified Visual grid, Wizard/events and Cache demo in Delphi |
-| [PascalFramework.lpi](PascalFramework.lpi) | Run the same application in Lazarus/FPC |
-| [Sphere10Framework.groupproj](Sphere10Framework.groupproj) | Delphi project group: runnable demo first, optional runtime package second |
-| [Sphere10Framework.lpg](Sphere10Framework.lpg) | Lazarus project group: demo, package and tests |
-| [Sphere10Framework.dproj](Sphere10Framework.dproj) | Delphi runtime package; build it for reuse |
-| [Sphere10Framework.lpk](Sphere10Framework.lpk) | Lazarus library/control package |
-| [FrameworkTests.lpi](tests/FrameworkTests.lpi) | Separate FPCUnit GUI test runner |
+| [Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) | Delphi/VCL app: grid, wizard/events, cache, throttle and utility demonstrations. |
+| [Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) | The same app and shared Pascal sources under Lazarus/FPC. |
 
+Automated unit tests are separate from the demo application; see the
+[test guide](tests/README.md). Optional reusable library packages and project
+groups are described in the [package guide](packages/README.md).
 For Free Pascal, use Delphi mode and add `src/Sphere10` and `src/Generics.Collections` to the unit
 search path. Its UI units use Lazarus LCL; the supplied projects configure their
 paths. Package installation is optional; see the [package guide](packages/README.md).
 
-For Delphi, open `PascalFramework.dproj` and press **F9** to build and run the
+For Delphi, open `Sphere10PascalFramework.dproj` and press **F9** to build and run the
 unified demo. It references `src/Sphere10` directly and needs no installed package.
 The optional runtime package is a library build target; the runnable demo is the
 first project in the group.
@@ -920,6 +1341,6 @@ desktop. See the [test guide](tests/README.md) for coverage and fixture selectio
 
 Copyright © 2017–2026 [Herman Schoenfeld](https://sphere10.com/).
 
-PascalFramework is distributed under the [MIT License](LICENSE). Third-party
+Sphere 10 Pascal Framework is distributed under the [MIT License](LICENSE). Third-party
 components retain their own licenses and copyright notices in their source
 directories.

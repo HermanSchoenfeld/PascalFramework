@@ -1,55 +1,96 @@
-# Unified framework demo
+# Sphere 10 Pascal Framework demo
 
-Open [PascalFramework.dproj](../../PascalFramework.dproj) in Delphi or [PascalFramework.lpi](../../PascalFramework.lpi) in Lazarus, then build and run. Both projects use [one entry point](../../PascalFramework.dpr), the same demo units, and native `.dfm`/`.lfm` resource companions. No installed runtime package is required.
+Open [Sphere10PascalFramework.dproj](../../Sphere10PascalFramework.dproj) in Delphi
+or [Sphere10PascalFramework.lpi](../../Sphere10PascalFramework.lpi) in Lazarus.
+Both run the same [entry point](../../Sphere10PascalFramework.dpr), Pascal sources
+and paired `.dfm`/`.lfm` forms. No installed package is needed.
 
-The **Visual grid** section is selected first. **Wizard and events** contains the feature wizard, the original name wizard, the notification/throttle demo and Work Area. **Cache** provides **Run cache examples**, which writes each case into its memo. All data is generated locally. The application needs no node, wallet, database or network connection.
+The app has **Visual grid**, **Wizard and events**, **Cache**, **Refresh throttle**
+and **Utilities** tabs. Data is generated locally; no wallet, node, database or
+network connection is involved. Automated unit tests remain [separate](../../tests/README.md).
 
 ## Visual grid
 
-[fMain.pas](fMain.pas) generates 10,000 typed records and binds eight columns through the existing [data-source abstraction](../../src/Sphere10/UCommon.Data.pas). Edit the live grid's published properties with the Lazarus RTTI inspector or Delphi's standard value-list editor. Both support paging, search/sort and selection settings and the existing edit, button and combo-box widget controls; the native editor also exposes caption and font settings.
+![Native demo with the visual grid and property editor](../../resources/demo/unified-grid.png)
 
-Regenerate records, change column widths, stretch columns, enable automatic column filling, clear selection or try the search-expression parser. Numeric, text and set criteria are available. The `Foo` column draws bold red values; `Real` uses the dollar renderer. The popup demonstrates replacing an individual displayed cell. **Add fetch delay** adds three seconds without moving GUI access onto the worker: criteria are captured in the source and published through the grid's completion event. A short lock protects regenerated record snapshots; `TDisposables` owns the supporting objects.
+[fMain.pas](fMain.pas) binds 10,000 generated records to eight columns. Use the
+property editor to try paging, automatic page sizes, search/sort, selection,
+column sizing/stretching, captions, fonts and toolbar widgets. The Lazarus editor
+uses RTTI; Delphi uses its native value-list editor.
 
-![Unified demo showing its visual grid and live property editor](../../resources/demo/unified-grid.png)
+The example also demonstrates custom cell rendering, the dollar renderer,
+selection callbacks and popup menus. **Add fetch delay** simulates slow work.
+The source captures data away from controls; completion publishes the page on
+the main thread. Scoped disposal owns helper objects.
 
 ## Wizard and events
 
-Choose **Wizard feature showcase** in this section:
+![Wizard launcher in the same five-tab application](../../resources/demo/unified-wizard-launcher.png)
 
-1. Enter and confirm a name. Disable **Create the next steps when I continue** to see a missing dynamic successor remain retryable, then enable it. Repeated insertion is idempotent.
-2. Enter a nonnegative whole-number age. Inject, replace or remove the optional notes step; the path-snapshot action proves that changing a returned copy cannot mutate the route.
-3. Visit optional notes, go Back, and change the route. Removed forms remain wizard-owned and are disposed with the wizard; counters show their lifetime.
-4. Accept the confirmation boundary. Previous is unavailable there; the final Summary can return to it.
-5. Select a veto or simulated exception for finishing/cancellation. The first attempt stays active and the next succeeds. Toggle cancellation permission and inspect the busy reentry rejection counts.
+Choose **Wizard feature showcase**:
 
-The wizard uses one modal host. It retains the same native window and top-left position through navigation, hides outgoing pages and disposes all screens before the caller-owned model. The launcher keeps the event history after closure. Actual screen captures and framework usage examples are in the [main README](../../README.md#wizards).
+1. Enter and confirm a name. The first screen creates its route after validation.
+2. Enter an age; inject, replace or remove optional notes. Go Back and change the route.
+3. Accept the confirmation boundary, where Back is unavailable.
+4. Try finish/cancel vetoes and simulated exceptions, then retry successfully.
+5. Inspect the event history, screen lifetimes and rejected recursive requests.
 
-![Native Delphi wizard launched from the unified demonstration](../../resources/demo/unified-wizard.png)
+The wizard uses one modal host at a stable position. It owns every screen,
+including removed screens; the caller owns the shared model and retained history.
+[Screen captures and usage code](../../README.md#wizards) show the full flow.
 
-**Run Wizard Test** retains the original property-bag name/branch flow. The finish callback rejects `fail`; cancellation is allowed from its first page. **Notify Test** retains listener registration, synchronous/asynchronous notifications and throttle modes. Its destructor cancels its queued callback using the existing platform API. **Work Area** retains the existing control-layout example.
+![Native wizard launched from this application](../../resources/demo/unified-wizard.png)
+
+**Run Wizard Test** demonstrates the property-bag action wizard. **Notify Test**
+shows multicast listeners and throttle modes. **Work Area** shows docked controls.
 
 ## Cache
 
-[UCacheDemo.pas](UCacheDemo.pas) uses the same `UCache` APIs as the unit tests and writes output to the caller-owned memo. It demonstrates:
+**Run cache examples** demonstrates fetch hits, invalidation, explicit writes,
+capacity/eviction, pins, lifecycle callbacks and object ownership. Its memo shows
+fetch counts and disposal outcomes. [UCacheDemo.pas](UCacheDemo.pas) contains the code.
 
-| Case | Observable result |
+**Run complete cache API** adds subclassed stale detection, every callback adapter,
+entry metadata, explicit bulk writes, whole-source snapshots and borrowed
+preloaded dictionaries. [UCacheApiExamples.pas](UCacheApiExamples.pas) contains the
+worked recipes; the [main README](../../README.md#caching) explains their contracts.
+
+![Cache output in the shared demo](../../resources/demo/unified-cache.png)
+
+Capacity rejection and simulated wizard failures deliberately raise handled
+exceptions. A debugger can stop at the first-chance exception; Continue runs the
+example's recovery path.
+
+## Refresh throttle
+
+Click **Notify** to request a real grid refresh. Repeated clicks restart the
+five-second quiet period; the counters distinguish requests, deliveries and
+provider calls. The card follows the throttle's waiting state.
+[Step-by-step timing check](../throttle/README.md).
+
+## Utilities
+
+| Button | Worked examples |
 | --- | --- |
-| Global function adapters | A fetcher and string-byte estimator wrap existing global functions. |
-| Object method adapters | Hits avoid fetching; invalidation fetches again; explicit assignment does not fetch. The source count is 2. |
-| Capacity and pins | A budget of six native characters evicts key 2 while retaining pinned key 1. Reap releases `3 * SizeOf(Char)` bytes; an oversized admission is rejected. |
-| Notifications | Fetching/fetched and removing/removed events show callback order and cache state changes. |
-| Owned objects | Removal disposes the fetched object; cache destruction disposes an explicitly assigned object. Failed assignment retains caller ownership. |
+| Arrays and collections | All array methods/overloads, list operations, comparers, predicates and transformation adapters. |
+| Scoped disposal | Several objects and memory blocks, class-owned disposal bags and explicit ownership transfer. |
+| Core API | Results, dates, statistics, files, Variants, notifications, locking, data sources, search expressions and common visuals. |
+| UI API | Column callbacks, selection, VCL compatibility controls and a model-bound wizard lifecycle. |
 
-The capacity-rejection case and the wizard's simulated failure cases deliberately raise handled exceptions. A debugger may stop at the first-chance exception; Continue resumes the demonstrated recovery.
+Each runner checks its results and appends completion to the memo. The
+[public type index](../../docs/public-api-examples.md) maps every public Framework
+type to its recipe, with platform-specific and empty APIs marked explicitly.
 
-The synchronous demonstration finishes disposing caches and callback objects before returning. `TDisposables` owns the demo runner; individual caches retain their existing `try/finally` lifetime around the callback provider. Complete reusable cache code examples are in the [main README](../../README.md#caching).
+## Build layout
 
-![Cache examples and their observable output in the same application](../../resources/demo/unified-cache.png)
+Delphi outputs go under `lib/Delphi/<platform>/demo/<configuration>`; Lazarus
+outputs go under `lib/FPC/<cpu>-<os>/demo`. Delphi Community Edition builds through
+the IDE. Optional [library packages](../../packages/README.md) are reusable build
+targets rather than additional runnable demos.
 
-## Build layout and optional SQLite recipe
+The preserved [SQLite adapter](sqlite/fMain.pas) is a source recipe for the older
+optional mORMot integration. It has no separate application project and is not
+needed by this demo.
 
-Delphi outputs go under `lib/Delphi/<platform>/demo/<configuration>`; Lazarus outputs go under `lib/FPC/<cpu>-<os>/demo`. Build with the IDE when using Delphi Community Edition. The root project groups include this single runnable app and the optional reusable package; the FPCUnit test project remains separate.
-
-The preserved [SQLite adapter source](sqlite/fMain.pas) is a recipe for the older optional mORMot integration. It has no separate application entry point and is not required by this cross-compiler demonstration. The complete supported grid UI is exercised by the generated-record source above.
-
-Copyright © 2026 [Herman Schoenfeld](https://sphere10.com). Distributed under the [MIT license](../../LICENSE).
+Copyright © 2026 [Herman Schoenfeld](https://sphere10.com).
+[MIT license](../../LICENSE).

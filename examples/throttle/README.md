@@ -1,40 +1,35 @@
 # Five-second grid throttle
 
-Open [ThrottleDemo.dproj](ThrottleDemo.dproj) in Delphi and run it. Lazarus uses
-[ThrottleDemo.lpi](ThrottleDemo.lpi)
-with the same form source. The app uses generated rows and does not open a wallet,
-connect to a network or read any PascalCoin data.
+Open [Sphere10PascalFramework.dproj](../../Sphere10PascalFramework.dproj) in Delphi
+or [Sphere10PascalFramework.lpi](../../Sphere10PascalFramework.lpi) in Lazarus,
+then select **Refresh throttle**. This is a section of the shared demo, using
+[the same form source](../demo/UThrottleDemo.pas) on both compilers. All rows are
+local; no wallet or network is involved.
 
-Click **Notify** once for an immediate fetch. Keep clicking less than five seconds
-apart: each click restarts the quiet interval. The next fetch must occur only
-after five seconds without a click. The **Please Wait / Synchronizing** card
-follows the throttle's `Waiting` state. After it disappears, the next click
-delivers immediately. One isolated click does not produce a duplicate fetch at
-the end of its wait.
+1. Click **Notify** once: the grid fetches immediately and starts its quiet timer.
+2. Click again less than five seconds later: the timer restarts. Keep clicking
+   to postpone fetching; the grid keeps its previous rows.
+3. Stop for five seconds: one pending fetch runs and **Please Wait / Synchronizing**
+   disappears. One isolated click produces no duplicate trailing fetch.
+4. Click after the wait finishes: a new burst can fetch immediately.
 
-This focused timing tool complements the [unified grid/wizard/cache demo](../demo/README.md).
-
-The event log and counters distinguish button clicks, ordinary throttle deliveries
-and actual `IDataSource.FetchPage` calls since **Ready**. The grid's total fetch
-number also includes initial setup, which the first log entry reports separately.
-The displayed revision is the click count captured by its latest fetch.
-A 100 ms display timer only reads the
-state and countdown after first-show setup; it never requests or admits a refresh.
-
-The button uses the real grid admission path:
+The counters distinguish requests, throttle deliveries and actual source fetches.
+The log reports initial setup separately; the displayed revision is the click
+count captured by the latest fetch. A display-only timer updates the countdown.
+It never requests a refresh or changes throttle admission.
 
 ```pascal
-Grid.RefreshThrottle.Interval := TTimeSpan.FromMilliseconds(5000);
+Grid.RefreshThrottle.Interval := TTimeSpan.FromSeconds(5);
 Grid.RefreshThrottle.Mode :=
-  TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
+    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
 
-// The button requests pending grid work and triggers the owned throttle once.
+// Each request records the latest page and notifies the owned throttle once.
 Grid.RefreshGrid;
 ```
 
-`RefreshGrid` records the latest page request and calls the owned
-`RefreshThrottle.Notify`. Calling `Notify` alone would not queue page work, so
-the button must not call both. Resizing or paging also follows that same grid
-admission path and therefore restarts the quiet interval.
+Paging, filtering and resizing use the same admission path. Resizing still changes
+visual layout while waiting; it fetches only after admission. The loading card
+follows `RefreshThrottle.Waiting`, independently of any external service.
 
-© 2026 [Herman Schoenfeld](https://sphere10.com). [MIT license](../../LICENSE).
+Copyright © 2026 [Herman Schoenfeld](https://sphere10.com).
+[MIT license](../../LICENSE).

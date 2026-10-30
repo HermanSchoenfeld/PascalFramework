@@ -162,3 +162,21 @@ desktop. The projects use ordinary source/resource builds with no build events.
 
 Data-row outputs: `tests/lib/Delphi/<Platform>/data-row-variant/<Config>`.
 Grid admission outputs: `tests/lib/Delphi/<Platform>/grid-throttle/<Config>`.
+
+## Whole-source caches
+
+Build [BulkCacheProbe.dproj](BulkCacheProbe.dproj) with Delphi or compile its
+[shared source](BulkCacheProbe.dpr) with Lazarus/FPC. It runs the same bulk-cache
+contract checks and public API recipes: one batch per lookup, snapshot retention,
+explicit refresh/purge, borrowed ownership, provider failures and callback forms.
+The first argument selects its log; `EXIT_CODE=0` indicates success.
+
+## Automatic grid page sizes
+
+Build [GridViewportProbe.dproj](GridViewportProbe.dproj) with Delphi, or run
+[RunGridViewportNativeTests.ps1](../RunGridViewportNativeTests.ps1) with FPC and
+Lazarus paths. The shared checks compare page capacity with actual native cell
+bounds at exact and one-pixel boundaries, different row/header heights, line
+widths, DPI scaling, scrollbars and resizing. Only fully visible rows fit a page;
+the minimum remains one row when the control is too small for any complete row.
+The first probe argument selects its log; it exits nonzero on failure.

@@ -3,9 +3,10 @@ unit UConcurrency;
 { Copyright © 2026 Herman Schoenfeld <https://www.sphere10.com>
   Distributed under the MIT software license, see the accompanying LICENSE.
 
-  Delphi/FPC implementation of the read/write/upgradeable ownership contract
-  used by System.Threading.ReaderWriterLockSlim. This is not a translation of
-  the .NET runtime implementation. Waiters sleep on RTL events, without polling.
+  Protects shared memory with multiple concurrent readers or one exclusive
+  writer. One upgradeable reader can reserve a later write; timed acquisition
+  and optional recursion control contention. Waiters sleep on RTL events.
+  Ownership semantics follow System.Threading.ReaderWriterLockSlim.
 }
 
 {$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
