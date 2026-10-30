@@ -1,14 +1,14 @@
-﻿<!-- Copyright © 2026 Herman Schoenfeld https://sphere10.com. MIT license. -->
+<!-- Copyright © 2026 Herman Schoenfeld https://sphere10.com. MIT license. -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{D47AC9E2-90A5-4A1A-AF16-76C1B1FEE4DB}</ProjectGuid>
-    <MainSource>PascalFramework.dpr</MainSource>
+    <MainSource>Sphere10PascalFramework.dpr</MainSource>
     <Config Condition="'$(Config)'==''">Debug</Config>
     <Platform Condition="'$(Platform)'==''">Win64</Platform>
     <Base>True</Base>
     <TargetedPlatforms>3</TargetedPlatforms>
     <AppType>Application</AppType>
-    <OutputName>PascalFramework</OutputName>
+    <OutputName>Sphere10PascalFramework</OutputName>
     <FrameworkType>VCL</FrameworkType>
     <ProjectVersion>20.3</ProjectVersion>
   </PropertyGroup>
@@ -16,7 +16,7 @@
     <Base>true</Base>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Base)'!=''">
-    <SanitizedProjectName>PascalFramework</SanitizedProjectName>
+    <SanitizedProjectName>Sphere10PascalFramework</SanitizedProjectName>
     <DCC_Namespace>System;System.Win;Winapi;Vcl;Vcl.Imaging;Data;Xml</DCC_Namespace>
     <DCC_Define>
     </DCC_Define>
@@ -56,7 +56,7 @@
     <BorlandProject>
       <Delphi.Personality>
         <Source>
-          <Source Name="MainSource">PascalFramework.dpr</Source>
+          <Source Name="MainSource">Sphere10PascalFramework.dpr</Source>
         </Source>
       </Delphi.Personality>
       <Platforms>
