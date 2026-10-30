@@ -2,7 +2,7 @@ unit UVisualGrid;
 
 { Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
-  Enterprise-class grid control for Lazarus/FPC.
+  Data-bound grid with filtering, sorting and paging for Delphi/VCL and Lazarus/LCL.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -2787,10 +2787,45 @@ begin
 end;
 
 function TCustomVisualGrid.ClientRowCount: Integer;
+var
+  LAvailable: Int64;
+  LRow, LRowHeight, LLineWidth: Integer;
 begin
-  Result := ((FDrawGrid.ClientHeight - FDrawGrid.GridLineWidth) div FDrawGrid.DefaultRowHeight) - FDrawGrid.FixedRows;
-  if Result < 1 then
-    Result := 1;
+  // ClientHeight already excludes native borders/scrollbars. LCL includes the
+  // separator in RowHeights; VCL adds its DPI-scaled separator to each row.
+  LAvailable := FDrawGrid.ClientHeight;
+  LLineWidth := 0;
+  {$IFDEF FPC}
+  if (FDrawGrid.FixedRows > 0) and (FDrawGrid.RowCount > 0) and
+    (FDrawGrid.ColCount > 0) then
+    Dec(LAvailable, FDrawGrid.CellRect(0,0).Top);
+  {$ELSE}
+  if FDrawGrid.Options * [goFixedHorzLine,goHorzLine] <> [] then
+    LLineWidth := TDrawGridAccess(FDrawGrid).ActualGridLineWidth;
+  // VCL's final separator is outside CellRect: the row is complete when its
+  // content reaches ClientHeight, even if that following separator is clipped.
+  Inc(LAvailable,LLineWidth);
+  {$ENDIF}
+  for LRow := 0 to FDrawGrid.FixedRows - 1 do
+    Dec(LAvailable, Max(0,FDrawGrid.RowHeights[LRow]) + LLineWidth);
+
+  // Honor explicit row heights on the current page, then use the default for
+  // rows not fetched yet. Never admit a row whose bottom lies off the viewport.
+  Result := 0;
+  LRow := FDrawGrid.FixedRows;
+  while (LRow < FDrawGrid.RowCount) and (LAvailable >= 0) do begin
+    LRowHeight := Max(0,FDrawGrid.RowHeights[LRow]) + LLineWidth;
+    if LRowHeight > LAvailable then Break;
+    Dec(LAvailable,LRowHeight);
+    Inc(Result);
+    Inc(LRow);
+  end;
+  if LRow >= FDrawGrid.RowCount then begin
+    LRowHeight := Max(1,FDrawGrid.DefaultRowHeight + LLineWidth);
+    if LAvailable > 0 then Inc(Result,LAvailable div LRowHeight);
+  end;
+  // PageSize has a one-row minimum even before the first usable native layout.
+  Result := Max(1,Result);
 end;
 
 procedure TCustomVisualGrid.HidePageSizeControls(AVisible: boolean);
