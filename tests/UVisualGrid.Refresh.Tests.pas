@@ -9,9 +9,20 @@ unit UVisualGrid.Refresh.Tests;
 interface
 
 uses Classes, SysUtils, Types, Forms, Controls, StdCtrls, ExtCtrls, Graphics, SyncObjs, Variants, Generics.Collections,
-  fpcunit, testregistry, UCommon, UCommon.UI, UCommon.Data, UVisualGrid;
+  fpcunit, testregistry, UCommon, UCommon.UI, UCommon.Data, UVisualGrid,
+  UVisualGrid.Viewport.Checks;
 
 type
+  TVisualGridViewportTests = class(TTestCase)
+  published
+    procedure UniformRowsFitAtNativePixelBoundaries;
+    procedure HeaderAndVariableRowsUseTheirNativeHeights;
+    procedure DpiScaledRowsFitAtNativePixelBoundaries;
+    procedure HorizontalScrollbarReducesTheNativeViewport;
+    procedure UnfetchedRowsStillContributePageCapacity;
+    procedure AutomaticPageSizeTracksNativeResizing;
+  end;
+
   { Reused by product tests which add their own notification source. }
   TVisualGridRefreshFixture = class(TTestCase)
   protected
@@ -105,6 +116,24 @@ type
   end;
 
 implementation
+
+procedure TVisualGridViewportTests.UniformRowsFitAtNativePixelBoundaries;
+begin CheckVisualGridViewport(vsUniformRows); end;
+
+procedure TVisualGridViewportTests.HeaderAndVariableRowsUseTheirNativeHeights;
+begin CheckVisualGridViewport(vsVariableRows); end;
+
+procedure TVisualGridViewportTests.DpiScaledRowsFitAtNativePixelBoundaries;
+begin CheckVisualGridViewport(vsDpiScaling); end;
+
+procedure TVisualGridViewportTests.HorizontalScrollbarReducesTheNativeViewport;
+begin CheckVisualGridViewport(vsHorizontalScrollbar); end;
+
+procedure TVisualGridViewportTests.UnfetchedRowsStillContributePageCapacity;
+begin CheckVisualGridViewport(vsUnfetchedRows); end;
+
+procedure TVisualGridViewportTests.AutomaticPageSizeTracksNativeResizing;
+begin CheckVisualGridViewport(vsAutomaticResize); end;
 
 type
   TGridRefreshSource = class(TCustomDataSource<Integer>)
@@ -1505,6 +1534,7 @@ begin
 end;
 
 initialization
+  RegisterTest(TVisualGridViewportTests);
   RegisterTest(TVisualGridRefreshTests);
   RegisterTest(TVisualGridRequestThrottleTests);
   RegisterTest(TVisualGridQueuedCompletionTests);
