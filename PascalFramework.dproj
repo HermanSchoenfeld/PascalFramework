@@ -1,0 +1,69 @@
+﻿<!-- Copyright © 2026 Herman Schoenfeld https://sphere10.com. MIT license. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{D47AC9E2-90A5-4A1A-AF16-76C1B1FEE4DB}</ProjectGuid>
+    <MainSource>PascalFramework.dpr</MainSource>
+    <Config Condition="'$(Config)'==''">Debug</Config>
+    <Platform Condition="'$(Platform)'==''">Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Application</AppType>
+    <OutputName>PascalFramework</OutputName>
+    <FrameworkType>VCL</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Base)'!=''">
+    <SanitizedProjectName>PascalFramework</SanitizedProjectName>
+    <DCC_Namespace>System;System.Win;Winapi;Vcl;Vcl.Imaging;Data;Xml</DCC_Namespace>
+    <DCC_Define>
+    </DCC_Define>
+    <DCC_UnitSearchPath>src\Sphere10;examples\demo;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+    <DCC_IncludePath>src\Sphere10;examples\demo;$(DCC_IncludePath)</DCC_IncludePath>
+    <DCC_ResourcePath>src\Sphere10;examples\demo;$(DCC_ResourcePath)</DCC_ResourcePath>
+    <DCC_DcuOutput>.\lib\Delphi\$(Platform)\demo\$(Config)\obj</DCC_DcuOutput>
+    <DCC_ExeOutput>.\lib\Delphi\$(Platform)\demo\$(Config)</DCC_ExeOutput>
+    <BRCC_OutputDir>.\lib\Delphi\$(Platform)\demo\$(Config)\res</BRCC_OutputDir>
+    <BRCC_IncludePath>src\Sphere10;$(BRCC_IncludePath)</BRCC_IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_1)'!=''">
+    <Cfg_1>true</Cfg_1><CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_1)'!=''">
+    <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
+    <Cfg_2>true</Cfg_2><CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_2)'!=''">
+    <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+  </PropertyGroup>
+  <ItemGroup>
+    <RcCompile Include="src\Sphere10\UVisualGrid.VCL.rc" />
+    <BuildConfiguration Include="Debug"><Key>Cfg_2</Key><CfgParent>Base</CfgParent></BuildConfiguration>
+    <BuildConfiguration Include="Base"><Key>Base</Key></BuildConfiguration>
+    <BuildConfiguration Include="Release"><Key>Cfg_1</Key><CfgParent>Base</CfgParent></BuildConfiguration>
+    <DelphiCompile Include="$(MainSource)">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject>
+      <Delphi.Personality>
+        <Source>
+          <Source Name="MainSource">PascalFramework.dpr</Source>
+        </Source>
+      </Delphi.Personality>
+      <Platforms>
+        <Platform value="Win32">True</Platform>
+        <Platform value="Win64">True</Platform>
+      </Platforms>
+    </BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>

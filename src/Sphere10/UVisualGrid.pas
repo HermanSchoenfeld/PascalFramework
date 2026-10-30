@@ -1,4 +1,4 @@
-﻿unit UVisualGrid;
+unit UVisualGrid;
 
 { Copyright (c) 2017 - 2018 Herman Schoenfeld <https://www.sphere10.com>
 
@@ -14,18 +14,31 @@
 }
 
 
+{$IFDEF FPC}
 {$MODE DELPHI}
+{$ENDIF}
 
-{$modeswitch nestedprocvars}
+{$IFDEF FPC}{$modeswitch nestedprocvars}{$ENDIF}
 
 {.$DEFINE VISUALGRID_DEBUG}
 
 interface
 
 uses
-  Classes, SysUtils, StdCtrls, ExtCtrls, Controls, Grids, Types, Graphics,
-  UCommon, UCommon.Data, UCommon.Collections, Generics.Collections, Generics.Defaults, Menus, ComboEx, Buttons, Math,
-  LResources, syncobjs;
+  Classes, SysUtils, Types, Math, Generics.Collections, Generics.Defaults, SyncObjs,
+  {$IFDEF FPC}
+  StdCtrls, ExtCtrls, Controls, Grids, Graphics, Menus, ComboEx, Buttons, LResources,
+  {$ELSE}
+  Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Controls, Vcl.Grids, Vcl.Graphics, Vcl.Menus,
+  Vcl.Buttons, Vcl.ComCtrls, Vcl.CheckLst, Vcl.Forms, Winapi.Windows, Winapi.Messages,
+  {$ENDIF}
+  UCommon, UCommon.UI, UCommon.Data, UCommon.Collections, ULoadingCircle;
+
+{$IFNDEF FPC}
+  {$DEFINE VISUALGRID_VCL_DECLARATIONS}
+  {$I UVisualGrid.VCL.inc}
+  {$UNDEF VISUALGRID_VCL_DECLARATIONS}
+{$ENDIF}
 
  type
 
@@ -77,8 +90,8 @@ uses
     procedure SetStretchedToFill(AValue: boolean); inline;
     procedure SetAutoWidth(AValue: boolean); inline;
     procedure SetWidth(AValue: Integer); inline;
-    procedure SetName(const AValue: utf8string);
-    procedure SetBinding(const AValue : AnsiString);
+    procedure SetName(const AValue: String);
+    procedure SetBinding(const AValue : String);
     procedure SetHeaderAlignment(const AAlignment : TAlignment);
     procedure SetHeaderFontStyles(const AStyles : TFontStyles);
     procedure SetDataAlignment(const AAlignment : TAlignment);
@@ -91,11 +104,11 @@ uses
 
     // Functional
     FIndex : Integer;
-    FName : utf8string;
+    FName : String;
     FFilters : TDataFilters;
-    FBinding : AnsiString;
-    FSortBinding: AnsiString;
-    FDisplayBinding: AnsiString;
+    FBinding : String;
+    FSortBinding: String;
+    FDisplayBinding: String;
     FSanitizer : TVisualColumnDataSanitizer;
     FWidth : Integer;
     FStretchColumn : Boolean;
@@ -117,11 +130,11 @@ uses
   public
     constructor Create(AGrid: TCustomVisualGrid);
     property Index : Integer read FIndex write FIndex;
-    property Name : utf8string read FName write SetName;
+    property Name : String read FName write SetName;
     property Filters : TDataFilters read FFilters write FFilters;
-    property Binding : AnsiString read FBinding write SetBinding;
-    property SortBinding : AnsiString read FSortBinding write FSortBinding;
-    property DisplayBinding : AnsiString read FDisplayBinding write FDisplayBinding;
+    property Binding : String read FBinding write SetBinding;
+    property SortBinding : String read FSortBinding write FSortBinding;
+    property DisplayBinding : String read FDisplayBinding write FDisplayBinding;
     property Sanitizer: TVisualColumnDataSanitizer read FSanitizer write FSanitizer;
     property AutoWidth : boolean read FAutoWidth write SetAutoWidth;
     property Visible : boolean read FVisible write FVisible;
@@ -145,8 +158,8 @@ uses
 
   { TVisualGrid Events }
 
-  TPreparePopupMenuEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu) of object;
-  TSelectionEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection) of object;
+  TPreparePopupMenuEvent = procedure(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu) of object;
+  TSelectionEvent = procedure(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection) of object;
   TDrawVisualCellEvent = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean) of object;
   TColumnInitializeEvent = procedure(Sender: TObject; AColumn : TVisualColumn) of object;
 
@@ -246,7 +259,10 @@ uses
     FClientPanel: TPanel;
     FLoadDataPanel: TPanel;
     FLoadDataLabel: TLabel;
-    FLoadDataProgressLabel: TLabel;
+    FLoadingSubtitle: TLabel;
+    FLoadingImage: TImage;
+    FLoadingCircle : TLoadingCircle;
+    FLoadingStartedAt : QWord;
     FBottomPanel: TPanel;
     FBottomCenterPanel: TPanel;
     FBottomRightPanel: TPanel;
@@ -265,7 +281,7 @@ uses
 
     FDrawGrid: TDrawGrid;
     FDelayedBoundsChangeTimer: TTimer;
-    FFetchDataThreadTimer: TTimer;
+    FLoadingDelayTimer: TTimer;
     FEditingDoneTimer: TTimer;
     FSearchKindPopupMenu: TPopupMenu;
     FSingleSearchMenuItem: TMenuItem;
@@ -285,12 +301,29 @@ uses
     procedure PageNavigationClick(Sender: TObject);
     procedure MultiSearchCheckComboBoxChange(Sender: TObject; AIndex: Integer);
     procedure DelayedBoundsChange(Sender: TObject);
-    procedure FetchDataThreadProgress(Sender: TObject);
+    procedure FetchDataThreadCompleted(Sender: TObject);
+    procedure ShowDelayedLoading(Sender: TObject);
     procedure SearchButtonClick(Sender: TObject);
+    {$IFNDEF FPC}procedure LoadSearchGlyph;{$ENDIF}
   private
     FCaption: TVisualGridCaption;
     FFetchDataInThread: boolean;
     FActiveThread: TThread;
+    FFetchCompletion: TThreadNotify;
+    FFetchInProgress, FJoiningFetch: Boolean;
+    FShuttingDown: Boolean;
+    FManualLoading, FManualLoadingDisablesInput: Boolean;
+    FFetchControlsEnabled, FAutomaticLoading: Boolean;
+    FManualLoadingTitle, FManualLoadingSubtitle: String;
+    FAutomaticLoadingTitle, FLoadingError: String;
+    FRefreshPending, FRefreshColumnsPending: Boolean;
+    FRefreshThrottle: TThrottledEvent;
+    FRefreshReady, FRefreshClientPending, FExecutingRefresh, FRefreshCancelled: Boolean;
+    FRefreshSuspended, FActiveRefreshCancelled: Boolean;
+    FInternalLayoutDepth: Integer;
+    FPendingRefreshParams, FActiveRefreshParams: TPageFetchParams;
+    FPendingRefreshSource, FActiveRefreshSource: IDataSource;
+    FBoundsClientPending, FBoundsAlreadyNotified: Boolean;
     FOnPreparePopupMenu: TPreparePopupMenuEvent;
     FOnSelection: TSelectionEvent;
     FOnFinishedUpdating: TNotifyEvent;
@@ -316,13 +349,24 @@ uses
     function GetColumn(Index: Integer): TVisualColumn;
     function GetActiveDataTable: PDataTable;
     function GetRowCount: Integer; inline;
+    function GetIsUpdating : Boolean; inline;
     function GetRows(ARow: Integer): Variant;
     function GetSelection: TVisualGridSelection;
     function GetSelectedRows : TArray<Variant>;
     procedure ControlsEnable(AEnable: boolean);
+    function CaptureRefreshParams: TPageFetchParams;
+    procedure QueueRefresh(ARefreshColumns, AClientInput, ANotify: Boolean);
+    procedure ExecutePendingRefresh(AOrdinaryAdmission: Boolean = False);
+    procedure RefreshThrottleDelivery(Sender: TObject);
+    procedure RefreshThrottleWaitingChanged(Sender: TObject);
+    procedure RefreshThrottleFinished(Sender: TObject);
+    procedure ChangePageSize(Value: Integer; AClientInput, ANotify: Boolean);
+    procedure ApplyControlsState;
+    procedure RefreshLoadingPresentation;
     function GetCanvas: TCanvas;
     procedure SetCells(ACol, ARow: Integer; AValue: Variant);
     procedure SetFetchDataInThread(AValue: boolean);
+    procedure SetRefreshSuspended(AValue: Boolean);
     procedure SetSortMode(AValue: TSortMode);
     procedure SetSearchMode(AValue: TSearchMode);
     procedure SetOptions(AValue: TVisualGridOptions);
@@ -343,7 +387,16 @@ uses
   protected { TComponent }
     procedure Loaded; override;
   protected { TControl }
-    procedure BoundsChanged; override;
+    procedure LayoutLoadingPanel(Sender : TObject);
+    procedure BringLoadingPanelToFront;
+    procedure BeginLoading;
+    procedure UpdateLoading;
+    procedure EndLoading;
+    procedure ShowLoadingError(const AMessage : String);
+    {$IFDEF FPC}procedure BoundsChanged; override;{$ELSE}procedure Resize; override;
+    function Scale96ToFont(AValue:Integer):Integer;
+    {$ENDIF}
+    procedure SetParent(AParent:TWinControl); override;
   protected
     FGUIUpdates: TUpdateOfVisualGridGUI;
     FDataTable: TDataTable;
@@ -376,14 +429,14 @@ uses
     procedure RefreshPageIndexAndGridInterface;
     procedure RefreshPageIndexData(ARefreshColumns: boolean);
     procedure ResizeSearchEdit(ACol: Integer);
-    procedure SetPageIndexEditText(const AStr: utf8string);
-    procedure SetPageSizeEditText(const AStr: utf8string);
+    procedure SetPageIndexEditText(const AStr: String);
+    procedure SetPageSizeEditText(const AStr: String);
     procedure BeforeFetchPage;
     procedure FetchPage(out AResult: TPageFetchResult);
     procedure AfterFetchPage;
     property ActiveDataTable: PDataTable read GetActiveDataTable;
     procedure UpdateSelection(ASelectionType: TSelectionType; AResetSelection: boolean);
-    function SelectionsEquals(constref A, B: TVisualGridSelection): boolean;
+    function SelectionsEquals({$IFDEF FPC}constref{$ELSE}const{$ENDIF} A, B: TVisualGridSelection): boolean;
     procedure ResetSelection(out ASelection: TVisualGridSelection); inline;
   public
     constructor Create(Owner: TComponent); override;
@@ -394,6 +447,28 @@ uses
     property AutoPageSize: boolean read FAutoPageSize write SetAutoPageSize default false;
     property ShowAllData: boolean read FShowAllData write SetShowAllData default false;
     property FetchDataInThread: boolean read FFetchDataInThread write SetFetchDataInThread;
+    // True while an asynchronous page fetch is running or awaiting UI completion.
+    property IsUpdating : Boolean read GetIsUpdating;
+    // UI-thread refresh admission for every client request. temNone preserves
+    // immediate behavior; burst modes retain only the latest pending parameters.
+    // The grid owns this component. Internal worker/layout replay never notifies it.
+    property RefreshThrottle: TThrottledEvent read FRefreshThrottle;
+    // UI-thread policy boundary. Requests and visual layout continue while
+    // suspended, but no provider query is admitted. Active work is cancelled
+    // cooperatively and its result is ignored; this setter never joins it.
+    // Cancel RefreshThrottle while suspended to resume immediately, otherwise
+    // the retained request still respects its current quiet interval.
+    property RefreshSuspended: Boolean read FRefreshSuspended write SetRefreshSuspended;
+    // UI-thread presentation only. The graphic is copied; its owner may free it
+    // immediately. A nil/empty graphic uses the existing loading circle.
+    // Repeated calls replace this manual state without fetching any data.
+    procedure ShowLoading(const ATitle: String; const ASubtitle: String = '';
+      AImage: TGraphic = nil; ADisableInput: Boolean = True);
+    // Releases only manual presentation, retaining a current fetch/error card
+    // and its input restrictions. Neither method changes this grid's Enabled.
+    procedure HideLoading;
+    // True for a held manual overlay, independently of worker-only IsUpdating.
+    property LoadingVisible: Boolean read FManualLoading;
     property DefaultStretchedColumn: Integer read FDefaultStretchedColumn write FDefaultStretchedColumn;
 
     property CanPage: boolean read FCanPage write SetCanPage default true;
@@ -419,11 +494,13 @@ uses
     property OnDrawVisualCell: TDrawVisualCellEvent read FOnDrawVisualCell write FOnDrawVisualCell;
     property OnSelection: TSelectionEvent read FOnSelection write FOnSelection;
     property OnPreparePopupMenu: TPreparePopupMenuEvent read FOnPreparePopupMenu write FOnPreparePopupMenu;
+    // Raised once after page population, layout and selection restoration.
+    // Resizing an already populated page does not raise a fetch completion.
     property OnFinishedUpdating : TNotifyEvent read FOnFinishedUpdating write FOnFinishedUpdating;
 
     property WidgetControl: TControl read FWidgetControl write SetWidgetControl;
     property InternalDrawGrid : TDrawGrid read FDrawGrid;
-    function AddColumn(const AName: utf8string) : TVisualColumn;
+    function AddColumn(const AName: String) : TVisualColumn;
     procedure RefreshGrid;
     procedure ClearSelection(AIgnoreDeselectionType: boolean = false);
   end;
@@ -469,7 +546,24 @@ procedure Register;
 
 implementation
 
-uses Variants, UMemory, Dialogs;
+uses Variants, UMemory,
+  {$IFDEF FPC}Dialogs;{$ELSE}Vcl.Dialogs, Vcl.Imaging.pngimage;{$ENDIF}
+
+{$IFNDEF FPC}
+{$R UVisualGrid.VCL.res}
+{$I UVisualGrid.VCL.inc}
+
+procedure DrawGridText(ACanvas:TCanvas; ARect:TRect; const AText:string; AAlignment:TAlignment);
+var LFlags:Cardinal;
+begin
+  LFlags:=DT_SINGLELINE or DT_VCENTER or DT_END_ELLIPSIS or DT_NOPREFIX;
+  case AAlignment of
+    taRightJustify: LFlags:=LFlags or DT_RIGHT;
+    taCenter: LFlags:=LFlags or DT_CENTER;
+  end;
+  Winapi.Windows.DrawText(ACanvas.Handle,PChar(AText),Length(AText),ARect,LFlags);
+end;
+{$ENDIF}
 
 resourcestring
   sTotal = 'Total: %d';
@@ -477,7 +571,8 @@ resourcestring
   sMultiColumnSearch = 'Multi-Column Search';
   sPageSize = 'Page size:';
   sSearchExpression = 'Search expression';
-  sDataLoading = 'DATA LOADING';
+  sDataLoading = 'Loading...';
+  sDataUpdating = 'Updating...';
   sExpression = 'Expression';
   sImproperColumnIndex = 'Improper column index. Max expected is %d but %d found.';
 
@@ -498,10 +593,11 @@ type
     FGrid: TCustomVisualGrid;
     FLastFetchDataResult: TCustomVisualGrid.TLastFetchDataResult;
     FIgnoreRecalcPageCount: boolean;
+    FError: String;
+    FResultReady: LongInt;
     procedure Execute; override;
   public
     constructor Create(AGrid: TCustomVisualGrid; ARefreshColumns: boolean);
-    destructor Destroy; override;
   end;
 
 procedure Register;
@@ -546,7 +642,7 @@ end;
 
 procedure TVisualGridCaption.SetFont(AValue: TFont);
 begin
-  if FLabel.Font.IsEqual(AValue) then Exit;
+  if FLabel.Font.{$IFDEF FPC}IsEqual{$ELSE}Equals{$ENDIF}(AValue) then Exit;
   FLabel.Font.Assign(AValue);
   FOwner.LayoutChanged;
 end;
@@ -567,13 +663,16 @@ begin
 
   with FLabel do
   begin
+      {$IFDEF FPC}
     AnchorSideLeft.Control := AOwner.FTopPanelLeft;
     AnchorSideLeft.Side := asrBottom;
     AnchorSideTop.Control := AOwner.FTopPanelRight;
     AnchorSideTop.Side := asrCenter;
     AnchorSideRight.Control := AOwner.FTopPanelRight;
+      {$ENDIF}
     Anchors := [akTop, akLeft, akRight];
     Visible := false;
+    {$IFNDEF FPC}Align:=alClient; Layout:=tlCenter;{$ENDIF}
   end;
 end;
 
@@ -604,12 +703,15 @@ end;
 
 function TVisualColumn.GetStretchedToFill: boolean;
 begin
-  Result := FColumn.SizePriority > 0;
+  {$IFDEF FPC}Result := FColumn.SizePriority > 0;{$ELSE}Result := FStretchColumn;{$ENDIF}
 end;
 
 function TVisualColumn.GetWidth: Integer;
 begin
-  Result := FColumn.Width;
+  {$IFDEF FPC}Result := FColumn.Width;{$ELSE}
+  if FGrid.FDrawGrid.HandleAllocated then Result:=FGrid.FDrawGrid.ColWidths[FColumn.Index]
+  else Result:=FColumn.Width;
+  {$ENDIF}
 end;
 
 procedure TVisualColumn.SetSortDirection(AValue: TSortDirection);
@@ -642,13 +744,13 @@ begin
     AttachGridColumn(FColumn)
 end;
 
-procedure TVisualColumn.SetName(const AValue: utf8string);
+procedure TVisualColumn.SetName(const AValue: String);
 begin
   FName := AValue;
   Binding := UTF8Decode(AValue);
 end;
 
-procedure TVisualColumn.SetBinding(const AValue: AnsiString);
+procedure TVisualColumn.SetBinding(const AValue: String);
 begin
   FBinding := AValue;
   FSortBinding := AValue;
@@ -690,15 +792,23 @@ begin
   if FAutoWidth then
     FStretchColumn := false
   else if NOT FStretchColumn then begin
-    FColumn.Width := FWidth;
+    {$IFDEF FPC}FColumn.Width := FWidth;{$ELSE}
+    FColumn.Width := Max(1,IfThen(FWidth>0,FWidth,FGrid.FDrawGrid.DefaultColWidth));
+    {$ENDIF}
   end;
 
   // StretchedToFill
-  FColumn.SizePriority := ifthen(FStretchColumn, 1);
+  {$IFDEF FPC}FColumn.SizePriority := ifthen(FStretchColumn, 1);{$ELSE}FColumn.AutoSize:=FStretchColumn;{$ENDIF}
 
   // Caption - already painted in default drawing event
-  if Self.FColumn.Title.Caption <> '' then
-     Self.FColumn.Title.Caption:='';
+  {$IFDEF FPC}
+  if Self.FColumn.Title.Caption <> '' then Self.FColumn.Title.Caption:='';
+  {$ELSE}
+  FColumn.Text:='';
+  // Text metrics require a native window; retain AutoWidth until docking.
+  if FAutoWidth and Assigned(FGrid.Parent) then FColumn.Width:=FGrid.Canvas.TextWidth(string(FName))+16;
+  FGrid.FDrawGrid.FitColumns;
+  {$ENDIF}
 end;
 
 { TVisualGridSelection }
@@ -736,7 +846,7 @@ end;
 class procedure TVisualCellRenderers.DollarValue (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LReal : Real;
-  LTextStyle: TTextStyle;
+  {$IFDEF FPC}LTextStyle: TTextStyle;{$ENDIF}
 begin
   if NOT VarIsNumeric(CellData) then
     exit;
@@ -744,10 +854,14 @@ begin
   LReal := CellData;
   Canvas.Font.Color:= IIF (LReal < 0, clRed, clGreen);
   Canvas.Font.Style:=[fsBold];
+  {$IFDEF FPC}
   LTextStyle := Canvas.TextStyle;
   LTextStyle.Alignment:=taRightJustify;
   Canvas.TextStyle:=LTextStyle;
-  Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, Format('$%.2F',  [LReal]), LTextStyle);
+  Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, Format('$%.2F', [LReal]), LTextStyle);
+  {$ELSE}
+  DrawGridText(Canvas,Rect,Format('$%.2F',[LReal]),taRightJustify);
+  {$ENDIF}
   Handled := true;
 end;
 
@@ -755,20 +869,36 @@ end;
 
 procedure TFetchDataThread.Execute;
 begin
-  FGrid.FetchPage(FLastFetchDataResult.FetchResult);
+  try
+    if Terminated then Exit;
+    try
+      FGrid.FetchPage(FLastFetchDataResult.FetchResult);
+    except
+      on E: Exception do FError := E.Message;
+    end;
+  finally
+    // Publish result readiness before waking the UI. A stale queued wake must
+    // never join a different worker whose provider is still running.
+    InterlockedExchange(FResultReady, 1);
+    FGrid.FFetchCompletion.Invoke(FGrid, FGrid.FetchDataThreadCompleted);
+  end;
 end;
 
 constructor TFetchDataThread.Create(AGrid: TCustomVisualGrid;
   ARefreshColumns: boolean);
+var LTransferred:Boolean;
 begin
+  // Delphi starts an unsuspended thread after the complete constructor returns.
+  inherited Create({$IFDEF FPC}True{$ELSE}False{$ENDIF});
+  FreeOnTerminate := false;
   AGrid.FActiveThread := Self;
   FGrid := AGrid;
+  LTransferred:=False;
+  try
   FGrid.ControlsEnable(false);
-  FGrid.FFetchDataThreadTimer.Enabled:=true;
-  FGrid.FLoadDataPanel.Visible:=True;
-  FGrid.FLoadDataPanel.BringToFront;
+  FGrid.FFetchInProgress:=True;
+  FGrid.BeginLoading;
   FGrid.BeforeFetchPage;
-  FreeOnTerminate:=true;
   FLastFetchDataResult.RefreshColumns:=ARefreshColumns;
   FIgnoreRecalcPageCount:=FGrid.FIgnoreRecalcPageCount;
 
@@ -776,15 +906,22 @@ begin
   New(FGrid.FCachedDataTable);
   Move(FGrid.FDataTable, FGrid.FCachedDataTable^, SizeOf(TDataTable));
   FillChar(FGrid.FDataTable, SizeOf(TDataTable), #0);
-  inherited Create(false);
-end;
-
-destructor TFetchDataThread.Destroy;
-begin
-  FLastFetchDataResult.FromThread:=true;
-  FGrid.FLastFetchDataResult := FLastFetchDataResult;
-  Synchronize(FGrid.AfterFetchPage);
-  inherited Destroy;
+  LTransferred:=True;
+  {$IFDEF FPC}Start;{$ENDIF}
+  except
+    // Failed native control preparation must not leave a pointer to the thread
+    // whose constructor is unwinding. Its inherited destructor joins it.
+    FGrid.FActiveThread:=nil;
+    FGrid.FFetchInProgress:=False;
+    if LTransferred then begin
+      FGrid.FDataTable:=FGrid.FCachedDataTable^;
+      Dispose(FGrid.FCachedDataTable);
+      FGrid.FCachedDataTable:=nil;
+    end;
+    FGrid.EndLoading;
+    FGrid.ControlsEnable(True);
+    raise;
+  end;
 end;
 
 { TCustomVisualGrid.TSearchEdit }
@@ -852,6 +989,8 @@ constructor TCustomVisualGrid.Create(Owner: TComponent);
 begin
   inherited;
 
+  FFetchControlsEnabled := True;
+
   FMultiSearchEdits := TObjectList<TSearchEdit>.Create;
   FColumns := TObjectList<TVisualColumn>.Create;
   FFilters := TList<TColumnFilter>.Create;
@@ -860,7 +999,7 @@ begin
 
   { component layout }
 
-  ControlStyle := ControlStyle - [csAcceptsControls] + [csOwnedChildrenNotSelectable];
+  ControlStyle := ControlStyle - [csAcceptsControls]{$IFDEF FPC} + [csOwnedChildrenNotSelectable]{$ENDIF};
 
   FSearchKindPopupMenu := TPopupMenu.Create(Self);
   FSingleSearchMenuItem := TMenuItem.Create(Self);
@@ -966,19 +1105,23 @@ begin
         Width := 56;
         Height := 21;
 
+      {$IFDEF FPC}
         AnchorSideLeft.Control := FButtonPrevious;
         AnchorSideLeft.Side := asrBottom;
         AnchorSideTop.Control := FBottomRightPanel;
         AnchorSideRight.Control := FPageCountLabel;
         AnchorSideBottom.Control := FBottomRightPanel;
         AnchorSideBottom.Side := asrBottom;
+      {$ENDIF}
         Anchors := [akLeft, akTop, akRight, akBottom];
+      {$IFDEF FPC}
         BorderSpacing.Top := 10;
         BorderSpacing.Right := 2;
         BorderSpacing.Left := 2;
         BorderSpacing.Bottom := 8;
+      {$ENDIF}
 
-        OnEditingDone := PageIndexEditingDone;
+        {$IFDEF FPC}OnEditingDone{$ELSE}OnExit{$ENDIF} := PageIndexEditingDone;
       end;
 
     end;
@@ -1018,17 +1161,21 @@ begin
         Width := 52;
         Height := 21;
 
+      {$IFDEF FPC}
         AnchorSideLeft.Control := FPageSizeLabel;
         AnchorSideLeft.Side := asrBottom;
         AnchorSideTop.Control := FBottomCenterPanel;
         AnchorSideBottom.Control := FBottomCenterPanel;
         AnchorSideBottom.Side := asrBottom;
+      {$ENDIF}
         Anchors := [akLeft, akTop, akBottom];
+      {$IFDEF FPC}
         BorderSpacing.Top := 10;
         BorderSpacing.Left := 2;
         BorderSpacing.Bottom := 8;
+      {$ENDIF}
 
-        OnEditingDone:=PageSizeEditingDone;
+        {$IFDEF FPC}OnEditingDone{$ELSE}OnExit{$ENDIF}:=PageSizeEditingDone;
       end;
     end;
   end;
@@ -1045,16 +1192,21 @@ begin
     FMultiSearchCheckComboBox.Parent := FTopPanel;
     with FMultiSearchCheckComboBox do
     begin
+      {$IFDEF FPC}
       AnchorSideTop.Control := FTopPanel;
       AnchorSideLeft.Control := FTopPanel;
       AnchorSideBottom.Control := FTopPanel;
       AnchorSideBottom.Side := asrBottom;
+      {$ENDIF}
       Anchors := [akLeft, akTop, akBottom];
 
+      {$IFDEF FPC}
       BorderSpacing.Top := 6;
       BorderSpacing.Left := 4;
       BorderSpacing.Bottom := 6;
+      {$ENDIF}
       Width := 120;
+      {$IFNDEF FPC}SetBounds(4,6,120,24);{$ENDIF}
       OnItemChange:=MultiSearchCheckComboBoxChange;
       PopupMenu:=FSearchKindPopupMenu;
       Visible:=False;
@@ -1085,20 +1237,29 @@ begin
       //{$IFDEF WINDOWS}
       //FSearchButton.LoadGlyphFromResourceName(HINSTANCE, 'VISUALGRID_SEARCH');
       //{$ELSE}
+      {$IFDEF FPC}
       FSearchButton.LoadGlyphFromLazarusResource('VISUALGRID_SEARCH');
+      {$ELSE}
+      LoadSearchGlyph;
+      {$ENDIF}
       //{$ENDIF}
       with FSearchButton do
       begin
+      {$IFDEF FPC}
         AnchorSideTop.Control := FTopPanelRight;
         AnchorSideRight.Control := FTopPanelRight;
         AnchorSideRight.Side := asrBottom;
         AnchorSideBottom.Control := FTopPanelRight;
         AnchorSideBottom.Side := asrBottom;
+      {$ENDIF}
         Anchors := [akTop, akRight, akBottom];
+      {$IFDEF FPC}
         BorderSpacing.Top := 6;
         BorderSpacing.Right := 4;
         BorderSpacing.Bottom := 6;
+      {$ENDIF}
         Width := 23;
+        {$IFNDEF FPC}SetBounds(127,6,23,24);{$ENDIF}
         PopupMenu:=FSearchKindPopupMenu;
         OnClick:=SearchButtonClick;
       end;
@@ -1107,15 +1268,20 @@ begin
       FSearchEdit.Parent := FTopPanelRight;
       with FSearchEdit do
       begin
+      {$IFDEF FPC}
         AnchorSideTop.Control := FTopPanelRight;
         AnchorSideRight.Control := FSearchButton;
         AnchorSideBottom.Control := FTopPanelRight;
         AnchorSideBottom.Side := asrBottom;
+      {$ENDIF}
         Anchors := [akTop, akRight, akBottom];
+      {$IFDEF FPC}
         BorderSpacing.Top := 6;
         BorderSpacing.Right := 2;
         BorderSpacing.Bottom := 6;
+      {$ENDIF}
         Width := 121;
+        {$IFNDEF FPC}SetBounds(2,6,121,24);{$ENDIF}
         TextHint := sSearchExpression;
         PopupMenu := FSearchKindPopupMenu;
       end;
@@ -1182,48 +1348,53 @@ begin
       OnHeaderClick := GridHeaderClick;
       Options := (Options - [goRangeSelect]);
       FixedCols := 0;
-      ColCount:=0;
-      RowCount:=0;
+      {$IFDEF FPC}ColCount:=0;{$ELSE}ColCount:=1;{$ENDIF}
+      {$IFDEF FPC}RowCount:=0;{$ELSE}RowCount:=2;{$ENDIF}
     end;
     FDefaultDrawGridOptions := FDrawGrid.Options;
   end;
 
   FLoadDataPanel := TPanel.Create(Self);
-  FLoadDataPanel.Parent := Self;
-  with FLoadDataPanel do
-  begin
-    //BevelOuter := bvNone;
-    Width := 300;
-    Height := 150;
-    //Align:=alClient;
-    Color:=clWindow;
-    Visible:=false;
-    AnchorSideLeft.Control := Self;
-    AnchorSideLeft.Side := asrCenter;
-    AnchorSideTop.Control := Self;
-    AnchorSideTop.Side := asrCenter;
+  FLoadDataPanel.Name := 'LoadingOverlay';
+  FLoadDataPanel.Caption := '';
+  FLoadDataPanel.Parent := FClientPanel;
+  FLoadDataPanel.BevelOuter := bvNone;
+  FLoadDataPanel.BorderStyle := bsSingle;
+  FLoadDataPanel.Color := clWindow;
+  FLoadDataPanel.DoubleBuffered := True;
+  FLoadDataPanel.Visible := False;
+  FLoadDataPanel.TabStop := False;
 
-    FLoadDataLabel := TLabel.Create(Self);
-    FLoadDataLabel.Parent := FLoadDataPanel;
-    with FLoadDataLabel do
-    begin
-      AnchorSideLeft.Control := FLoadDataPanel;
-      AnchorSideLeft.Side := asrCenter;
-      AnchorSideTop.Control := FLoadDataPanel;
-      AnchorSideTop.Side := asrCenter;
-      Caption := sDataLoading;
-    end;
-    FLoadDataProgressLabel := TLabel.Create(Self);
-    FLoadDataProgressLabel.Parent := FLoadDataPanel;
-    with FLoadDataProgressLabel do
-    begin
-      AnchorSideLeft.Control := FLoadDataLabel;
-      AnchorSideLeft.Side := asrCenter;
-      AnchorSideTop.Control := FLoadDataLabel;
-      AnchorSideTop.Side := asrBottom;
-      Caption := '-';
-    end
-  end;
+  FLoadingCircle := TLoadingCircle.Create(Self);
+  FLoadingCircle.Name := 'LoadingCircle';
+  FLoadingCircle.Parent := FLoadDataPanel;
+  FLoadingCircle.Color := clWindow;
+
+  FLoadDataLabel := TLabel.Create(Self);
+  FLoadDataLabel.Name := 'LoadingStatus';
+  FLoadDataLabel.Parent := FLoadDataPanel;
+  FLoadDataLabel.AutoSize := False;
+  FLoadDataLabel.Font.Style := [fsBold];
+  FLoadDataLabel.Caption := sDataLoading;
+  FLoadDataLabel.WordWrap := True;
+  FLoadDataLabel.Layout := tlCenter;
+  FLoadingSubtitle := TLabel.Create(Self);
+  FLoadingSubtitle.Name := 'LoadingSubtitle';
+  FLoadingSubtitle.Parent := FLoadDataPanel;
+  FLoadingSubtitle.AutoSize := False;
+  FLoadingSubtitle.Font.Style := [];
+  FLoadingSubtitle.WordWrap := True;
+  FLoadingSubtitle.Visible := False;
+  FLoadingImage := TImage.Create(Self);
+  FLoadingImage.Name := 'LoadingImage';
+  FLoadingImage.Parent := FLoadDataPanel;
+  FLoadingImage.Center := True;
+  FLoadingImage.Proportional := True;
+  FLoadingImage.Stretch := True;
+  FLoadingImage.Visible := False;
+  FLoadDataPanel.OnResize := LayoutLoadingPanel;
+  FClientPanel.OnResize := LayoutLoadingPanel;
+  LayoutLoadingPanel(FClientPanel);
 
   FDelayedBoundsChangeTimer := TTimer.Create(Self);
   with FDelayedBoundsChangeTimer do
@@ -1233,12 +1404,15 @@ begin
     OnTimer:=DelayedBoundsChange;
   end;
 
-  FFetchDataThreadTimer := TTimer.Create(Self);
-  with FFetchDataThreadTimer do
+  FFetchCompletion := TThreadNotify.Create(TThread.CurrentThread);
+  // A one-shot presentation delay preserves the nonflashing loading card.
+  // Fetch completion itself is queued by the worker, never polled by a timer.
+  FLoadingDelayTimer := TTimer.Create(Self);
+  with FLoadingDelayTimer do
   begin
     Enabled:=false;
-    Interval:=250;
-    OnTimer:=FetchDataThreadProgress;
+    Interval:=200;
+    OnTimer:=ShowDelayedLoading;
   end;
 
   FEditingDoneTimer := TTimer.Create(Self);
@@ -1249,6 +1423,10 @@ begin
   end;
 
   { default values for properties }
+  FRefreshThrottle := TThrottledEvent.Create(Self);
+  FRefreshThrottle.Add(RefreshThrottleDelivery);
+  FRefreshThrottle.OnWaitingChanged.Add(RefreshThrottleWaitingChanged);
+  FRefreshThrottle.OnBurstFinished.Add(RefreshThrottleFinished);
   FCellPadding := TRect.Create(CT_DEFAULT_CELL_PADDING_LEFT, CT_DEFAULT_CELL_PADDING_TOP, CT_DEFAULT_CELL_PADDING_RIGHT, CT_DEFAULT_CELL_PADDING_BOTTOM);
   DefaultStretchedColumn := -1;
   FSearchMode := smSingle;
@@ -1279,6 +1457,25 @@ end;
 
 destructor TCustomVisualGrid.Destroy;
 begin
+  // Join the producer before disposing its queued UI dispatcher or borrowed data.
+  FShuttingDown := true;
+  FreeAndNil(FRefreshThrottle);
+  if Assigned(FLoadingDelayTimer) then FLoadingDelayTimer.Enabled := false;
+  if Assigned(FDelayedBoundsChangeTimer) then FDelayedBoundsChangeTimer.Enabled := false;
+  if Assigned(FActiveThread) then begin
+    FActiveThread.Terminate;
+    FJoiningFetch := True;
+    try FActiveThread.WaitFor;
+    finally FJoiningFetch := False; end;
+    FreeAndNil(FActiveThread);
+  end;
+  FreeAndNil(FFetchCompletion); // Cancels this receiver's queued adapters.
+  FFetchInProgress := False;
+  if Assigned(FCachedDataTable) then begin
+    Dispose(FCachedDataTable);
+    FCachedDataTable := nil;
+  end;
+  FDataSource := nil;
   FFilters.Free;
   FColumns.Free;
   FMultiSearchEdits.Free;
@@ -1317,7 +1514,7 @@ const
   RIGHT_MARIGN = 4;
 
 var
-  LText: utf8string;
+  LText: String;
   LColumn: TVisualColumn;
   LHalfOfHeight: longint;
   LP1,LP2,LP3: TPoint;
@@ -1328,7 +1525,9 @@ begin
     LText := LColumn.Name;
     Rect := CalculateCellContentRect(Rect);
 
-    FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, LText);
+    {$IFDEF FPC}FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, LText);{$ELSE}
+    if LColumn.HasHeaderAlignment then DrawGridText(Canvas,Rect,string(LText),LColumn.HeaderAlignment)
+    else DrawGridText(Canvas,Rect,string(LText),taLeftJustify);{$ENDIF}
 
     FDrawGrid.Canvas.Pen.Width:=1;
     FDrawGrid.Canvas.Pen.Color:=clBlack;
@@ -1360,7 +1559,10 @@ begin
     end;
   end
   else begin
-    FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, RowData);
+    {$IFDEF FPC}FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, RowData);{$ELSE}
+    LColumn:=GetColumn(ACol);
+    if LColumn.HasDataAlignment then DrawGridText(Canvas,Rect,VarToStr(RowData),LColumn.DataAlignment)
+    else DrawGridText(Canvas,Rect,VarToStr(RowData),taLeftJustify);{$ENDIF}
   end;
 end;
 
@@ -1370,11 +1572,21 @@ begin
   ReloadColumns;
 end;
 
-procedure TCustomVisualGrid.BoundsChanged;
+{$IFDEF FPC}procedure TCustomVisualGrid.BoundsChanged;{$ELSE}procedure TCustomVisualGrid.Resize;{$ENDIF}
 begin
-  inherited BoundsChanged;
+  {$IFDEF FPC}inherited BoundsChanged;{$ELSE}inherited Resize;{$ENDIF}
+  if Assigned(FRefreshThrottle) and (FInternalLayoutDepth = 0) then begin
+    FBoundsClientPending := True;
+    // A real resize is input now, even when page-capacity layout is deferred.
+    // The deferred geometry pass must not notify a second time for this input.
+    if FRefreshThrottle.Waiting then begin
+      FBoundsAlreadyNotified := True;
+      FRefreshReady := False;
+      FRefreshThrottle.Notify;
+    end;
+  end;
   // fix maximize form problem for AutoPageSize (new size of grid is not yet fully propagated)
-  FDelayedBoundsChangeTimer.Enabled:=true;
+  if Assigned(FDelayedBoundsChangeTimer) then FDelayedBoundsChangeTimer.Enabled:=true;
 end;
 
 procedure TCustomVisualGrid.SortDirectionGlyphRefresh;
@@ -1382,9 +1594,10 @@ procedure TCustomVisualGrid.SortDirectionGlyphRefresh;
   procedure VisualColumnsSortDirection(AStopOnFirstSortable, AAllNone: boolean);
   var
     i: integer;
-    LStop: boolean = false;
+    LStop: boolean;
     LColumn: TVisualColumn;
   begin
+    LStop:=False;
     for i := 0 to FColumns.Count - 1 do
     try
       LColumn := FColumns[i];
@@ -1417,53 +1630,303 @@ begin
   case FSortMode of
     smNone:
       begin
-        FDrawGrid.Options := FDrawGrid.Options - [goHeaderHotTracking, goHeaderPushedLook];
+        FDrawGrid.Options := FDrawGrid.Options - [{$IFDEF FPC}goHeaderHotTracking,goHeaderPushedLook{$ELSE}goFixedHotTrack{$ENDIF}];
         VisualColumnsSortDirection(false, true)
       end;
     smSingleColumn, smMultiColumn:
       begin
-        FDrawGrid.Options := FDrawGrid.Options + [goHeaderHotTracking, goHeaderPushedLook];
+        FDrawGrid.Options := FDrawGrid.Options + [{$IFDEF FPC}goHeaderHotTracking,goHeaderPushedLook{$ELSE}goFixedHotTrack{$ENDIF}];
         VisualColumnsSortDirection(FSortMode=smSingleColumn, false);
       end;
   end;
   RefreshPageIndexData(false);
 end;
 
-procedure TCustomVisualGrid.DelayedBoundsChange(Sender: TObject);
+{$IFNDEF FPC}
+function TCustomVisualGrid.Scale96ToFont(AValue:Integer):Integer;
+begin Result:=ScaleValue(AValue); end;
+{$ENDIF}
+
+procedure TCustomVisualGrid.SetParent(AParent:TWinControl);
+{$IFNDEF FPC}var i:Integer;{$ENDIF}
 begin
+  inherited;
+  if Assigned(AParent) and Assigned(FFetchCompletion) and not FShuttingDown then begin
+    {$IFNDEF FPC}
+    // Apply column metrics deferred while the composite control had no parent.
+    for i:=0 to FColumns.Count-1 do FColumns[i].AttachGridColumn(FColumns[i].FColumn);
+    RefreshPageIndexAndGridInterface;
+    {$ENDIF}
+    LayoutLoadingPanel(Self);
+    RefreshLoadingPresentation;
+  end;
+end;
+
+function TCustomVisualGrid.GetIsUpdating : Boolean;
+begin
+  Result := FFetchInProgress;
+end;
+
+procedure TCustomVisualGrid.LayoutLoadingPanel(Sender : TObject);
+var
+  LMargin, LWidth, LHeight, LClientWidth, LClientHeight,
+    LCircleSize, LTextLeft : Integer;
+begin
+  if not Assigned(FLoadDataPanel) then Exit;
+  {$IFNDEF FPC}
+  // VCL ClientRect creates the native window. A composite control's children
+  // must wait until its caller assigns a parent before requesting those HWNDs.
+  if not Assigned(Parent) then Exit;
+  {$ENDIF}
+  LMargin := Scale96ToFont(8);
+  if FManualLoading then LWidth := Scale96ToFont(320) else LWidth := Scale96ToFont(240);
+  if FLoadingSubtitle.Visible then LHeight := Scale96ToFont(80) else LHeight := Scale96ToFont(64);
+  LWidth := Min(LWidth,Max(0,FClientPanel.ClientWidth-2*LMargin));
+  LHeight := Min(LHeight,Max(0,FClientPanel.ClientHeight-2*LMargin));
+  FLoadDataPanel.SetBounds((FClientPanel.ClientWidth-LWidth) div 2,
+    (FClientPanel.ClientHeight-LHeight) div 2,LWidth,LHeight);
+  LClientWidth := FLoadDataPanel.ClientWidth;
+  LClientHeight := FLoadDataPanel.ClientHeight;
+  LCircleSize := Scale96ToFont(36);
+  FLoadingCircle.SetBounds(Scale96ToFont(10),(LClientHeight-LCircleSize) div 2,
+    LCircleSize,LCircleSize);
+  FLoadingImage.SetBounds(Scale96ToFont(10),(LClientHeight-LCircleSize) div 2,
+    LCircleSize,LCircleSize);
+  if FLoadingCircle.Visible or FLoadingImage.Visible then begin
+    LTextLeft := Scale96ToFont(56);
+    if FLoadingSubtitle.Visible then begin
+      FLoadDataLabel.SetBounds(LTextLeft,Scale96ToFont(8),
+        Max(0,LClientWidth-LTextLeft-Scale96ToFont(10)),Scale96ToFont(22));
+      FLoadingSubtitle.SetBounds(LTextLeft,Scale96ToFont(32),
+        Max(0,LClientWidth-LTextLeft-Scale96ToFont(10)),Max(0,LClientHeight-Scale96ToFont(40)));
+    end else
+      FLoadDataLabel.SetBounds(LTextLeft,(LClientHeight-Scale96ToFont(22)) div 2,
+        Max(0,LClientWidth-LTextLeft-Scale96ToFont(10)),Scale96ToFont(22));
+  end else
+    FLoadDataLabel.SetBounds(Scale96ToFont(12),Scale96ToFont(10),
+      Max(0,LClientWidth-Scale96ToFont(24)),Max(0,LClientHeight-Scale96ToFont(20)));
+end;
+
+procedure TCustomVisualGrid.BringLoadingPanelToFront;
+begin
+  {$IFDEF FPC}
+  FLoadDataPanel.BringToFront;
+  {$ELSE}
+  // VCL BringToFront activates a child window's top-level parent. Background
+  // refreshes must only raise the card within this grid, preserving the user's
+  // active modeless window and keyboard focus.
+  if FLoadDataPanel.HandleAllocated then
+    SetWindowPos(FLoadDataPanel.Handle, HWND_TOP, 0, 0, 0, 0,
+      SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE)
+  else
+    FLoadDataPanel.BringToFront;
+  {$ENDIF}
+end;
+
+procedure TCustomVisualGrid.BeginLoading;
+begin
+  // Queued throttle input is already outstanding work. Keep one presentation
+  // interval through admission and completion instead of hiding it while waiting.
+  if not FAutomaticLoading then FLoadingStartedAt := GetTickCount64;
+  FAutomaticLoading := True;
+  FLoadingError := '';
+  FLoadingDelayTimer.Enabled := False;
+  FLoadingDelayTimer.Interval := 200;
+  FLoadingDelayTimer.Enabled := True;
+  if Length(FDataTable.Rows) > 0 then
+    FAutomaticLoadingTitle := sDataUpdating
+  else
+    FAutomaticLoadingTitle := sDataLoading;
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.UpdateLoading;
+begin
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.ShowDelayedLoading(Sender: TObject);
+begin
+  FLoadingDelayTimer.Enabled := False;
+  if not FShuttingDown and FAutomaticLoading then UpdateLoading;
+end;
+
+procedure TCustomVisualGrid.EndLoading;
+begin
+  FLoadingDelayTimer.Enabled := False;
+  FAutomaticLoading := FRefreshPending and not FRefreshSuspended and
+    not FRefreshCancelled and not FShuttingDown;
+  if FAutomaticLoading and (GetTickCount64-FLoadingStartedAt < 200) then
+    FLoadingDelayTimer.Enabled := True;
+  FLoadingError := '';
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.ShowLoadingError(const AMessage : String);
+begin
+  FLoadingDelayTimer.Enabled := False;
+  FAutomaticLoading := False;
+  FLoadingError := AMessage;
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.ShowLoading(const ATitle: String;
+  const ASubtitle: String; AImage: TGraphic; ADisableInput: Boolean);
+begin
+  FLoadingImage.Picture.Assign(AImage);
+  FManualLoadingTitle := ATitle;
+  FManualLoadingSubtitle := ASubtitle;
+  FManualLoadingDisablesInput := ADisableInput;
+  FManualLoading := True;
+  ApplyControlsState;
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.HideLoading;
+begin
+  if not FManualLoading then Exit;
+  FManualLoading := False;
+  FManualLoadingDisablesInput := False;
+  FLoadingImage.Picture.Assign(nil);
+  ApplyControlsState;
+  RefreshLoadingPresentation;
+end;
+
+procedure TCustomVisualGrid.RefreshLoadingPresentation;
+var
+  LShow, LImage, LCircle: Boolean;
+begin
+  if not Assigned(FLoadDataPanel) then Exit;
+  // A manual request may precede parenting. Keep its state without causing
+  // VCL to create an HWND whose ancestor has no parent window yet.
+  if not Assigned(Parent) then begin
+    FLoadingCircle.Active := False;
+    Exit;
+  end;
+  LImage := FManualLoading and Assigned(FLoadingImage.Picture.Graphic) and
+    (not FLoadingImage.Picture.Graphic.Empty);
+  LCircle := FManualLoading or (FAutomaticLoading and (FLoadingError = ''));
+  LShow := FManualLoading or (FLoadingError <> '') or
+    (FAutomaticLoading and (GetTickCount64-FLoadingStartedAt >= 200) and
+      (FClientPanel.ClientWidth >= Scale96ToFont(100)) and
+      (FClientPanel.ClientHeight >= Scale96ToFont(40)));
+  FLoadingImage.Visible := LImage;
+  FLoadingCircle.Visible := LCircle and not LImage;
+  FLoadingCircle.Active := LShow and FLoadingCircle.Visible;
+  FLoadingSubtitle.Visible := FManualLoading and (FManualLoadingSubtitle <> '');
+  FLoadingSubtitle.Caption := FManualLoadingSubtitle;
+  FLoadDataPanel.ShowHint := (not FManualLoading) and (FLoadingError <> '');
+  FLoadDataPanel.Hint := FLoadingError;
+  if FManualLoading then begin
+    FLoadDataLabel.Caption := FManualLoadingTitle;
+    FLoadDataLabel.Font.Color := clWindowText;
+  end else if FLoadingError <> '' then begin
+    FLoadDataLabel.Caption := FLoadingError;
+    FLoadDataLabel.Font.Color := clRed;
+  end else begin
+    FLoadDataLabel.Caption := FAutomaticLoadingTitle;
+    FLoadDataLabel.Font.Color := clWindowText;
+  end;
+  LayoutLoadingPanel(Self);
+  FLoadDataPanel.Visible := LShow;
+  if LShow then BringLoadingPanelToFront;
+end;
+
+procedure TCustomVisualGrid.DelayedBoundsChange(Sender: TObject);
+var LClientInput, LAlreadyNotified: Boolean;
+begin
+  {$IFNDEF FPC}
+  if not Assigned(Parent) then begin FDelayedBoundsChangeTimer.Enabled:=False; Exit; end;
+  {$ENDIF}
   // check data loading. try in next cycle
-  if FFetchDataThreadTimer.Enabled then
+  if FFetchInProgress and (FRefreshThrottle.Mode = temNone) and not FRefreshSuspended then
     Exit;
   FDelayedBoundsChangeTimer.Enabled:=false;
+  LClientInput := FBoundsClientPending;
+  LAlreadyNotified := FBoundsAlreadyNotified;
+  FBoundsClientPending := False;
+  FBoundsAlreadyNotified := False;
   if AutoPageSize then
   begin
     // for vgoAutoHidePaging and AutoPageSize more space may be available
     // and paging panel may be hidden
     if (PageSize = ClientRowCount) and (vgoAutoHidePaging in FOptions) and FAutoPageSize then
-      RefreshPageIndexAndGridInterface
+      begin
+        Inc(FInternalLayoutDepth);
+        try RefreshPageIndexAndGridInterface;
+        finally Dec(FInternalLayoutDepth); end;
+      end
     else
-      PageSize := ClientRowCount;
+      ChangePageSize(ClientRowCount, LClientInput, LClientInput and not LAlreadyNotified);
   end;
+  ExecutePendingRefresh;
 end;
 
-procedure TCustomVisualGrid.FetchDataThreadProgress(Sender: TObject);
-{$J+}
-const
-  PROGRESS: Integer = 0;
-{$J-}
-  PROGRESS_CHARS: array[0..3] of string = ('-', '\', '|', '/');
+procedure TCustomVisualGrid.FetchDataThreadCompleted(Sender: TObject);
+var
+  worker: TFetchDataThread;
+  disposed: TDisposables;
 begin
-  FLoadDataProgressLabel.Caption := PROGRESS_CHARS[PROGRESS];
-  Inc(PROGRESS);
-  if PROGRESS > High(PROGRESS_CHARS) then
-    PROGRESS := 0;
+  if FShuttingDown or FJoiningFetch or not Assigned(FActiveThread) then Exit;
+  worker := TFetchDataThread(FActiveThread);
+  if InterlockedCompareExchange(worker.FResultReady, 0, 0) = 0 then Exit;
+  // Execute has finished provider work before queueing this wake. There is no
+  // OnTerminate/Synchronize callback for WaitFor to wait on. Guard other queued
+  // wakes while WaitFor services the main-thread queue during a source change.
+  FJoiningFetch := True;
+  try worker.WaitFor;
+  finally FJoiningFetch := False; end;
+  disposed.AddObject(worker);
+  FActiveThread := nil;
+  if FActiveRefreshCancelled then begin
+    // A provider may finish normally after cancellation, or raise Abort while
+    // releasing its own locks. Neither outcome can replace the retained rows.
+    FDataTable := FCachedDataTable^;
+    Dispose(FCachedDataTable);
+    FCachedDataTable := nil;
+    FFetchInProgress := False;
+    FActiveRefreshSource := nil;
+    FActiveRefreshCancelled := False;
+    EndLoading;
+    ControlsEnable(True);
+    ExecutePendingRefresh;
+    Exit;
+  end;
+  FLastFetchDataResult := worker.FLastFetchDataResult;
+  FLastFetchDataResult.FromThread := true;
+  FIgnoreRecalcPageCount := worker.FIgnoreRecalcPageCount;
+  if worker.FError <> '' then begin
+    FDataTable := FCachedDataTable^;
+    FLastFetchDataResult.FromThread := false;
+    Dispose(FCachedDataTable);
+    FCachedDataTable := nil;
+    FFetchInProgress := false;
+    FActiveRefreshSource := nil;
+    ShowLoadingError(worker.FError);
+    ControlsEnable(true);
+  end else
+    AfterFetchPage;
+  if FRefreshPending then ExecutePendingRefresh;
 end;
+
+{$IFNDEF FPC}
+procedure TCustomVisualGrid.LoadSearchGlyph;
+var LStream:TResourceStream; LPng:TPngImage;
+begin
+  LStream:=TResourceStream.Create(HInstance,'VISUALGRID_SEARCH',RT_RCDATA);
+  try
+    LPng:=TPngImage.Create;
+    try LPng.LoadFromStream(LStream); FSearchButton.Glyph.Assign(LPng);
+    finally LPng.Free; end;
+  finally LStream.Free; end;
+end;
+{$ENDIF}
 
 procedure TCustomVisualGrid.SearchButtonClick(Sender: TObject);
 var
   LFormat: TFormatSettings;
   LNewStrFilter: utf8string;
-  LException: boolean = false;
+  LException: boolean;
   LNum : SizeInt;
   LDataFilter : TDataFilter;
   e: TSearchEdit;
@@ -1473,10 +1936,10 @@ var
     LColumn: TVisualColumn;
     LAccepted: TDataFilters;
     LColumnFilter: TColumnFilter;
-    LCandidates: TDataFilters = [];
+    LCandidates: TDataFilters;
     LExpressionRecord: TExpressionRecord;
 
-    procedure AddFilter( const ABinding : AnsiString; const AFilters: TDataFilters);
+    procedure AddFilter( const ABinding : String; const AFilters: TDataFilters);
     var
       LFilter: TDataFilter;
     begin
@@ -1521,6 +1984,7 @@ var
     end;
 
   begin
+    LCandidates:=[];
     try
       LExpressionRecord := TSearchExpressionService.Parse(AExpression);
     except
@@ -1580,8 +2044,9 @@ begin
   if not Assigned(FDataSource) then
     exit;
 
+  LException:=False;
   FFilters.Clear;
-  LFormat := DefaultFormatSettings;
+  LFormat := {$IFDEF FPC}DefaultFormatSettings{$ELSE}TFormatSettings.Create{$ENDIF};
   LFormat.DecimalSeparator:='.';
   try
     AddExpression(FSearchEdit.Text, nil);
@@ -1605,17 +2070,30 @@ begin
 end;
 
 procedure TCustomVisualGrid.ControlsEnable(AEnable: boolean);
+begin
+  FFetchControlsEnabled := AEnable;
+  ApplyControlsState;
+end;
+
+procedure TCustomVisualGrid.ApplyControlsState;
 var
   e: TSearchEdit;
-  LReadOnly: boolean;
+  LReadOnly, LManualInputAllowed, LInputAllowed: boolean;
 begin
-  LReadOnly:=not AEnable;
-  FMultiSearchCheckComboBox.Enabled:=AEnable;
+  LManualInputAllowed := not (FManualLoading and FManualLoadingDisablesInput);
+  LInputAllowed := FFetchControlsEnabled and LManualInputAllowed;
+  LReadOnly:=not LInputAllowed;
+  // The card's parent remains enabled. Gate complete input regions for a
+  // manual hold without changing ordinary automatic-fetch interaction.
+  FTopPanel.Enabled := LManualInputAllowed;
+  FTopPanelMultiSearch.Enabled := LManualInputAllowed;
+  FBottomPanel.Enabled := LManualInputAllowed;
+  FMultiSearchCheckComboBox.Enabled:=LInputAllowed;
   FSearchEdit.ReadOnly:=LReadOnly;
   FPageSizeEdit.ReadOnly:=LReadOnly;
   FPageIndexEdit.ReadOnly:=LReadOnly;
-  FDrawGrid.Enabled:=AEnable;
-  FBottomRightPanel.Enabled:=AEnable;
+  FDrawGrid.Enabled:=LInputAllowed;
+  FBottomRightPanel.Enabled:=LInputAllowed;
   for e in FMultiSearchEdits do
     e.FEdit.ReadOnly:=LReadOnly;
 end;
@@ -1637,7 +2115,7 @@ end;
 
 function TCustomVisualGrid.GetActiveDataTable: PDataTable;
 begin
-  if FFetchDataThreadTimer.Enabled then
+  if FFetchInProgress and Assigned(FCachedDataTable) then
     Result := FCachedDataTable
   else
     Result := @FDataTable;
@@ -1672,13 +2150,21 @@ var
   sel : TVisualGridSelection;
   selectedRows : TList<Variant>;
   GC: TDisposables;
-  row : Integer;
+  row, rangeIndex: Integer;
+  selected: TArray<Boolean>;
 begin
+  if FCurrentSelectionType = stNone then Exit(nil);
   sel := GetSelection;
   selectedRows := GC.AddObject( TList<Variant>.Create ) as TList<Variant>;
-  if sel.RowCount > 0 then
-    for row := sel.Row to (sel.Row + sel.RowCount - 1) do
-       selectedRows.Add(Self.Rows[row]);
+  // Multi-selection can contain disjoint or overlapping grid rectangles.
+  // Return each selected data row once, in its displayed order.
+  SetLength(selected, RowCount);
+  for rangeIndex := 0 to High(sel.Selections) do
+    for row := Max(0,sel.Selections[rangeIndex].Top) to
+      Min(High(selected),sel.Selections[rangeIndex].Bottom) do
+      selected[row] := True;
+  for row := 0 to High(selected) do
+    if selected[row] then selectedRows.Add(Self.Rows[row]);
   result := selectedRows.ToArray;
 end;
 
@@ -1733,7 +2219,7 @@ end;
 
 procedure TCustomVisualGrid.MultiSearchCheckComboBoxChange(Sender: TObject; AIndex: Integer);
 var
-  LState: TCheckComboItemState;
+  {$IFDEF FPC}LState: TCheckComboItemState;{$ENDIF}
   LOldHasEdit, LNewHasEdit: boolean;
 
   function HasOneOrMoreEdit: boolean;
@@ -1748,11 +2234,15 @@ var
 
 begin
   LOldHasEdit := HasOneOrMoreEdit;
+  {$IFDEF FPC}
   LState := TCheckComboItemState(FMultiSearchCheckComboBox.Items.Objects[AIndex]);
-  if Assigned(LState.Data) then
-    TSearchEdit(LState.Data).EditVisible:=LState.State=cbChecked
-  else
-    FSearchEdit.Visible:=LState.State=cbChecked;
+  if Assigned(LState.Data) then TSearchEdit(LState.Data).EditVisible:=LState.State=cbChecked
+  else FSearchEdit.Visible:=LState.State=cbChecked;
+  {$ELSE}
+  if Assigned(FMultiSearchCheckComboBox.Objects[AIndex]) then
+    TSearchEdit(FMultiSearchCheckComboBox.Objects[AIndex]).EditVisible:=FMultiSearchCheckComboBox.Checked[AIndex]
+  else FSearchEdit.Visible:=FMultiSearchCheckComboBox.Checked[AIndex];
+  {$ENDIF}
 
   LNewHasEdit := HasOneOrMoreEdit;
   FTopPanelMultiSearch.Visible := LNewHasEdit;
@@ -1769,7 +2259,7 @@ begin
 end;
 
 procedure TCustomVisualGrid.SetCells(ACol, ARow: Integer; AValue: Variant);
-var LBinding : AnsiString; LDataColIndex : Integer; LRow : TDataRowData;
+var LBinding : String; LDataColIndex : Integer; LRow : TDataRowData;
 begin
   LRow := TDataRowData(FDataTable.Rows[ARow]);
   LBinding := FColumns[ACol].Binding;
@@ -1884,8 +2374,9 @@ begin
   if FAutoPageSize then
     FDrawGrid.ScrollBars:=ssNone
   else
-    FDrawGrid.ScrollBars:=ssAutoBoth;
+    FDrawGrid.ScrollBars:={$IFDEF FPC}ssAutoBoth{$ELSE}ssBoth{$ENDIF};
 
+  {$IFNDEF FPC}if not Assigned(Parent) then Exit;{$ENDIF}
   PageSize := ClientRowCount;
 
   // for proper handling of vgoAutoHidePaging we need to refresh
@@ -1929,21 +2420,142 @@ begin
   RefreshPageIndexData( False );
 end;
 
+procedure TCustomVisualGrid.SetRefreshSuspended(AValue: Boolean);
+begin
+  if FRefreshSuspended = AValue then Exit;
+  if FShuttingDown then Exit;
+  if AValue then begin
+    FRefreshSuspended := True;
+    // The caller owns synchronization artwork while ordinary refreshes pause.
+    EndLoading;
+    // Keep newer queued input intact. With no queued input, retain the active
+    // page intent so resuming also refreshes a view which received no events.
+    if not FRefreshPending then begin
+      FPendingRefreshParams := CaptureRefreshParams;
+      FPendingRefreshSource := FDataSource;
+      FRefreshPending := True;
+      FRefreshClientPending := True;
+    end;
+    if Assigned(FActiveThread) then begin
+      FRefreshColumnsPending := FRefreshColumnsPending or
+        TFetchDataThread(FActiveThread).FLastFetchDataResult.RefreshColumns;
+      // This flag belongs to the active request, not to the pause state: an
+      // intervening resume must never make its cancelled result valid again.
+      FActiveRefreshCancelled := True;
+      FActiveThread.Terminate;
+    end;
+  end else begin
+    // Apply a queued real resize before admitting the one latest page. Layout
+    // remains visual while the suspension guard is still in force.
+    if FDelayedBoundsChangeTimer.Enabled then DelayedBoundsChange(Self);
+    FRefreshSuspended := False;
+    FRefreshCancelled := False;
+    if FRefreshPending then FRefreshReady := True;
+    ExecutePendingRefresh;
+  end;
+end;
+
 procedure TCustomVisualGrid.RefreshPageIndexData(ARefreshColumns: boolean);
 begin
-  if Assigned(FDataSource) and FetchDataInThread then
-  begin
-    if not Assigned(FActiveThread) then
-      TFetchDataThread.Create(Self, ARefreshColumns)
-  end
-  else
-  begin
-    BeforeFetchPage;
-    FLastFetchDataResult.FromThread:=false;
-    FLastFetchDataResult.RefreshColumns:=ARefreshColumns;
-    FetchPage(FLastFetchDataResult.FetchResult);
-    AfterFetchPage;
+  QueueRefresh(ARefreshColumns, True, True);
+end;
+
+procedure TCustomVisualGrid.QueueRefresh(ARefreshColumns, AClientInput,
+  ANotify: Boolean);
+begin
+  if FShuttingDown then exit;
+  // Old result layout cannot replace newer client page/filter/source intent.
+  if not AClientInput and FRefreshCancelled then Exit;
+  if not AClientInput and FRefreshClientPending then Exit;
+  if AClientInput then FRefreshCancelled := False;
+  FRefreshPending := True;
+  FRefreshColumnsPending := FRefreshColumnsPending or ARefreshColumns;
+  FRefreshClientPending := AClientInput;
+  FPendingRefreshParams := CaptureRefreshParams;
+  FPendingRefreshSource := FDataSource;
+  FRefreshReady := not AClientInput;
+  // A throttled selection/page change must show that its retained rows are
+  // awaiting replacement even before a provider worker may start.
+  if AClientInput and not FRefreshSuspended and Assigned(FDataSource) then
+    BeginLoading;
+  if ANotify then FRefreshThrottle.Notify;
+end;
+
+procedure TCustomVisualGrid.RefreshThrottleDelivery(Sender: TObject);
+begin
+  if FShuttingDown then Exit;
+  FRefreshReady := True;
+  ExecutePendingRefresh(True);
+end;
+
+procedure TCustomVisualGrid.RefreshThrottleWaitingChanged(Sender: TObject);
+begin
+  if FShuttingDown then Exit;
+  // Cancel and mode changes also end Waiting. They cannot admit page work or
+  // allow an older worker's result layout to restart a cancelled request.
+  if not FRefreshThrottle.Waiting then begin
+    FRefreshReady := False;
+    FRefreshCancelled := True;
+    if not FFetchInProgress then EndLoading;
   end;
+end;
+
+procedure TCustomVisualGrid.RefreshThrottleFinished(Sender: TObject);
+begin
+  if FShuttingDown then Exit;
+  // Only the owned timer's genuine quiet finish releases deferred single-input
+  // work. Explicit Cancel/mode changes do not publish this lifecycle event.
+  FRefreshCancelled := False;
+  if FRefreshPending then begin
+    FRefreshReady := True;
+    if FRefreshClientPending and not FRefreshSuspended and
+      Assigned(FPendingRefreshSource) then begin
+      // WaitingChanged must hide cancelled work immediately. A genuine quiet
+      // finish restores this request's existing presentation interval before
+      // admission, so a deferred leading request does not flash another delay.
+      FAutomaticLoading := True;
+      RefreshLoadingPresentation;
+    end;
+  end;
+  ExecutePendingRefresh;
+end;
+
+procedure TCustomVisualGrid.ExecutePendingRefresh(AOrdinaryAdmission: Boolean);
+var LRefreshColumns: Boolean;
+begin
+  if FShuttingDown or FRefreshSuspended or FExecutingRefresh or (FInternalLayoutDepth > 0) or
+    Assigned(FActiveThread) or not FRefreshPending or not FRefreshReady then Exit;
+  // Only the ordinary admission itself can lead while Waiting. Worker and
+  // layout replay cannot bypass the latest request's quiet interval.
+  if not AOrdinaryAdmission and FRefreshThrottle.Waiting then Exit;
+  FExecutingRefresh := True;
+  try
+    FActiveRefreshParams := FPendingRefreshParams;
+    FActiveRefreshSource := FPendingRefreshSource;
+    FActiveRefreshCancelled := False;
+    LRefreshColumns := FRefreshColumnsPending;
+    FRefreshPending := False;
+    FRefreshColumnsPending := False;
+    FRefreshClientPending := False;
+    FRefreshReady := False;
+    FPendingRefreshSource := nil;
+    FPageIndex := FActiveRefreshParams.PageIndex;
+    FPageSize := FActiveRefreshParams.PageSize;
+    SetPageSizeEditText(IntToStr(FPageSize));
+    if Assigned(FActiveRefreshSource) and FetchDataInThread then
+      TFetchDataThread.Create(Self, LRefreshColumns)
+    else begin
+      BeforeFetchPage;
+      FLastFetchDataResult.FromThread := False;
+      FLastFetchDataResult.RefreshColumns := LRefreshColumns;
+      FetchPage(FLastFetchDataResult.FetchResult);
+      AfterFetchPage;
+    end;
+  finally
+    FExecutingRefresh := False;
+    if not Assigned(FActiveThread) then FActiveRefreshSource := nil;
+  end;
+  if not Assigned(FActiveThread) then ExecutePendingRefresh;
 end;
 
 procedure TCustomVisualGrid.ResizeSearchEdit(ACol: Integer);
@@ -1967,10 +2579,10 @@ begin
   else
     LEditOnRight := nil;
 
-  if ACol = TDrawGridAccess(FDrawGrid).GCache.VisibleGrid.Right then
+  if ACol = {$IFDEF FPC}TDrawGridAccess(FDrawGrid).GCache.VisibleGrid.Right{$ELSE}(FDrawGrid.LeftCol+FDrawGrid.VisibleColCount-1){$ENDIF} then
     if Assigned(LEditOnRight) then
       LEditOnRight.Visible:=false;
-  if ACol = TDrawGridAccess(FDrawGrid).GCache.VisibleGrid.Left then
+  if ACol = {$IFDEF FPC}TDrawGridAccess(FDrawGrid).GCache.VisibleGrid.Left{$ELSE}FDrawGrid.LeftCol{$ENDIF} then
     begin
       if Assigned(LEditOnLeft) then
         if (ACol > FDrawGrid.FixedCols) or (not FDrawGrid.IsFixedCellVisible(ACol-1,0)) then
@@ -2004,20 +2616,21 @@ var
     LCount := ClientRowCount;
     Result := LCount <> PageSize;
     if Result then
-      PageSize := LCount;
+      ChangePageSize(LCount, FInternalLayoutDepth = 0, FInternalLayoutDepth = 0);
   end;
 
   function FindProperFilter: boolean;
   var
-    f: ^TColumnFilter;
+    f: TColumnFilter;
   begin
-    for f in FFilters.Ptr^ do
+    for f in FFilters do
       if f.Filter <> vgfSortable then
         Exit(true);
     Result := false;
   end;
 
 begin
+  {$IFNDEF FPC}if not Assigned(Parent) then Exit;{$ENDIF}
   // if filter is active then vgoAutoHideSearchPanel should be not considered.
   // Note: vgfSortable is not considered as 'real' filter
   LHasFilter := (FFilters.Count > 0) and FindProperFilter;
@@ -2025,7 +2638,7 @@ begin
   SetPageIndexEditText(IntToStr(Succ(FPageIndex)));
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
 
-  if not FFetchDataThreadTimer.Enabled then
+  if not FFetchInProgress then
   if (vgoAutoHidePaging in FOptions) and (FPageCount in [0,1,2]) and (FPageIndex = 0) then
     case FPageCount of
       // simple situation - just hide bottom panel
@@ -2052,7 +2665,8 @@ begin
            and (FDrawGrid.DefaultRowHeight * LCountOnPage2 <= LPotentialHeight) then
           begin
             FBottomPanel.Visible := False;
-            PageSize := PageSize + LCountOnPage2;
+            ChangePageSize(PageSize + LCountOnPage2,
+              FInternalLayoutDepth = 0, FInternalLayoutDepth = 0);
             Exit;
           end else
           begin
@@ -2070,7 +2684,7 @@ begin
   begin
     LWasVisible := FBottomPanel.Visible;
     FBottomPanel.Visible := FCanPage;
-    if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
+    if (FBottomPanel.Visible <> LWasVisible) and RecalcPageCount then
       Exit;
   end;
 
@@ -2099,11 +2713,9 @@ begin
   end;
 
   FDrawGrid.Refresh;
-  if Assigned(FOnFinishedUpdating) then
-    FOnFinishedUpdating(Self);
 end;
 
-function TCustomVisualGrid.AddColumn(const AName: utf8string) : TVisualColumn;
+function TCustomVisualGrid.AddColumn(const AName: String) : TVisualColumn;
 begin
   Result := TVisualColumn.Create(Self);
   Result.Index := FColumns.Count;
@@ -2119,6 +2731,7 @@ var
   i: Integer;
   LEdit: TSearchEdit;
   LColumn: TVisualColumn;
+  LWasIgnoringRefresh: Boolean;
 begin
   FSortColumn := nil;
   FDrawGrid.Columns.Clear; // clear TDrawGrid columns
@@ -2131,6 +2744,7 @@ begin
       FOnColumnInitialize(Self, LColumn);
   end;
   FDrawGrid.Columns.EndUpdate;
+  {$IFNDEF FPC}FDrawGrid.FitColumns;{$ENDIF}
   // TODO: may be optimized
   FMultiSearchEdits.Clear;
   FSearchButton.Visible := true;
@@ -2147,8 +2761,15 @@ begin
       FMultiSearchCheckComboBox.Objects[FMultiSearchCheckComboBox.Items.Count-1] := LEdit;
       FMultiSearchCheckComboBox.Checked[FMultiSearchCheckComboBox.Items.Count-1] := FMultiSearchMenuItem.Checked;
     end;
-    if (vgfSortable in FColumns[i].Filters) and not (vgoSortDirectionAllowNone in Options) and (SortMode <> smNone) then
-      FColumns[i].SortDirection := sdAscending;
+    if (vgfSortable in FColumns[i].Filters) and not (vgoSortDirectionAllowNone in Options) and
+      (SortMode <> smNone) and (FColumns[i].SortDirection = sdNone) then begin
+      // This default belongs to the admitted column population, not a user
+      // sort request. Explicit consumer callbacks above retain normal admission.
+      LWasIgnoringRefresh := FColumns[i].FIgnoreRefresh;
+      FColumns[i].FIgnoreRefresh := True;
+      try FColumns[i].SortDirection := sdAscending;
+      finally FColumns[i].FIgnoreRefresh := LWasIgnoringRefresh; end;
+    end;
   end;
   if FDrawGrid.Columns.Count > 0 then
     FTopPanelMultiSearch.Height:=FMultiSearchEdits.Last.FPanel.Height;
@@ -2159,6 +2780,7 @@ end;
 
 procedure TCustomVisualGrid.LayoutChanged;
 begin
+  {$IFNDEF FPC}if not Assigned(Parent) then Exit;{$ENDIF}
   // layout has changed, maybe more space is available
   if AutoPageSize then
     PageSize := ClientRowCount;
@@ -2167,7 +2789,7 @@ end;
 function TCustomVisualGrid.ClientRowCount: Integer;
 begin
   Result := ((FDrawGrid.ClientHeight - FDrawGrid.GridLineWidth) div FDrawGrid.DefaultRowHeight) - FDrawGrid.FixedRows;
-  if Result = 0 then
+  if Result < 1 then
     Result := 1;
 end;
 
@@ -2203,6 +2825,38 @@ begin
   if FDataSource = ADataSource then
     Exit;
 
+  if Assigned(FActiveThread) and (FRefreshThrottle.Mode <> temNone) then begin
+    // Component-backed sources are not necessarily reference counted. Record
+    // the new input before joining, but retain the existing safe replacement
+    // lifetime: a caller may release its old source after this setter returns.
+    FDataSource := ADataSource;
+    RefreshPageIndexData(True);
+    FJoiningFetch := True;
+    try FActiveThread.WaitFor;
+    finally FJoiningFetch := False; end;
+    FetchDataThreadCompleted(Self);
+    Exit;
+  end;
+
+  // FetchPage reads this interface on the worker; never replace it mid-fetch.
+  if Assigned(FActiveThread) then begin
+    FJoiningFetch := True;
+    try FActiveThread.WaitFor;
+    finally FJoiningFetch := False; end;
+    FetchDataThreadCompleted(Self);
+    // A pending refresh may have started another fetch of the old source.
+    while Assigned(FActiveThread) do begin
+      FRefreshPending := false;
+      FRefreshColumnsPending := false;
+      FRefreshClientPending := False;
+      FRefreshReady := False;
+      FPendingRefreshSource := nil;
+      FJoiningFetch := True;
+      try FActiveThread.WaitFor;
+      finally FJoiningFetch := False; end;
+      FetchDataThreadCompleted(Self);
+    end;
+  end;
   FDataSource := ADataSource;
 
   RefreshPageIndexData(true);
@@ -2222,14 +2876,14 @@ begin
   RefreshPageIndexData(false);
 end;
 
-procedure TCustomVisualGrid.SetPageIndexEditText(const AStr: utf8string);
+procedure TCustomVisualGrid.SetPageIndexEditText(const AStr: String);
 begin
   Include(FGUIUpdates, updPageIndex);
   FPageIndexEdit.Text := AStr;
   Exclude(FGUIUpdates, updPageIndex);
 end;
 
-procedure TCustomVisualGrid.SetPageSizeEditText(const AStr: utf8string);
+procedure TCustomVisualGrid.SetPageSizeEditText(const AStr: String);
 begin
   Include(FGUIUpdates, updPageSize);
   FPageSizeEdit.Text := AStr;
@@ -2238,12 +2892,26 @@ end;
 
 procedure TCustomVisualGrid.BeforeFetchPage;
 begin
-  if Assigned(FDataSource) then
+  if Assigned(FActiveRefreshSource) then
     if FPageIndex >= FPageCount then
       FPageIndex := FPageCount - 1;
+  FActiveRefreshParams.PageIndex := FPageIndex;
 end;
 
 procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
+begin
+  if Assigned(FActiveRefreshSource) then
+    AResult := FActiveRefreshSource.FetchPage(FActiveRefreshParams, FDataTable)
+  else begin
+    // Clearing a source publishes an empty page too. Stale counts/rows would
+    // otherwise keep automatic layout replaying the removed page indefinitely.
+    FDataTable := Default(TDataTable);
+    FillChar(AResult, SizeOf(AResult), #0);
+    AResult.PageIndex := -1;
+  end;
+end;
+
+function TCustomVisualGrid.CaptureRefreshParams: TPageFetchParams;
 
   // additionall fill with sort direction
   procedure FillFilter;
@@ -2252,7 +2920,7 @@ procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
     i, j, idx: Integer;
     LFilter: TColumnFilter;
 
-    function UpdateFilterSortDirection(const AColumnName: utf8string; ASortDirection: TSortDirection): boolean;
+    function UpdateFilterSortDirection(const AColumnName: String; ASortDirection: TSortDirection): boolean;
     var
       i: Integer;
     begin
@@ -2306,13 +2974,9 @@ procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
   end;
 
 begin
-  if Assigned(FDataSource) then
-  begin
-    FillFilter;
-    AResult := FDataSource.FetchPage(TPageFetchParams.Create(FPageIndex, FPageSize, FFilters.ToArray, IIF(FSearchMode = smMulti, foAnd, foOr)), FDataTable)
-  end
-  else
-    FillChar(AResult, SizeOf(AResult), #0);
+  FillFilter;
+  Result := TPageFetchParams.Create(FPageIndex, FPageSize, FFilters.ToArray,
+    IIF(FSearchMode = smMulti, foAnd, foOr));
 end;
 
 procedure TCustomVisualGrid.AfterFetchPage;
@@ -2322,8 +2986,29 @@ procedure TCustomVisualGrid.AfterFetchPage;
     LNewRect: TGridRect;
     LOptions: TGridOptions;
   begin
-    LNewRect := TGridRect.Create(FLastSelectionEvent.Col, FLastSelectionEvent.Row + 1,
-      FLastSelectionEvent.Col + FLastSelectionEvent.ColCount, FLastSelectionEvent.Row + FLastSelectionEvent.RowCount);
+    {$IFDEF FPC}
+    LNewRect := TGridRect.Create(FLastSelectionEvent.Col,FLastSelectionEvent.Row+1,
+      FLastSelectionEvent.Col+FLastSelectionEvent.ColCount,FLastSelectionEvent.Row+FLastSelectionEvent.RowCount);
+    {$ELSE}
+    // An empty page and an absent selection both use -1. That sentinel is
+    // not a native grid coordinate; retain no selection until rows exist.
+    if (Length(FDataTable.Rows)=0) or (FLastSelectionEvent.Col<0) or
+      (FLastSelectionEvent.Row<0) or (FLastSelectionEvent.ColCount<=0) or
+      (FLastSelectionEvent.RowCount<=0) then begin
+      UpdateSelection(stNone,False);
+      Exit;
+    end;
+    LNewRect.Left:=FLastSelectionEvent.Col;
+    LNewRect.Top:=FLastSelectionEvent.Row+1;
+    LNewRect.Right:=Min(FDrawGrid.ColCount-1,
+      FLastSelectionEvent.Col+FLastSelectionEvent.ColCount-1);
+    LNewRect.Bottom:=Min(Length(FDataTable.Rows),
+      FLastSelectionEvent.Row+FLastSelectionEvent.RowCount);
+    if (LNewRect.Left>LNewRect.Right) or (LNewRect.Top>LNewRect.Bottom) then begin
+      UpdateSelection(stNone,False);
+      Exit;
+    end;
+    {$ENDIF}
 
     FIgnoreSelectionEvent:=true;
     TDrawGridAccess(FDrawGrid).MoveExtend(false, LNewRect.Left, LNewRect.Bottom);
@@ -2336,17 +3021,16 @@ procedure TCustomVisualGrid.AfterFetchPage;
   end;
 
 begin
+  Inc(FInternalLayoutDepth);
+  try
   with FLastFetchDataResult do
-  if Assigned(FDataSource) then
   begin
     if FromThread then
     begin
-      FIgnoreRecalcPageCount := TFetchDataThread(FActiveThread).FIgnoreRecalcPageCount;
-      FActiveThread := nil;
       Dispose(FCachedDataTable);
       FCachedDataTable := nil;
-      FFetchDataThreadTimer.Enabled:=false;
-      FLoadDataPanel.Visible:=False;
+      FFetchInProgress:=false;
+      EndLoading;
       ControlsEnable(true);
     end;
 
@@ -2362,12 +3046,25 @@ begin
 
     FPageIndex := FetchResult.PageIndex;
 
-    if RefreshColumns then
+    if RefreshColumns and Assigned(FActiveRefreshSource) then
       ReloadColumns;
     // when last page has different count than all other pages
     // we need to handle events on own way
     FIgnoreSelectionEvent:=true;
+    {$IFDEF FPC}
     FDrawGrid.RowCount := Length(FDataTable.Rows) + 1;
+    {$ELSE}
+    // VCL must be able to clamp its previous current row during a shrink.
+    // Its structural placeholder is selectable only for that update; a final
+    // empty result still rejects all data-row selection.
+    FDrawGrid.DataRowCount:=Max(1,Length(FDataTable.Rows));
+    try
+      FDrawGrid.RowCount:=Max(2,Length(FDataTable.Rows)+1);
+    finally
+      FDrawGrid.DataRowCount:=Length(FDataTable.Rows);
+      FIgnoreSelectionEvent:=false;
+    end;
+    {$ENDIF}
     FIgnoreSelectionEvent:=false;
   end;
   RefreshPageIndexAndGridInterface;
@@ -2382,6 +3079,26 @@ begin
   end
   else
     UpdateSelection(stNone, false);
+  finally
+    Dec(FInternalLayoutDepth);
+  end;
+  // Publishing an older page must not overwrite a newer queued client intent.
+  if FRefreshClientPending then begin
+    FPageIndex := FPendingRefreshParams.PageIndex;
+    FPageSize := FPendingRefreshParams.PageSize;
+    SetPageSizeEditText(IntToStr(FPageSize));
+    FFilters.Clear;
+    FFilters.AddRange(FPendingRefreshParams.Filter);
+  end;
+  // An interface does not retain a component-backed provider. Result handling
+  // is finished before consumers can replace and release their old source.
+  FActiveRefreshSource := nil;
+  // Synchronous cached fetches also finish the queued loading presentation.
+  // EndLoading retains it when a newer client request is still waiting.
+  EndLoading;
+  // A consumer requesting another refresh here supplies a new client input.
+  if Assigned(FOnFinishedUpdating) then
+    FOnFinishedUpdating(Self);
 end;
 
 procedure TCustomVisualGrid.UpdateSelection(ASelectionType: TSelectionType; AResetSelection: boolean);
@@ -2401,7 +3118,7 @@ begin
     GridSelection(nil, 0, 0);
 end;
 
-function TCustomVisualGrid.SelectionsEquals(constref A, B: TVisualGridSelection
+function TCustomVisualGrid.SelectionsEquals({$IFDEF FPC}constref{$ELSE}const{$ENDIF} A, B: TVisualGridSelection
   ): boolean;
 begin
   Result := A.Page = B.Page;
@@ -2422,13 +3139,51 @@ end;
 
 procedure TCustomVisualGrid.SetPageSize(Value: Integer);
 begin
+  ChangePageSize(Value, True, True);
+end;
+
+procedure TCustomVisualGrid.ChangePageSize(Value: Integer;
+  AClientInput, ANotify: Boolean);
+begin
   if FPageSize = Value then
     Exit;
 
   CheckRangeForPageSize(Value);
+  // Invalid inputs normalize to the current capacity. A transient tiny client
+  // rectangle must not keep refetching that unchanged effective page size.
+  if FPageSize = Value then
+    Exit;
   FPageSize := Value;
   SetPageSizeEditText(IntToStr(FPageSize));
-  RefreshPageIndexData(false);
+  if not AClientInput and FAutoPageSize and FRefreshClientPending then begin
+    // Result chrome may reveal the final capacity while newer client work is
+    // waiting. Keep its page/filter/source intent and merge geometry only.
+    FPendingRefreshParams.PageSize := Value;
+    Exit;
+  end;
+  // Hiding paging/search controls can expose extra rows after a fetch. If the
+  // entire result already fits, changing capacity needs layout only; fetching
+  // again would bypass the consumer's refresh policy for the same data.
+  if (not Assigned(FActiveThread)) and not FRefreshPending and (FPageIndex <= 0) and
+    (FTotalDataCount >= 0) and (Length(FDataTable.Rows) = FTotalDataCount) and
+    (Value >= FTotalDataCount) then begin
+    if FTotalDataCount > 0 then begin
+      FPageIndex := 0;
+      FPageCount := 1;
+    end else begin
+      FPageIndex := -1;
+      FPageCount := 0;
+    end;
+    Inc(FInternalLayoutDepth);
+    try RefreshPageIndexAndGridInterface;
+    finally Dec(FInternalLayoutDepth); end;
+    if AClientInput and ANotify then begin
+      FRefreshReady := False;
+      FRefreshThrottle.Notify;
+    end;
+    Exit;
+  end;
+  QueueRefresh(False, AClientInput, ANotify);
 end;
 
 procedure TCustomVisualGrid.SetSelectionType(AValue: TSelectionType);
@@ -2463,10 +3218,10 @@ begin
   if (FDeselectionType <> dtNone) or AIgnoreDeselectionType then
   begin
     ResetSelection(FLastSelection);
+    // Physical selection must also clear when no selection event is registered.
+    UpdateSelection(stNone, true);
     if FLastSelectionEvent.Page <> FPageIndex then
-      GridSelection(nil, 0, 0)
-    else
-      UpdateSelection(stNone, true);
+      GridSelection(nil, 0, 0);
   end;
 end;
 
@@ -2492,10 +3247,12 @@ begin
     FWidgetControl.Parent := FTopPanelLeft;
     with FWidgetControl do
     begin
+      {$IFDEF FPC}
       AnchorSideLeft.Control := FTopPanelLeft;
       AnchorSideLeft.Side := asrCenter;
       AnchorSideTop.Control := FTopPanelLeft;
       AnchorSideTop.Side := asrCenter;
+      {$ENDIF}
     end;
   end else
     FTopPanelLeft.Width:=0;
@@ -2509,16 +3266,18 @@ var
   LHandled: boolean;
   LCellData, LRow: Variant;
   LColumn : TVisualColumn;
-  LStyle : TTextStyle;
+  {$IFDEF FPC}LStyle : TTextStyle;{$ENDIF}
   LDataTable: PDataTable;
 
   procedure DrawHeaderCell;
   begin
     // Pre-set user defined styles
     if LColumn.HasHeaderAlignment then begin
+      {$IFDEF FPC}
       LStyle := Canvas.TextStyle;
       LStyle.Alignment := LColumn.HeaderAlignment;
       Canvas.TextStyle := LStyle;
+      {$ENDIF}
     end;
     if LColumn.HasHeaderFontStyles then Canvas.Font.Style := LColumn.HeaderFontStyles;
 
@@ -2530,9 +3289,11 @@ var
   begin
     // Pre-set user defined styles
     if LColumn.HasDataAlignment then begin
+      {$IFDEF FPC}
       LStyle := Canvas.TextStyle;
       LStyle.Alignment := LColumn.DataAlignment;
       Canvas.TextStyle := LStyle;
+      {$ENDIF}
     end;
     if LColumn.HasDataFontStyles then Canvas.Font.Style := LColumn.DataFontStyles;
 
@@ -2619,8 +3380,9 @@ var
   LSelection: TVisualGridSelection;
   i: integer;
   LCol, LRow: longint;
-  LContains: boolean = false;
+  LContains: boolean;
 begin
+  LContains:=False;
   if ColCount = 0 then
     Exit;
   case Button of
@@ -2761,6 +3523,6 @@ begin
 end;
 
 initialization
-  {$I *.inc}
+  {$IFDEF FPC}{$I UVisualGrid.inc}{$ENDIF}
 
 end.

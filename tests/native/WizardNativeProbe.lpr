@@ -33,7 +33,7 @@ type
   TModalHarness = class
     private
       FLog : TStringList;
-      FLogPath : AnsiString;
+      FLogPath : String;
       FTimer : TTimer;
       FWizard : TNativeWizard;
       FModel : TWizardFeatureModel;
@@ -42,18 +42,18 @@ type
       FExpectedTop : Integer;
       FPhase : Integer;
       FInsideTick : boolean;
-      FFailure : AnsiString;
+      FFailure : String;
       FDialogCount : Integer;
       procedure Tick(Sender : TObject);
-      procedure Log(const text : AnsiString);
-      procedure Require(condition : boolean; const message : AnsiString);
-      procedure CheckNative(const checkpoint : AnsiString; expectedClass : TComponentClass);
+      procedure Log(const text : String);
+      procedure Require(condition : boolean; const message : String);
+      procedure CheckNative(const checkpoint : String; expectedClass : TComponentClass);
       procedure CheckNoVisibleWindows;
       procedure CloseVetoDialog;
       procedure MoveOwnHost;
       procedure Flow(firstPhase : Integer);
     public
-      constructor Create(const logPath : AnsiString);
+      constructor Create(const logPath : String);
       destructor Destroy; override;
       procedure Run;
   end;
@@ -111,7 +111,7 @@ begin
   AdjustClientRect(Result);
 end;
 
-constructor TModalHarness.Create(const logPath : AnsiString);
+constructor TModalHarness.Create(const logPath : String);
 begin
   inherited Create;
   FLogPath := logPath;
@@ -131,18 +131,18 @@ begin
   inherited Destroy;
 end;
 
-procedure TModalHarness.Log(const text : AnsiString);
+procedure TModalHarness.Log(const text : String);
 begin
   FLog.Add(Format('%d %s', [GetTickCount64, text]));
   FLog.SaveToFile(FLogPath);
 end;
 
-procedure TModalHarness.Require(condition : boolean; const message : AnsiString);
+procedure TModalHarness.Require(condition : boolean; const message : String);
 begin
   if NOT condition then raise Exception.Create(message);
 end;
 
-procedure TModalHarness.CheckNative(const checkpoint : AnsiString; expectedClass : TComponentClass);
+procedure TModalHarness.CheckNative(const checkpoint : String; expectedClass : TComponentClass);
 var
   host : TWizardHostForm;
   current, screen : TCustomForm;

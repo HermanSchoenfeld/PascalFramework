@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright © 2026 Herman Schoenfeld https://sphere10.com. MIT license. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><ProjectGuid>{238802DC-BF2E-4633-8E35-7FBCFDC71A27}</ProjectGuid></PropertyGroup>
+  <ItemGroup>
+    <Projects Include="PascalFramework.dproj"><Dependencies /></Projects>
+    <Projects Include="Sphere10Framework.dproj"><Dependencies /></Projects>
+  </ItemGroup>
+  <ProjectExtensions><Borland.Personality>Default.Personality.12</Borland.Personality>
+    <Borland.ProjectType /><BorlandProject><Default.Personality /></BorlandProject>
+  </ProjectExtensions>
+  <Target Name="PascalFramework"><MSBuild Projects="PascalFramework.dproj" /></Target>
+  <Target Name="PascalFramework:Clean"><MSBuild Projects="PascalFramework.dproj" Targets="Clean" /></Target>
+  <Target Name="PascalFramework:Make"><MSBuild Projects="PascalFramework.dproj" Targets="Make" /></Target>
+  <Target Name="Sphere10Framework"><MSBuild Projects="Sphere10Framework.dproj" /></Target>
+  <Target Name="Sphere10Framework:Clean"><MSBuild Projects="Sphere10Framework.dproj" Targets="Clean" /></Target>
+  <Target Name="Sphere10Framework:Make"><MSBuild Projects="Sphere10Framework.dproj" Targets="Make" /></Target>
+  <Target Name="Build"><CallTarget Targets="PascalFramework;Sphere10Framework" /></Target>
+  <Target Name="Clean"><CallTarget Targets="PascalFramework:Clean;Sphere10Framework:Clean" /></Target>
+  <Target Name="Make"><CallTarget Targets="PascalFramework:Make;Sphere10Framework:Make" /></Target>
+  <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" />
+</Project>

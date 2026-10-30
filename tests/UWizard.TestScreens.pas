@@ -13,7 +13,7 @@ type
     specialization separately from the wizard manager's specialization. }
   TReferenceWizardScreen = class(TWizardForm<TGenericWizardBag>)
     public
-      InitializedName : AnsiString;
+      InitializedName : String;
       InitializeCount : Integer;
       constructor Create(AOwner : TComponent); override;
       procedure Initialize; override;

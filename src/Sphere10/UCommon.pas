@@ -76,6 +76,10 @@ type
   {$IFNDEF FPC}
   // Delphi compatibility
   SizeInt = NativeInt;
+  PtrInt = NativeInt;
+  QWord = UInt64;
+  DWord = Cardinal;
+  TTimeSpan = System.TimeSpan.TTimeSpan;
   {$ENDIF}
 
   {$IFDEF FPC}
@@ -329,6 +333,7 @@ type
     FLock : TCriticalSection;
     FPendingNotifications : TList<TPendingNotifyManyEvent>;
     procedure InvokePendingOnTargetThread;
+    procedure InvokeQueued(Sender : TObject);
   public
     constructor Create(ATargetThread : TThread);
     destructor Destroy; override;
@@ -888,7 +893,8 @@ end;
 
 function TTimeSpan.GetTotalMilliseconds: Double;
 begin
-  Result := Double(FMillis);
+  // Assignment performs a numeric conversion in both Delphi and FPC Delphi mode.
+  Result := FMillis;
 end;
 
 class function TTimeSpan.Normalize(const ADateTime : TDateTime) : Int64; static;
@@ -1554,7 +1560,33 @@ begin
 end;
 
 destructor TThreadNotify.Destroy;
+var
+  LHandler : TNotifyEvent;
+  LMethod : TMethod;
+  LPending : TPendingNotifyManyEvent;
+  i : Integer;
 begin
+  // Producers must be joined and disposal must run on the target thread.
+  if (not Assigned(GMainThreadNotify)) or (Self=GMainThreadNotify) then
+    TThread.RemoveQueuedEvents(nil, InvokePendingOnTargetThread)
+  else begin
+    // FPC's RTL compares only method code. Remove this receiver's adapter from
+    // the existing dispatcher using both code and data, preserving other work.
+    LHandler := InvokeQueued;
+    LMethod := TMethod(LHandler);
+    GMainThreadNotify.FLock.Acquire;
+    try
+      for i := GMainThreadNotify.FPendingNotifications.Count-1 downto 0 do begin
+        LPending := GMainThreadNotify.FPendingNotifications[i];
+        if Length(LPending.Handlers)=1 then
+          if (TMethod(LPending.Handlers[0]).Code=LMethod.Code) and
+            (TMethod(LPending.Handlers[0]).Data=LMethod.Data) then
+            GMainThreadNotify.FPendingNotifications.Delete(i);
+      end;
+    finally
+      GMainThreadNotify.FLock.Release;
+    end;
+  end;
   FTargetThread := nil;
   FLock.Acquire;
   try
@@ -1565,8 +1597,14 @@ begin
   end;
 end;
 
+procedure TThreadNotify.InvokeQueued(Sender : TObject);
+begin
+  InvokePendingOnTargetThread;
+end;
+
 procedure TThreadNotify.InvokePendingOnTargetThread;
 var
+  i, LCount : Integer;
   LPendings : TArray<TPendingNotifyManyEvent>;
   LPending : TPendingNotifyManyEvent;
   LNotify : TNotifyEvent;
@@ -1575,17 +1613,43 @@ begin
     exit;
 
   if TThread.CurrentThread.ThreadID = FTargetThread.ThreadID then begin
-    FLock.Acquire;
-    try
-      LPendings := FPendingNotifications.ToArray;
-      FPendingNotifications.Clear;
-    finally
-      FLock.Release;
+    if Self=GMainThreadNotify then begin
+      FLock.Acquire;
+      try
+        LCount := FPendingNotifications.Count;
+      finally
+        FLock.Release;
+      end;
+      // Take one record at a time: an earlier callback may dispose a receiver
+      // whose adapter is still pending. New producer work gets its own turn.
+      for i := 1 to LCount do begin
+        FLock.Acquire;
+        try
+          if FPendingNotifications.Count=0 then Break;
+          LPending := FPendingNotifications[0];
+          FPendingNotifications.Delete(0);
+        finally
+          FLock.Release;
+        end;
+        for LNotify in LPending.Handlers do
+          LNotify(LPending.Sender);
+      end;
+    end else begin
+      FLock.Acquire;
+      try
+        LPendings := FPendingNotifications.ToArray;
+        FPendingNotifications.Clear;
+      finally
+        FLock.Release;
+      end;
+      for LPending in LPendings do
+        for LNotify in LPending.Handlers do
+          LNotify(LPending.Sender);
     end;
-    for LPending in LPendings do
-      for LNotify in LPending.Handlers do
-        LNotify(LPending.Sender);
-  end else TThread.Queue(FTargetThread, InvokePendingOnTargetThread);
+  end else if Self=GMainThreadNotify then
+    TThread.Queue(FTargetThread, InvokePendingOnTargetThread)
+  else
+    GMainThreadNotify.Invoke(Self, InvokeQueued);
 end;
 
 procedure TThreadNotify.Invoke(Sender: TObject; Handler : TNotifyEvent);
@@ -1869,7 +1933,9 @@ begin
   case VarType(AValue) of
     varsmallint, varinteger, varsingle,
     vardouble, varcurrency, varboolean, {$IFDEF FPC}vardecimal,{$ENDIF}
-    varshortint, varbyte, varword, varlongword, varint64 {$IFDEF FPC},varqword {$ENDIF} : Result := true;
+    // The unsigned 64-bit Variant tag has a different name in each compiler.
+    varshortint, varbyte, varword, varlongword, varint64,
+    {$IFDEF FPC}varqword{$ELSE}varUInt64{$ENDIF} : Result := true;
     else Result := false;
   end;
 end;
@@ -1879,7 +1945,7 @@ begin
 {$IFDEF FPC}
   Result := TCompare.Variant(@ALeft, @ARight);
 {$ELSE}
-  Result := Integer(VarCompareValue(ALeft, ARight));
+  Result := TComparer<Variant>.Default.Compare(ALeft, ARight);
 {$ENDIF}
 end;
 

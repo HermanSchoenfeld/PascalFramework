@@ -1,0 +1,130 @@
+﻿object WIZFeatureSummary: TWIZFeatureSummary
+  Left = 0
+  Height = 520
+  Top = 0
+  Width = 760
+  BorderStyle = bsNone
+  ClientHeight = 520
+  ClientWidth = 760
+  Caption = 'Summary and completion'
+  Position = poDefault
+  object FTitleLabel: TLabel
+    Left = 20
+    Height = 26
+    Top = 16
+    Width = 720
+    Caption = 'Summary and completion'
+    Font.Height = -20
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object FDescriptionLabel: TLabel
+    Left = 20
+    Height = 38
+    Top = 54
+    Width = 720
+    Caption = 'Choose callback outcomes to try veto, intentional exception and retry. Rejected attempts remain active; accepted completion runs once.'
+    AutoSize = False
+    WordWrap = True
+    Anchors = [akTop, akLeft, akRight]
+  end
+  object FSummaryLabel: TLabel
+    Left = 20
+    Height = 36
+    Top = 101
+    Width = 720
+    Caption = 'Your accepted name, age and optional notes appear here.'
+    AutoSize = False
+    WordWrap = True
+  end
+  object FFinishOutcomeLabel: TLabel
+    Left = 20
+    Height = 20
+    Top = 148
+    Width = 210
+    Caption = 'Finish callback'
+  end
+  object FFinishOutcomeComboBox: TComboBox
+    TabOrder = 0
+    Left = 20
+    Height = 28
+    Top = 174
+    Width = 340
+    Style = csDropDownList
+    OnChange = FinishOutcomeChanged
+    Items.Strings = (
+      'Accept'
+      'Veto first attempt, then accept'
+      'Raise first attempt, then accept'
+    )
+  end
+  object FCancelOutcomeLabel: TLabel
+    Left = 390
+    Height = 20
+    Top = 148
+    Width = 210
+    Caption = 'Cancel callback'
+  end
+  object FCancelOutcomeComboBox: TComboBox
+    TabOrder = 1
+    Left = 390
+    Height = 28
+    Top = 174
+    Width = 350
+    Style = csDropDownList
+    OnChange = CancelOutcomeChanged
+    Items.Strings = (
+      'Accept'
+      'Veto first attempt, then accept'
+      'Raise first attempt, then accept'
+    )
+  end
+  object FCanCancelCheckBox: TCheckBox
+    TabOrder = 2
+    Left = 20
+    Height = 24
+    Top = 220
+    Width = 330
+    Caption = 'Allow cancellation'
+    OnClick = CanCancelChanged
+  end
+  object FProbeReentryCheckBox: TCheckBox
+    TabOrder = 3
+    Left = 390
+    Height = 24
+    Top = 220
+    Width = 350
+    Caption = 'Probe recursive requests in callbacks'
+    OnClick = ProbeReentryChanged
+  end
+  object FCancelButton: TButton
+    TabOrder = 4
+    Left = 20
+    Height = 34
+    Top = 252
+    Width = 220
+    Caption = 'Try cancellation'
+    OnClick = CancelClick
+  end
+  object FStatusLabel: TLabel
+    Left = 20
+    Height = 36
+    Top = 296
+    Width = 720
+    Caption = 'Wizard events and state'
+    AutoSize = False
+    WordWrap = True
+    Anchors = [akLeft, akRight, akBottom]
+  end
+  object FEventLog: TMemo
+    Left = 20
+    Height = 166
+    Top = 338
+    Width = 720
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    ReadOnly = True
+    ScrollBars = ssBoth
+    WordWrap = False
+    TabStop = False
+  end
+end

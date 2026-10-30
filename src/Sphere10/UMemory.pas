@@ -47,9 +47,11 @@ type
           destructor Destroy; override;
       end;
     private
-      FGuardian: IInterface;
+      {$IFDEF FPC}FGuardian: IInterface;{$ENDIF}
       FPointers: array of TDisposablePointer;
       FLastIndex: Integer;
+      // Delphi finalizes managed fields in reverse declaration order.
+      {$IFNDEF FPC}FGuardian: IInterface;{$ENDIF}
       class procedure Initialize(var ADisposables: TDisposables); static;
       class procedure Finalize(var ADisposables: TDisposables); static;
       procedure RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
@@ -132,7 +134,7 @@ end;
 
 procedure TDisposables.RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
 begin
-  if FLastIndex > High(FPointers) then
+  if FLastIndex >= High(FPointers) then
     SetLength(FPointers, Length(FPointers) * 2);
 
   Inc(FLastIndex);

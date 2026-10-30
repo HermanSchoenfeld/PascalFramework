@@ -1,0 +1,91 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{A72A0E36-E343-4BF8-9E97-A2433536920C}</ProjectGuid>
+    <MainSource>Sphere10Framework.dpk</MainSource>
+    <Base>True</Base>
+    <Config Condition="'$(Config)'==''">Release</Config>
+    <Platform Condition="'$(Platform)'==''">Win64</Platform>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Package</AppType>
+    <FrameworkType>VCL</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Base)'!=''">
+    <SanitizedProjectName>Sphere10Framework</SanitizedProjectName>
+    <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
+    <GenPackage>true</GenPackage>
+    <GenDll>true</GenDll>
+    <DCC_Namespace>System;System.Win;Winapi;Vcl;Vcl.Imaging;$(DCC_Namespace)</DCC_Namespace>
+    <DCC_UnitSearchPath>src\Sphere10</DCC_UnitSearchPath>
+    <DCC_IncludePath>src\Sphere10</DCC_IncludePath>
+    <DCC_ResourcePath>src\Sphere10</DCC_ResourcePath>
+    <DCC_DcuOutput>.\lib\Delphi\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_DcpOutput>.\lib\Delphi\$(Platform)\$(Config)\dcp</DCC_DcpOutput>
+    <DCC_BplOutput>.\lib\Delphi\$(Platform)\$(Config)\bpl</DCC_BplOutput>
+    <BRCC_OutputDir>.\lib\Delphi\$(Platform)\$(Config)\res</BRCC_OutputDir>
+    <BRCC_IncludePath>src\Sphere10</BRCC_IncludePath>
+    <DCC_Description>Sphere10 Pascal utilities, cache, data sources, visual grid and wizard</DCC_Description>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_Debug)'!=''">
+    <Cfg_Debug>true</Cfg_Debug>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_Debug)'!=''">
+    <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+    <DCC_DebugInformation>2</DCC_DebugInformation>
+    <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
+    <DCC_Optimize>false</DCC_Optimize>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+    <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_Release)'!=''">
+    <Cfg_Release>true</Cfg_Release>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_Release)'!=''">
+    <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+    <DCC_Optimize>true</DCC_Optimize>
+    <DCC_DebugInformation>0</DCC_DebugInformation>
+    <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="$(MainSource)">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+    <RcCompile Include="src\Sphere10\UVisualGrid.VCL.rc" />
+    <BuildConfiguration Include="Base">
+      <Key>Base</Key>
+    </BuildConfiguration>
+    <BuildConfiguration Include="Release">
+      <Key>Cfg_Release</Key>
+      <CfgParent>Base</CfgParent>
+    </BuildConfiguration>
+    <BuildConfiguration Include="Debug">
+      <Key>Cfg_Debug</Key>
+      <CfgParent>Base</CfgParent>
+    </BuildConfiguration>
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <Borland.ProjectType>Package</Borland.ProjectType>
+    <BorlandProject>
+      <Delphi.Personality>
+        <Source>
+          <Source Name="MainSource">Sphere10Framework.dpk</Source>
+        </Source>
+      </Delphi.Personality>
+      <Platforms>
+        <Platform value="Win32">True</Platform>
+        <Platform value="Win64">True</Platform>
+      </Platforms>
+    </BorlandProject>
+    <ProjectFileVersion>12</ProjectFileVersion>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>

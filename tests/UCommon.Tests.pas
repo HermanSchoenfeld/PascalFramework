@@ -43,6 +43,8 @@ type
 
   TVariantToolTests = class(TTestCase)
     published
+      procedure IsNumeric64BitIntegers;
+      procedure IsNumericRejectsNonNumericValues;
       procedure NumericEQ;
       procedure NumericLT;
       procedure TVariantCompare_1;
@@ -324,6 +326,35 @@ begin
 end;
 
 { TVariantToolTests }
+
+procedure TVariantToolTests.IsNumeric64BitIntegers;
+var
+  LValue: Variant;
+  LUnsigned: UInt64;
+begin
+  LValue := Low(Int64);
+  AssertEquals(varInt64, VarType(LValue));
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  LValue := High(Int64);
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+
+  // Recognize the type without narrowing a value which cannot fit in Int64.
+  LUnsigned := UInt64(High(Int64)) + 1;
+  LValue := LUnsigned;
+  AssertEquals({$IFDEF FPC}varQWord{$ELSE}varUInt64{$ENDIF}, VarType(LValue));
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  LValue := High(UInt64);
+  AssertTrue(TVariantTool.IsNumeric(LValue));
+  AssertTrue(UInt64(LValue) = High(UInt64));
+end;
+
+procedure TVariantToolTests.IsNumericRejectsNonNumericValues;
+begin
+  AssertFalse(TVariantTool.IsNumeric(Null));
+  AssertFalse(TVariantTool.IsNumeric(Unassigned));
+  AssertFalse(TVariantTool.IsNumeric('16537985'));
+  AssertFalse(TVariantTool.IsNumeric(VarArrayOf([1, 2])));
+end;
 
 procedure TVariantToolTests.NumericEQ;
 var

@@ -1,0 +1,19 @@
+﻿object WIZName_Step1A: TWIZName_Step1A
+  Left = -1261
+  Height = 445
+  Top = 112
+  Width = 209
+  Caption = 'WIZName_Step1A'
+  ClientHeight = 445
+  ClientWidth = 209
+  object Label1: TLabel
+    Left = 120
+    Height = 47
+    Top = 72
+    Width = 23
+    Caption = 'A'
+    Font.Height = -35
+    ParentColor = False
+    ParentFont = False
+  end
+end

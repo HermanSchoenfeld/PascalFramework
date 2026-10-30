@@ -1,8 +1,9 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string] $FpcPath,
     [Parameter(Mandatory = $true)]
-    [string] $LazarusDirectory
+    [string] $LazarusDirectory,
+    [string] $OutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,7 +18,9 @@ if ($targetInfo[1] -ne 'win64' -and $targetInfo[1] -ne 'win32') {
 }
 $target = "$($targetInfo[0])-$($targetInfo[1])"
 $runId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
-$outputDirectory = Join-Path $PSScriptRoot "lib\native-$target\$runId"
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $PSScriptRoot "lib\native-$target\$runId" }
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+$outputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $brokerUnits = Join-Path $outputDirectory 'broker-units'
 $probeUnits = Join-Path $outputDirectory 'probe-units'
 New-Item -ItemType Directory -Path $brokerUnits, $probeUnits -Force | Out-Null
@@ -38,7 +41,7 @@ $probeArguments = @(
     '-MDelphi', '-O2', '-gl', '-WG',
     "-Fu$PSScriptRoot\..\src\Sphere10",
     "-Fu$PSScriptRoot\..\src\Generics.Collections",
-    "-Fu$PSScriptRoot\..\examples\wizard",
+    "-Fu$PSScriptRoot\..\examples\demo",
     "-Fu$lazarus\lcl\units\$target",
     "-Fu$lazarus\lcl\units\$target\win32",
     "-Fu$lazarus\components\lazutils\lib\$target",

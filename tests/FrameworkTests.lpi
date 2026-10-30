@@ -36,7 +36,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="18">
+    <Units Count="22">
       <Unit0>
         <Filename Value="FrameworkTests.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -112,6 +112,22 @@
         <Filename Value="UWizardDemo.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit17>
+      <Unit18>
+        <Filename Value="UVisualGrid.Refresh.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="UFramework.UI.Integration.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="..\src\Sphere10\UConcurrency.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="UConcurrency.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit21>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -122,7 +138,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\src\Sphere10;..\src\Generics.Collections;..\examples\wizard"/>
+      <OtherUnitFiles Value="..\src\Sphere10;..\src\Generics.Collections;..\examples\demo"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>

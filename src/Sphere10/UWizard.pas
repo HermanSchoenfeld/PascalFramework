@@ -21,13 +21,20 @@ unit UWizard;
 interface
 
 uses
-  Classes, SysUtils, TypInfo, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, UCommon, Generics.Collections;
+  Classes, SysUtils, TypInfo, Types,
+  {$IFDEF FPC}
+  FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
+  {$ELSE}
+  Vcl.Forms, Vcl.Controls, Vcl.Graphics, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  {$ENDIF}
+  UCommon, Generics.Collections;
 
 const
-  CT_WIZARD_DEFAULT_NEXT : AnsiString = '&Next';
-  CT_WIZARD_DEFAULT_PREVIOUS : AnsiString = '&Previous';
-  CT_WIZARD_DEFAULT_FINISH : AnsiString = '&Finish';
-  CT_WIZARD_DEFAULT_TITLE : AnsiString = 'Wizard';
+  // UI captions and messages use the compiler's native String, matching callers.
+  CT_WIZARD_DEFAULT_NEXT : String = '&Next';
+  CT_WIZARD_DEFAULT_PREVIOUS : String = '&Previous';
+  CT_WIZARD_DEFAULT_FINISH : String = '&Finish';
+  CT_WIZARD_DEFAULT_TITLE : String = 'Wizard';
 
 type
   { Enums }
@@ -51,30 +58,30 @@ type
     procedure FNextButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     type
-      TWizardHostFormCloseQueryDelegate = function(out message : AnsiString) : boolean of object;
+      TWizardHostFormCloseQueryDelegate = function(out message : String) : boolean of object;
     protected
       FNextEvent : TNotifyManyEvent;
       FPreviousEvent : TNotifyManyEvent;
       FCloseQueryEvent : TWizardHostFormCloseQueryDelegate;
-      procedure SetTitleText(title : AnsiString); virtual;
-      function GetTitleText : AnsiString; virtual;
+      procedure SetTitleText(title : String); virtual;
+      function GetTitleText : String; virtual;
       procedure SetHideNext(hideNext : boolean); virtual;
       function GetHideNext : boolean; virtual;
       procedure SetHidePrevious(hidePrevious : boolean); virtual;
       function GetHidePrevious : boolean; virtual;
-      procedure SetNextText(nextText : AnsiString); virtual;
-      function GetNextText : AnsiString; virtual;
-      procedure SetPreviousText(previousText : AnsiString); virtual;
-      function GetPreviousText : AnsiString; virtual;
+      procedure SetNextText(nextText : String); virtual;
+      function GetNextText : String; virtual;
+      procedure SetPreviousText(previousText : String); virtual;
+      function GetPreviousText : String; virtual;
     public
       property NextEvent : TNotifyManyEvent read FNextEvent write FNextEvent;
       property PreviousEvent : TNotifyManyEvent read FPreviousEvent write FPreviousEvent;
       property CloseQueryEvent : TWizardHostFormCloseQueryDelegate read FCloseQueryEvent write FCloseQueryEvent;
       property HideNext : boolean read GetHideNext write SetHideNext;
       property HidePrevious : boolean read GetHidePrevious write SetHidePrevious;
-      property NextText : AnsiString read GetNextText write SetNextText;
-      property PreviousText : AnsiString read GetPreviousText write SetPreviousText;
-      property TitleText : AnsiString read GetTitleText write SetTitleText;
+      property NextText : String read GetNextText write SetNextText;
+      property PreviousText : String read GetPreviousText write SetPreviousText;
+      property TitleText : String read GetTitleText write SetTitleText;
       procedure SetContentSize(size : TPoint); virtual;
       procedure SetContent(screen : TForm);
   end;
@@ -109,7 +116,7 @@ type
       { Runs after successful Validate. May update the continuation through UpdatePath. }
       procedure OnNext; virtual;
       { Rejection leaves the current screen active and prevents OnNext. }
-      function Validate(out message : AnsiString) : boolean; virtual;
+      function Validate(out message : String) : boolean; virtual;
    end;
 
   { TWizard - Base class for wizards. Encapsulates the entire wizard flow.
@@ -136,37 +143,37 @@ type
         FScreenInstances : TDictionary<TComponentClass, __TScreenType>;
         FInitializedScreens : TList<TComponentClass>;
         FCurrentScreenIndex : Integer;
-        FNextText : AnsiString;
-        FPreviousText : AnsiString;
-        FFinishText : AnsiString;
-        FTitleText : AnsiString;
+        FNextText : String;
+        FPreviousText : String;
+        FFinishText : String;
+        FTitleText : String;
         procedure CheckStarted;
         procedure CheckNotStarted;
         function CalculateFitSize : TPoint;
         procedure NextHandler(sender : TObject);
         procedure PreviousHandler(sender : TObject);
         procedure ValidateScreenType(AType : TComponentClass);
-        function CloseQueryHandler(out message : AnsiString) : boolean;
+        function CloseQueryHandler(out message : String) : boolean;
         function GetScreens : TWizardScreenPath;
         procedure SavePath;
         procedure ResetPathBackups;
         procedure InitializeScreen(AType : TComponentClass);
         procedure RefreshNavigation;
         procedure CloseHost(AModalResult : Integer);
-        function CompleteFinish(out message : AnsiString) : boolean;
+        function CompleteFinish(out message : String) : boolean;
     protected
         function CreateScreen(AType: TComponentClass) : TWizardForm<T>;
         property Host : TWizardHostForm read FHost;
         { Modal presentation hook. Start releases the host even if this raises. }
         procedure ShowHost; virtual;
-        procedure ShowError(const message : AnsiString); virtual;
+        procedure ShowError(const message : String); virtual;
         function DetermineHasNext : boolean; virtual;
         function DetermineHasPrevious : boolean; virtual;
         procedure PresentScreen(screen : TWizardForm<T>); virtual;
         { Return false with a message to retain the active flow. Exceptions also
           release busy admission so the caller can retry. Do not navigate here. }
-        function FinishRequested(out message : AnsiString) : boolean; virtual; abstract;
-        function CancelRequested(out message : AnsiString) : boolean; virtual; abstract;
+        function FinishRequested(out message : String) : boolean; virtual; abstract;
+        function CancelRequested(out message : String) : boolean; virtual; abstract;
     public
         constructor Create(AOwner:TComponent; const screens: array of TComponentClass); overload;
         destructor Destroy; override;
@@ -183,26 +190,26 @@ type
         property FinishedEvent : TNotifyManyEvent read FFinishedEvent;
         property HasNext : boolean read DetermineHasNext;
         property HasPrevious : boolean read DetermineHasPrevious;
-        property NextText : AnsiString read FNextText write FNextText;
-        property PreviousText : AnsiString read FPreviousText write FPreviousText;
-        property FinishText : AnsiString read FFinishText write FFinishText;
-        property TitleText : AnsiString read FTitleText write FTitleText;
+        property NextText : String read FNextText write FNextText;
+        property PreviousText : String read FPreviousText write FPreviousText;
+        property FinishText : String read FFinishText write FFinishText;
+        property TitleText : String read FTitleText write FTitleText;
         { Starts once, initializes screens with model, and presents a modal host.
           The wizard does not explicitly dispose model instances. }
-        procedure Start(constref model : T); virtual;
+        procedure Start({$IFDEF FPC}constref{$ELSE}const{$ENDIF} model : T); virtual;
         { Convenience commands display nonempty rejection messages through ShowError. }
         procedure Next; virtual;
         procedure Previous; virtual;
         { Noninteractive outcomes: TryNext validates before OnNext; TryPrevious
           runs OnPrevious. A terminal Next attempts Finish. Missing dynamic
           successors remain active. }
-        function TryNext(out message : AnsiString) : boolean; virtual;
-        function TryPrevious(out message : AnsiString) : boolean; virtual;
+        function TryNext(out message : String) : boolean; virtual;
+        function TryPrevious(out message : String) : boolean; virtual;
         { Require Start to assign the model. Finish validates/runs OnNext before
           checking the final path. Accepted outcomes remain idempotent after closure. }
-        function Finish(out message : AnsiString) : boolean; virtual;
+        function Finish(out message : String) : boolean; virtual;
         { Checks IsCancellable both before and after CancelRequested. }
-        function Cancel(out message : AnsiString) : boolean; virtual;
+        function Cancel(out message : String) : boolean; virtual;
         { Allowed from OnNext/OnPrevious for dynamic branching. Repeated identical
           injection is idempotent; Previous restores its screen's saved branch. }
         procedure UpdatePath(APathUpdateType: TPathUpdateType; const screens : array of TComponentClass); virtual;
@@ -214,17 +221,17 @@ type
   { TActionWizard - a generic Wizard that can be used without subclassing }
   TActionWizard<T> = class(TWizard<T>)
     public type
-      TActionWizardCancelFunc = function(screenIndex : Integer; constref model : T; out message : AnsiString) : boolean of object;
-      TActionWizardFinishFunc = function(constref  model : T; out message : AnsiString) : boolean of object;
+      TActionWizardCancelFunc = function(screenIndex : Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} model : T; out message : String) : boolean of object;
+      TActionWizardFinishFunc = function({$IFDEF FPC}constref{$ELSE}const{$ENDIF}  model : T; out message : String) : boolean of object;
     private
       FCancelHandler : TActionWizardCancelFunc;
       FFinishHandler : TActionWizardFinishFunc;
     protected
-      function CancelRequested(out message : AnsiString) : boolean; override;
-      function FinishRequested(out message : AnsiString) : boolean; override;
+      function CancelRequested(out message : String) : boolean; override;
+      function FinishRequested(out message : String) : boolean; override;
     public
-      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
-      class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+      constructor Create(AOwner:TComponent; title, finish: String; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+      class procedure Show(AParent: TForm; title, finish: String; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
   end;
 
   { TGenericWizardBag - a generic bag for use within wizard }
@@ -232,7 +239,11 @@ type
 
 implementation
 
+{$IFDEF FPC}
 {$R *.lfm}
+{$ELSE}
+{$R *.dfm}
+{$ENDIF}
 
 {%region TWizardForm }
 
@@ -261,7 +272,7 @@ begin
   // Default implementation
 end;
 
-function TWizardForm<T>.Validate(out message : AnsiString) : boolean;
+function TWizardForm<T>.Validate(out message : String) : boolean;
 begin
   // Default implementation
   message := '';
@@ -284,7 +295,7 @@ end;
 
 procedure TWizardHostForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 var
-   message : AnsiString;
+   message : String;
 begin
   message := '';
   if Assigned(FCloseQueryEvent) then begin
@@ -295,12 +306,12 @@ begin
     CanClose := true
 end;
 
-procedure TWizardHostForm.SetTitleText(title : AnsiString);
+procedure TWizardHostForm.SetTitleText(title : String);
 begin
  self.Caption:= title;
 end;
 
-function TWizardHostForm.GetTitleText : AnsiString;
+function TWizardHostForm.GetTitleText : String;
 begin
   Result := self.Caption;
 end;
@@ -327,22 +338,22 @@ begin
   Result := NOT FNextButton.Enabled;
 end;
 
-procedure TWizardHostForm.SetNextText(nextText : AnsiString);
+procedure TWizardHostForm.SetNextText(nextText : String);
 begin
   FNextButton.Caption := nextText;
 end;
 
-function TWizardHostForm.GetNextText : AnsiString;
+function TWizardHostForm.GetNextText : String;
 begin
   Result := FNextButton.Caption;
 end;
 
-procedure TWizardHostForm.SetPreviousText(previousText : AnsiString);
+procedure TWizardHostForm.SetPreviousText(previousText : String);
 begin
   FPreviousButton.Caption := previousText;
 end;
 
-function TWizardHostForm.GetPreviousText : AnsiString;
+function TWizardHostForm.GetPreviousText : String;
 begin
   Result := FPreviousButton.Caption;
 end;
@@ -490,7 +501,7 @@ begin
   DetermineHasPrevious := FCurrentScreenIndex > 0;
 end;
 
-procedure TWizard<T>.Start(constref model : T);
+procedure TWizard<T>.Start({$IFDEF FPC}constref{$ELSE}const{$ENDIF} model : T);
 var
   i : integer;
 begin
@@ -529,7 +540,7 @@ end;
 
 procedure TWizard<T>.Next;
 var
-  message : AnsiString;
+  message : String;
 begin
   if NOT TryNext(message) and (message <> '') then
     ShowError(message);
@@ -537,13 +548,13 @@ end;
 
 procedure TWizard<T>.Previous;
 var
-  message : AnsiString;
+  message : String;
 begin
   if NOT TryPrevious(message) and (message <> '') then
     ShowError(message);
 end;
 
-function TWizard<T>.TryNext(out message : AnsiString) : boolean;
+function TWizard<T>.TryNext(out message : String) : boolean;
 begin
   message := '';
   Result := false;
@@ -574,7 +585,7 @@ begin
   end;
 end;
 
-function TWizard<T>.TryPrevious(out message : AnsiString) : boolean;
+function TWizard<T>.TryPrevious(out message : String) : boolean;
 begin
   message := '';
   Result := false;
@@ -600,7 +611,7 @@ begin
   end;
 end;
 
-function TWizard<T>.Finish(out message : AnsiString) : boolean;
+function TWizard<T>.Finish(out message : String) : boolean;
 begin
   message := '';
   Result := false;
@@ -624,7 +635,7 @@ begin
   end;
 end;
 
-function TWizard<T>.CompleteFinish(out message : AnsiString) : boolean;
+function TWizard<T>.CompleteFinish(out message : String) : boolean;
 begin
   message := '';
   Result := false;
@@ -655,7 +666,7 @@ begin
   end;
 end;
 
-function TWizard<T>.Cancel(out message : AnsiString) : boolean;
+function TWizard<T>.Cancel(out message : String) : boolean;
 begin
   message := '';
   Result := false;
@@ -784,7 +795,7 @@ end;
 
 function TWizard<T>.GetScreens : TWizardScreenPath;
 begin
-  Result := FScreenPath.ToArray;
+  Result := {$IFNDEF FPC}TWizardScreenPath({$ENDIF}FScreenPath.ToArray{$IFNDEF FPC}){$ENDIF};
 end;
 
 procedure TWizard<T>.SavePath;
@@ -828,12 +839,12 @@ begin
   FHost.ShowModal;
 end;
 
-procedure TWizard<T>.ShowError(const message : AnsiString);
+procedure TWizard<T>.ShowError(const message : String);
 begin
   ShowMessage(message);
 end;
 
-function TWizard<T>.CloseQueryHandler(out message : AnsiString) : boolean;
+function TWizard<T>.CloseQueryHandler(out message : String) : boolean;
 begin
   message := '';
   if FState in [wsFinished, wsCancelled] then
@@ -879,7 +890,7 @@ end;
 
 {%region TActionWizard }
 
-constructor TActionWizard<T>.Create(AOwner: TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+constructor TActionWizard<T>.Create(AOwner: TComponent; title, finish: String; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
 begin
   inherited Create(AOwner, screens);
   self.TitleText := title;
@@ -888,7 +899,7 @@ begin
   self.FFinishHandler := finishFunc;
 end;
 
-class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: String; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
 type
   MyWizard = TActionWizard<T>;
 var
@@ -902,7 +913,7 @@ begin
   end;
 end;
 
-function TActionWizard<T>.CancelRequested(out message : AnsiString) : boolean;
+function TActionWizard<T>.CancelRequested(out message : String) : boolean;
 begin
   message := '';
   if Assigned(FCancelHandler) then
@@ -910,7 +921,7 @@ begin
   else Result := true;
 end;
 
-function TActionWizard<T>.FinishRequested(out message : AnsiString) : boolean;
+function TActionWizard<T>.FinishRequested(out message : String) : boolean;
 begin
   message := '';
   if Assigned(FFinishHandler) then
