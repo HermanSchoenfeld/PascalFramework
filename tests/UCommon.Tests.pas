@@ -30,6 +30,13 @@ type
       procedure Hex2Bytes_4;
   end;
 
+  TLogMessageTests = class(TTestCase)
+    published
+      procedure ExplicitMetadataPreservesEverySeverity;
+      procedure ExplicitInfoMessageKeepsResultSuccessful;
+      procedure DefaultTimestampPreservesRequestedSeverity;
+  end;
+
   TResultTests = class(TTestCase)
     published
       procedure Success;
@@ -70,6 +77,55 @@ implementation
 uses
     Variants, Generics.Defaults, Generics.Collections, UCommon, UMemory,
     UCommon.Collections;
+
+{ TLogMessageTests }
+
+procedure TLogMessageTests.ExplicitMetadataPreservesEverySeverity;
+var
+  LSeverity: TLogSeverity;
+  LTimeStamp: TDateTime;
+  LMessage: TLogMessage;
+begin
+  LTimeStamp := EncodeDate(2001, 2, 3) + EncodeTime(4, 5, 6, 7);
+  for LSeverity := Low(TLogSeverity) to High(TLogSeverity) do begin
+    LMessage := TLogMessage.From('Retained text', LSeverity, LTimeStamp);
+    AssertEquals('Retained text', LMessage.Text);
+    AssertEquals(Ord(LSeverity), Ord(LMessage.Severity));
+    AssertTrue('The explicit timestamp must not be replaced with the current time',
+      LMessage.TimeStamp = LTimeStamp);
+  end;
+end;
+
+procedure TLogMessageTests.ExplicitInfoMessageKeepsResultSuccessful;
+var
+  LResult: TResult;
+  LTimeStamp: TDateTime;
+begin
+  LTimeStamp := EncodeDate(2001, 2, 3);
+  LResult := TResult.Success;
+  LResult.Add(TLogMessage.From('Imported three rows', lsInfo, LTimeStamp));
+  AssertTrue('An informational message is not a failure', LResult.IsSuccess);
+  AssertEquals(1, Length(LResult.Messages));
+  AssertEquals(Ord(lsInfo), Ord(LResult.Messages[0].Severity));
+  AssertTrue(LResult.Messages[0].TimeStamp = LTimeStamp);
+end;
+
+procedure TLogMessageTests.DefaultTimestampPreservesRequestedSeverity;
+var
+  LSeverity: TLogSeverity;
+  LBefore, LAfter: TDateTime;
+  LMessage: TLogMessage;
+begin
+  for LSeverity := Low(TLogSeverity) to High(TLogSeverity) do begin
+    LBefore := TDateTime.NowUtc;
+    LMessage := TLogMessage.From('Current message', LSeverity);
+    LAfter := TDateTime.NowUtc;
+    AssertEquals(Ord(LSeverity), Ord(LMessage.Severity));
+    AssertTrue((LMessage.TimeStamp >= LBefore) and (LMessage.TimeStamp <= LAfter));
+  end;
+  LMessage := TLogMessage.From('Default severity');
+  AssertEquals(Ord(lsError), Ord(LMessage.Severity));
+end;
 
 { TSortedHashTests }
 
@@ -578,6 +634,7 @@ end;
 initialization
   RegisterTest(TSortedHashTests);
   RegisterTest(THexStringTests);
+  RegisterTest(TLogMessageTests);
   RegisterTest(TResultTests);
   RegisterTest(TVariantToolTests);
   RegisterTest(TStatsTests);

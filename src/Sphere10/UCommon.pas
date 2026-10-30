@@ -1100,7 +1100,10 @@ end;
 
 class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage;
 begin
-  Result := From(AText, lsError);
+  // Explicit metadata belongs to the caller; do not replace it with defaults.
+  Result.FTimeStamp := ATimeStamp;
+  Result.FSeverity := ASeverity;
+  Result.FText := AText;
 end;
 
 class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage;
