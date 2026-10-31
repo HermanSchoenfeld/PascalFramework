@@ -93,11 +93,22 @@ begin
   finally Done.SetEvent; end;
 end;
 constructor TProbe.Create(const ALogPath:String);
-begin inherited Create; LogPath:=ALogPath; Actors:=TList<TActor>.Create; end;
+begin
+  inherited Create;
+  LogPath:=ALogPath;
+  Actors:=TList<TActor>.Create;
+end;
 destructor TProbe.Destroy;
-begin Clean; Actors.Free; inherited; end;
+begin
+  Clean;
+  Actors.Free;
+  inherited;
+end;
 procedure TProbe.Require(AValue:Boolean; const AMessage:String);
-begin if not AValue then raise Exception.Create(AMessage); end;
+begin
+  if not AValue then
+    raise Exception.Create(AMessage);
+end;
 procedure TProbe.Log(const AText:String);
 var F:TextFile;
 begin
@@ -110,13 +121,19 @@ begin
   Actors.Add(Result); Result.Start;
 end;
 procedure TProbe.Await(AEvent:TEvent; const AMessage:String);
-begin Require(AEvent.WaitFor(2000)=wrSignaled,AMessage); end;
+begin
+  Require(AEvent.WaitFor(2000)=wrSignaled,AMessage);
+end;
 procedure TProbe.WaitCount(AKind,AValue:Integer);
 var T:UInt64; N:Integer;
 begin
   T:=GetTickCount64+1500;
   repeat
-    case AKind of 0:N:=L.WaitingReadCount;1:N:=L.WaitingWriteCount;else N:=L.WaitingUpgradeCount;end;
+    case AKind of
+      0: N:=L.WaitingReadCount;
+      1: N:=L.WaitingWriteCount;
+    else N:=L.WaitingUpgradeCount;
+    end;
     if N=AValue then Exit;
     Sleep(1);
   until GetTickCount64>=T;
@@ -130,7 +147,11 @@ begin
     while L.RecursiveReadCount>0 do L.ExitReadLock;
     while L.RecursiveUpgradeCount>0 do L.ExitUpgradeableReadLock;
   end;
-  for A in Actors do begin A.Terminate; A.ReleaseGate.SetEvent; A.Promote.SetEvent; end;
+  for A in Actors do begin
+    A.Terminate;
+    A.ReleaseGate.SetEvent;
+    A.Promote.SetEvent;
+  end;
   Err:='';
   for A in Actors do begin
     A.WaitFor;
@@ -143,14 +164,19 @@ begin
   if Err<>'' then raise Exception.Create(Err);
 end;
 procedure TProbe.Reset(APolicy:TLockRecursionPolicy);
-begin Clean; L:=TReadWriteLock.Create(APolicy); end;
+begin
+  Clean;
+  L:=TReadWriteLock.Create(APolicy);
+end;
 procedure TProbe.ExpectRecursion(AAction:TAction);
 var Failed:Boolean;
 begin
   Failed:=False;
   try
     case AAction of
-      acRead:L.TryEnterReadLock(0);acWrite:L.TryEnterWriteLock(0);acUpgrade:L.TryEnterUpgradeableReadLock(0);
+      acRead: L.TryEnterReadLock(0);
+      acWrite: L.TryEnterWriteLock(0);
+      acUpgrade: L.TryEnterUpgradeableReadLock(0);
     end;
   except on E:ELockRecursionException do Failed:=True;end;
   Require(Failed,'Forbidden recursion/promotion did not raise ELockRecursionException');
@@ -241,10 +267,18 @@ var A:TAction; W:TActor; Rejected:Boolean;
 begin
   for A:=acExitRead to acExitUpgrade do begin
     Reset;
-    case A of acExitRead:L.EnterReadLock;acExitWrite:L.EnterWriteLock;acExitUpgrade:L.EnterUpgradeableReadLock;end;
+    case A of
+      acExitRead: L.EnterReadLock;
+      acExitWrite: L.EnterWriteLock;
+      acExitUpgrade: L.EnterUpgradeableReadLock;
+    end;
     W:=Worker(A,0,'ESynchronizationLockException');Await(W.Done,'Wrong-thread release');
     Require(W.ErrorClass='ESynchronizationLockException','Wrong-thread release was accepted');
-    case A of acExitRead:Require(L.IsReadLockHeld,'Wrong-thread lost read');acExitWrite:Require(L.IsWriteLockHeld,'Wrong-thread lost write');acExitUpgrade:Require(L.IsUpgradeableReadLockHeld,'Wrong-thread lost upgrade');end;
+    case A of
+      acExitRead: Require(L.IsReadLockHeld,'Wrong-thread lost read');
+      acExitWrite: Require(L.IsWriteLockHeld,'Wrong-thread lost write');
+      acExitUpgrade: Require(L.IsUpgradeableReadLockHeld,'Wrong-thread lost upgrade');
+    end;
   end;
   Reset;
   Rejected:=False;try L.TryEnterReadLock(-2);except on E:EArgumentOutOfRangeException do Rejected:=True;end;

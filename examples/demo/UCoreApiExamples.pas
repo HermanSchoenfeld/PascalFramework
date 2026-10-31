@@ -220,13 +220,19 @@ begin
 end;
 
 procedure TExampleListener.WaitingChanged(Sender: TObject);
-begin Inc(WaitingChanges); end;
+begin
+  Inc(WaitingChanges);
+end;
 
 procedure TExampleListener.Activated(Sender: TObject);
-begin Inc(Activations); end;
+begin
+  Inc(Activations);
+end;
 
 procedure TExampleListener.Destroyed(Sender: TObject);
-begin Inc(Destructions); end;
+begin
+  Inc(Destructions);
+end;
 
 constructor TNotificationProducer.Create(ADispatcher: TThreadNotify;
   AListener: TExampleListener);
@@ -381,15 +387,21 @@ end;
 function TExampleDataSource.FilterValue(
   {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
   {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Boolean;
-begin Result := ApplyColumnFilter(AItem, AFilter); end;
+begin
+  Result := ApplyColumnFilter(AItem, AFilter);
+end;
 
 function TExampleDataSource.CompareValues(
   {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight: Integer;
   {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Integer;
-begin Result := ApplyColumnSort(ALeft, ARight, AFilter); end;
+begin
+  Result := ApplyColumnSort(ALeft, ARight, AFilter);
+end;
 
 function TExampleDataSource.NullOrder(const AFilter: TColumnFilter): TSortNullPolicy;
-begin Result := GetNullPolicy(AFilter); end;
+begin
+  Result := GetNullPolicy(AFilter);
+end;
 
 procedure DataRowsAndPaging;
 var

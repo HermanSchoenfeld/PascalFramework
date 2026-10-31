@@ -83,7 +83,9 @@ type
 implementation
 
 function Tick: UInt64;
-begin Result := GetTickCount64; end;
+begin
+  Result := GetTickCount64;
+end;
 
 constructor TLockWorker.Create(ALock: TReadWriteLock; AAction: TLockAction; ATimeout: Integer);
 begin
@@ -160,7 +162,10 @@ begin
         end;
       end;
     except
-      on E: Exception do begin ErrorClass := E.ClassName; ErrorMessage := E.Message; end;
+      on E: Exception do begin
+        ErrorClass := E.ClassName;
+        ErrorMessage := E.Message;
+      end;
     end;
   finally
     Elapsed := Tick - LStarted;
@@ -202,7 +207,9 @@ begin
 end;
 
 procedure TReadWriteLockTests.Await(AEvent: TEvent; const ADescription: String);
-begin AssertEquals(ADescription, Ord(wrSignaled), Ord(AEvent.WaitFor(3000))); end;
+begin
+  AssertEquals(ADescription, Ord(wrSignaled), Ord(AEvent.WaitFor(3000)));
+end;
 
 procedure TReadWriteLockTests.WaitCount(AKind, ACount: Integer);
 var LStarted: UInt64; LCount: Integer;
@@ -550,9 +557,18 @@ begin
     Await(LWorker.Done, 'Wrong-thread release completed');
     AssertEquals('ESynchronizationLockException', LWorker.ErrorClass);
     case LAction of
-      laExitRead: begin AssertTrue(FLock.IsReadLockHeld); FLock.ExitReadLock; end;
-      laExitWrite: begin AssertTrue(FLock.IsWriteLockHeld); FLock.ExitWriteLock; end;
-      laExitUpgrade: begin AssertTrue(FLock.IsUpgradeableReadLockHeld); FLock.ExitUpgradeableReadLock; end;
+      laExitRead: begin
+        AssertTrue(FLock.IsReadLockHeld);
+        FLock.ExitReadLock;
+      end;
+      laExitWrite: begin
+        AssertTrue(FLock.IsWriteLockHeld);
+        FLock.ExitWriteLock;
+      end;
+      laExitUpgrade: begin
+        AssertTrue(FLock.IsUpgradeableReadLockHeld);
+        FLock.ExitUpgradeableReadLock;
+      end;
     end;
   end;
 end;

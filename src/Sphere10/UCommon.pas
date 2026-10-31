@@ -1883,7 +1883,8 @@ begin
   result[3] := item3;
 end;
 
-class function TArrayTool<T>.Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T) : TArray<T>;begin
+class function TArrayTool<T>.Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T) : TArray<T>;
+begin
   SetLength(result,5);
   result[0] := item0;
   result[1] := item1;

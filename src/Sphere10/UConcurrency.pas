@@ -138,23 +138,49 @@ begin
 end;
 
 procedure TReadWriteLock.EnterReadLock;
-begin TryEnterReadLock(-1); end;
+begin
+  TryEnterReadLock(-1);
+end;
+
 function TReadWriteLock.TryEnterReadLock(AMillisecondsTimeout: Integer): Boolean;
-begin Result := TryEnter(lkRead, AMillisecondsTimeout); end;
+begin
+  Result := TryEnter(lkRead, AMillisecondsTimeout);
+end;
+
 procedure TReadWriteLock.ExitReadLock;
-begin ExitLock(lkRead); end;
+begin
+  ExitLock(lkRead);
+end;
+
 procedure TReadWriteLock.EnterWriteLock;
-begin TryEnterWriteLock(-1); end;
+begin
+  TryEnterWriteLock(-1);
+end;
+
 function TReadWriteLock.TryEnterWriteLock(AMillisecondsTimeout: Integer): Boolean;
-begin Result := TryEnter(lkWrite, AMillisecondsTimeout); end;
+begin
+  Result := TryEnter(lkWrite, AMillisecondsTimeout);
+end;
+
 procedure TReadWriteLock.ExitWriteLock;
-begin ExitLock(lkWrite); end;
+begin
+  ExitLock(lkWrite);
+end;
+
 procedure TReadWriteLock.EnterUpgradeableReadLock;
-begin TryEnterUpgradeableReadLock(-1); end;
+begin
+  TryEnterUpgradeableReadLock(-1);
+end;
+
 function TReadWriteLock.TryEnterUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
-begin Result := TryEnter(lkUpgradeable, AMillisecondsTimeout); end;
+begin
+  Result := TryEnter(lkUpgradeable, AMillisecondsTimeout);
+end;
+
 procedure TReadWriteLock.ExitUpgradeableReadLock;
-begin ExitLock(lkUpgradeable); end;
+begin
+  ExitLock(lkUpgradeable);
+end;
 
 function MonotonicMilliseconds: UInt64;
 begin
@@ -230,7 +256,10 @@ var LFirst: Boolean;
 begin
   LFirst := False;
   case AKind of
-    lkRead: begin LFirst := ACounts.Reads = 0; Inc(ACounts.Reads); end;
+    lkRead: begin
+      LFirst := ACounts.Reads = 0;
+      Inc(ACounts.Reads);
+    end;
     lkWrite: Inc(ACounts.Writes);
     lkUpgradeable: Inc(ACounts.Upgrades);
   end;
@@ -340,9 +369,18 @@ begin
     if LCount = 0 then
       raise ESynchronizationLockException.Create('This thread does not hold the requested lock.');
     case AKind of
-      lkRead: begin Dec(LCounts.Reads); if LCounts.Reads = 0 then Dec(FReaders); end;
-      lkWrite: begin Dec(LCounts.Writes); if LCounts.Writes = 0 then FWriter := 0; end;
-      lkUpgradeable: begin Dec(LCounts.Upgrades); if LCounts.Upgrades = 0 then FUpgrader := 0; end;
+      lkRead: begin
+        Dec(LCounts.Reads);
+        if LCounts.Reads = 0 then Dec(FReaders);
+      end;
+      lkWrite: begin
+        Dec(LCounts.Writes);
+        if LCounts.Writes = 0 then FWriter := 0;
+      end;
+      lkUpgradeable: begin
+        Dec(LCounts.Upgrades);
+        if LCounts.Upgrades = 0 then FUpgrader := 0;
+      end;
     end;
     if (LCounts.Reads = 0) and (LCounts.Writes = 0) and (LCounts.Upgrades = 0) then
       FThreads.Remove(LThreadID)
@@ -366,11 +404,15 @@ begin
       lkUpgradeable: Result := LCounts.Upgrades;
     else Result := 0;
     end;
-  finally FGate.Release; end;
+  finally
+    FGate.Release;
+  end;
 end;
 
 function TReadWriteLock.GetHeld(AKind: TLockKind): Boolean;
-begin Result := GetRecursiveCount(AKind) > 0; end;
+begin
+  Result := GetRecursiveCount(AKind) > 0;
+end;
 
 function TReadWriteLock.GetCount(AIndex: Integer): Integer;
 begin
@@ -383,28 +425,59 @@ begin
       3: Result := FWaitingUpgraders;
     else Result := 0;
     end;
-  finally FGate.Release; end;
+  finally
+    FGate.Release;
+  end;
 end;
 
 function TReadWriteLock.GetIsReadLockHeld: Boolean;
-begin Result := GetHeld(lkRead); end;
+begin
+  Result := GetHeld(lkRead);
+end;
+
 function TReadWriteLock.GetIsWriteLockHeld: Boolean;
-begin Result := GetHeld(lkWrite); end;
+begin
+  Result := GetHeld(lkWrite);
+end;
+
 function TReadWriteLock.GetIsUpgradeableReadLockHeld: Boolean;
-begin Result := GetHeld(lkUpgradeable); end;
+begin
+  Result := GetHeld(lkUpgradeable);
+end;
+
 function TReadWriteLock.GetRecursiveReadCount: Integer;
-begin Result := GetRecursiveCount(lkRead); end;
+begin
+  Result := GetRecursiveCount(lkRead);
+end;
+
 function TReadWriteLock.GetRecursiveWriteCount: Integer;
-begin Result := GetRecursiveCount(lkWrite); end;
+begin
+  Result := GetRecursiveCount(lkWrite);
+end;
+
 function TReadWriteLock.GetRecursiveUpgradeCount: Integer;
-begin Result := GetRecursiveCount(lkUpgradeable); end;
+begin
+  Result := GetRecursiveCount(lkUpgradeable);
+end;
+
 function TReadWriteLock.GetCurrentReadCount: Integer;
-begin Result := GetCount(0); end;
+begin
+  Result := GetCount(0);
+end;
+
 function TReadWriteLock.GetWaitingReadCount: Integer;
-begin Result := GetCount(1); end;
+begin
+  Result := GetCount(1);
+end;
+
 function TReadWriteLock.GetWaitingWriteCount: Integer;
-begin Result := GetCount(2); end;
+begin
+  Result := GetCount(2);
+end;
+
 function TReadWriteLock.GetWaitingUpgradeCount: Integer;
-begin Result := GetCount(3); end;
+begin
+  Result := GetCount(3);
+end;
 
 end.

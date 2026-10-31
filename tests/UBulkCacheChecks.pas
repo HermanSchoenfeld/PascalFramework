@@ -120,7 +120,10 @@ begin
 end;
 
 constructor TBulkReader.Create(ACache: TTestBulk);
-begin inherited Create(True); FCache := ACache; end;
+begin
+  inherited Create(True);
+  FCache := ACache;
+end;
 
 procedure TBulkReader.Execute;
 var i: Integer;
@@ -131,10 +134,17 @@ begin
 end;
 
 destructor TTrackedValue.Destroy;
-begin Inc(DestroyedValues); inherited; end;
+begin
+  Inc(DestroyedValues);
+  inherited;
+end;
 
 constructor TDestructionCheckValue.Create(ACache: TInterfaceCache; ARejected: PBoolean);
-begin inherited Create; FCache := ACache; FRejected := ARejected; end;
+begin
+  inherited Create;
+  FCache := ACache;
+  FRejected := ARejected;
+end;
 
 destructor TDestructionCheckValue.Destroy;
 begin
@@ -146,7 +156,9 @@ begin
 end;
 
 procedure GlobalFill(AValues: TValues);
-begin AValues.Add(7,'global'); end;
+begin
+  AValues.Add(7,'global');
+end;
 
 procedure RunBulkCacheCheck(AIndex: Integer);
 var
@@ -172,14 +184,18 @@ var
   nestedFetcher: TBulkAction.TNestedBulkFetchProc;
   {$IFDEF FPC}
   procedure NestedFill(AValues: TValues);
-  begin AValues.Add(9,nestedValue); end;
+  begin
+    AValues.Add(9,nestedValue);
+  end;
   procedure ObjectFill(AValues: TObjectValues);
   begin
     AValues.Add(1,nil);
     AValues.Add(2,objectValue);
   end;
   procedure InterfaceFill(AValues: TInterfaceValues);
-  begin AValues.Add(1,TDestructionCheckValue.Create(interfaceCache,@destructionRejected)); end;
+  begin
+    AValues.Add(1,TDestructionCheckValue.Create(interfaceCache,@destructionRejected));
+  end;
   {$ENDIF}
 begin
   if AIndex = 10 then begin
@@ -190,7 +206,10 @@ begin
     objectFetcher := ObjectFill;
     {$ELSE}
     objectFetcher := procedure(AValues: TObjectValues)
-      begin AValues.Add(1,nil); AValues.Add(2,objectValue); end;
+      begin
+        AValues.Add(1,nil);
+        AValues.Add(2,objectValue);
+      end;
     {$ENDIF}
     for nullPolicy := Low(TObjectPlainBase.TNullValuePolicy) to High(TObjectPlainBase.TNullValuePolicy) do begin
       objectCache := TObjectBulk.Create(nil,TObjectBulk.TBulkValueFetcher.FromNestedFunction(objectFetcher),
@@ -329,7 +348,9 @@ begin
       nestedFetcher := NestedFill;
       {$ELSE}
       nestedFetcher := procedure(AValues: TValues)
-        begin AValues.Add(9,nestedValue); end;
+        begin
+          AValues.Add(9,nestedValue);
+        end;
       {$ENDIF}
       fetcher := TBulkAction.TBulkValueFetcher.FromNestedFunction(nestedFetcher);
       wrapper := TBulkAction.TBulkValueFetcher.Create(fetcher);
@@ -422,7 +443,9 @@ begin
       interfaceFetcher := InterfaceFill;
       {$ELSE}
       interfaceFetcher := procedure(AValues: TInterfaceValues)
-        begin AValues.Add(1,TDestructionCheckValue.Create(interfaceCache,@destructionRejected)); end;
+        begin
+          AValues.Add(1,TDestructionCheckValue.Create(interfaceCache,@destructionRejected));
+        end;
       {$ENDIF}
       interfaceCache := TInterfaceBulk.Create(nil,TInterfaceBulk.TBulkValueFetcher.FromNestedFunction(interfaceFetcher),
         TInterfaceCache.TExpirationPolicy.epNone,TTimeSpan.MaxValue,True);

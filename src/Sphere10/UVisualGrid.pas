@@ -1546,8 +1546,7 @@ begin
       Rect.Top + LHalfOfHeight + P3_Y + P3_Y_CENTER_DELTA);
     case LColumn.SortDirection of
       sdNone: ;
-      sdAscending:
-        FDrawGrid.Canvas.Polygon([LP1, LP2, LP3]);
+      sdAscending: FDrawGrid.Canvas.Polygon([LP1, LP2, LP3]);
       sdDescending:
         begin
           // swap y for points
@@ -1644,7 +1643,9 @@ end;
 
 {$IFNDEF FPC}
 function TCustomVisualGrid.Scale96ToFont(AValue:Integer):Integer;
-begin Result:=ScaleValue(AValue); end;
+begin
+  Result:=ScaleValue(AValue);
+end;
 {$ENDIF}
 
 procedure TCustomVisualGrid.SetParent(AParent:TWinControl);
@@ -1995,8 +1996,7 @@ var
     with LExpressionRecord do
     begin
       case Kind of
-        ekUnknown:
-          Exit;
+        ekUnknown: Exit;
         ekNum:
           case NumericComparisionKind of
             // nckUnknown is special case - pure number can be text and num
@@ -2642,8 +2642,7 @@ begin
   if (vgoAutoHidePaging in FOptions) and (FPageCount in [0,1,2]) and (FPageIndex = 0) then
     case FPageCount of
       // simple situation - just hide bottom panel
-      0,1:
-        FBottomPanel.Visible := False;
+      0,1: FBottomPanel.Visible := False;
       // for PageCount = 2 may be also possible but more complicated especially for AutoPageSize
       2:
         if AutoPageSize then

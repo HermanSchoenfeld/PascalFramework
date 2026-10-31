@@ -1364,7 +1364,9 @@ begin
 end;
 
 procedure TBulkFetchActionCache<TKey, TValue>.BulkFetch(AValues: TBulkValues);
-begin FFetcher.Fetch(AValues); end;
+begin
+  FFetcher.Fetch(AValues);
+end;
 
 constructor TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Create(const AFetcher: IBulkValueFetcher);
 begin
@@ -1374,16 +1376,24 @@ begin
 end;
 
 procedure TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Fetch(AValues: TBulkValues);
-begin FFetcher.Fetch(AValues); end;
+begin
+  FFetcher.Fetch(AValues);
+end;
 
 class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromGlobalFunction(const AProc: TGlobalBulkFetchProc): IBulkValueFetcher;
-begin Result := TGlobalFetcher.Create(AProc); end;
+begin
+  Result := TGlobalFetcher.Create(AProc);
+end;
 
 class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromObjectFunction(const AProc: TObjectBulkFetchProc): IBulkValueFetcher;
-begin Result := TObjectFetcher.Create(AProc); end;
+begin
+  Result := TObjectFetcher.Create(AProc);
+end;
 
 class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromNestedFunction(const AProc: TNestedBulkFetchProc): IBulkValueFetcher;
-begin Result := TNestedFetcher.Create(AProc); end;
+begin
+  Result := TNestedFetcher.Create(AProc);
+end;
 
 constructor TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Create(const AProc: TGlobalBulkFetchProc);
 begin
@@ -1393,7 +1403,9 @@ begin
 end;
 
 procedure TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Fetch(AValues: TBulkValues);
-begin FProc(AValues); end;
+begin
+  FProc(AValues);
+end;
 
 constructor TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Create(const AProc: TObjectBulkFetchProc);
 begin
@@ -1403,7 +1415,9 @@ begin
 end;
 
 procedure TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Fetch(AValues: TBulkValues);
-begin FProc(AValues); end;
+begin
+  FProc(AValues);
+end;
 
 constructor TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Create(const AProc: TNestedBulkFetchProc);
 begin
@@ -1413,7 +1427,9 @@ begin
 end;
 
 procedure TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Fetch(AValues: TBulkValues);
-begin FProc(AValues); end;
+begin
+  FProc(AValues);
+end;
 
 { TPreloadedCache }
 

@@ -63,22 +63,35 @@ type
   end;
 
 function GlobalFetch(const AKey: Integer): String;
-begin Result := 'product ' + IntToStr(AKey); end;
+begin
+  Result := 'product ' + IntToStr(AKey);
+end;
 
 function GlobalMeasure(const AValue: String): SizeInt;
-begin Result := Length(AValue) * SizeOf(Char); end;
+begin
+  Result := Length(AValue) * SizeOf(Char);
+end;
 
 procedure GlobalFillAll(AValues: TBulk.TBulkValues);
-begin AValues.Add(1,'global catalogue'); AValues.Add(2,'second product'); end;
+begin
+  AValues.Add(1,'global catalogue');
+  AValues.Add(2,'second product');
+end;
 
 function TRevisionCache.Fetch(const AKey: Integer): String;
-begin Result := Format('%d: revision %d',[AKey,Revision]); end;
+begin
+  Result := Format('%d: revision %d',[AKey,Revision]);
+end;
 
 function TRevisionCache.EstimateSize(const AVal: String): SizeInt;
-begin Result := Length(AVal) * SizeOf(Char); end;
+begin
+  Result := Length(AVal) * SizeOf(Char);
+end;
 
 function TRevisionCache.CheckStaleness(const AKey: Integer; AItem: TCachedItem<String>): Boolean;
-begin Result := AItem.Value <> Format('%d: revision %d',[AKey,Revision]); end;
+begin
+  Result := AItem.Value <> Format('%d: revision %d',[AKey,Revision]);
+end;
 
 constructor TCacheExamples.Create(AOutput: TStrings);
 begin
@@ -91,10 +104,14 @@ begin
 end;
 
 function TCacheExamples.FetchValue(const AKey: Integer): String;
-begin Result := Format('product %d / revision %d',[AKey,FRevision]); end;
+begin
+  Result := Format('product %d / revision %d',[AKey,FRevision]);
+end;
 
 function TCacheExamples.MeasureValue(const AValue: String): SizeInt;
-begin Result := GlobalMeasure(AValue); end;
+begin
+  Result := GlobalMeasure(AValue);
+end;
 
 procedure TCacheExamples.FillAll(AValues: TBulk.TBulkValues);
 var pair: TPair<Integer,String>;
@@ -103,16 +120,24 @@ begin
 end;
 
 procedure TCacheExamples.Fetching(Sender: TObject; const AKey: Integer);
-begin FOutput.Add('Fetching ' + IntToStr(AKey)); end;
+begin
+  FOutput.Add('Fetching ' + IntToStr(AKey));
+end;
 
 procedure TCacheExamples.Fetched(Sender: TObject; const AKey: Integer; const AValue: String);
-begin FOutput.Add('Fetched ' + AValue); end;
+begin
+  FOutput.Add('Fetched ' + AValue);
+end;
 
 procedure TCacheExamples.Removing(Sender: TObject; const AKey: Integer; AItem: TCachedItem<String>);
-begin FOutput.Add('Removing ' + AItem.Value); end;
+begin
+  FOutput.Add('Removing ' + AItem.Value);
+end;
 
 procedure TCacheExamples.Removed(Sender: TObject; const AKey: Integer; const AValue: String);
-begin FOutput.Add('Removed ' + AValue); end;
+begin
+  FOutput.Add('Removed ' + AValue);
+end;
 
 procedure TCacheExamples.ShowCallbacks;
 var
@@ -140,9 +165,13 @@ var
   end;
   {$IFDEF FPC}
   function FetchNested(const AKey: Integer): String;
-  begin Result := IntToStr(AKey) + suffix; end;
+  begin
+    Result := IntToStr(AKey) + suffix;
+  end;
   function MeasureNested(const AValue: String): SizeInt;
-  begin Result := GlobalMeasure(AValue); end;
+  begin
+    Result := GlobalMeasure(AValue);
+  end;
   {$ENDIF}
 begin
   FOutput.Add('Cache callbacks: global functions, object methods and closures');
@@ -164,9 +193,13 @@ begin
   nestedFetch := FetchNested; nestedEstimate := MeasureNested;
   {$ELSE}
   nestedFetch := function(const AKey: Integer): String
-    begin Result := IntToStr(AKey) + suffix; end;
+    begin
+      Result := IntToStr(AKey) + suffix;
+    end;
   nestedEstimate := function(const AValue: String): SizeInt
-    begin Result := GlobalMeasure(AValue); end;
+    begin
+      Result := GlobalMeasure(AValue);
+    end;
   {$ENDIF}
   // A nested callback must not outlive captured stack locals under Free Pascal.
   // Free the cache here instead of retaining it in the session disposal bag.
@@ -220,7 +253,9 @@ var
   localText: String;
   {$IFDEF FPC}
   procedure FillNested(AValues: TBulk.TBulkValues);
-  begin AValues.Add(3,localText); end;
+  begin
+    AValues.Add(3,localText);
+  end;
   {$ENDIF}
 begin
   FOutput.Add('Bulk fetch: one provider call loads the complete source');
@@ -245,7 +280,9 @@ begin
   nestedProc := FillNested;
   {$ELSE}
   nestedProc := procedure(AValues: TBulk.TBulkValues)
-    begin AValues.Add(3,localText); end;
+    begin
+      AValues.Add(3,localText);
+    end;
   {$ENDIF}
   fetcher := TBulk.TBulkValueFetcher.FromNestedFunction(nestedProc);
   fetcher.Fetch(values);
