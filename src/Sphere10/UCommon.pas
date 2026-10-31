@@ -26,7 +26,7 @@ uses
   {$ELSE}{$IFDEF LINUX} {$linklib c} ctypes, {$ENDIF LINUX}
   {$IFDEF WINDOWS} Windows, {$ENDIF WINDOWS}
   {$IF DEFINED(DARWIN) OR DEFINED(FREEBSD)} ctypes, sysctl, {$ENDIF}
-  {$ENDIF} Variants, math, typinfo, UMemory, syncobjs;
+  {$ENDIF} Variants, math, typinfo, syncobjs;
 
 { CONSTANTS }
 
@@ -72,6 +72,37 @@ function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
 {$ENDIF}
 
 type
+
+  { A managed cleanup owner. Copies share one deferred method; the last copy
+    invokes it. Keep a local variable for routine-scoped ownership. Cleanup
+    runs on the thread releasing the final reference, so thread-affine owners
+    must not escape their acquiring thread. }
+  TScope = record
+    private type
+      TGuard = class(TInterfacedObject)
+        private
+          FCleanup: TThreadMethod;
+        public
+          constructor Create(const ACleanup: TThreadMethod);
+          destructor Destroy; override;
+      end;
+    private
+      FGuardian: IInterface;
+      function GetIsEmpty: Boolean;
+    public
+      // Registers a deferred method without invoking it. Its borrowed target
+      // must stay alive until cleanup; Target.Free can arrange its release.
+      class function Create(const ACleanup: TThreadMethod): TScope; static;
+      {$IFDEF FPC}
+      class operator Copy(constref ASource: TScope; var ADestination: TScope);
+      {$ELSE}
+      class operator Assign(var ADestination: TScope; const [ref] ASource: TScope);
+      {$ENDIF}
+      class operator Finalize(var AScope: TScope);
+      // Drops only this copy's ownership; other copies keep cleanup alive.
+      procedure Reset;
+      property IsEmpty: Boolean read GetIsEmpty;
+  end;
 
   {$IFNDEF FPC}
   // Delphi compatibility
@@ -470,6 +501,76 @@ resourcestring
 implementation
 
 uses dateutils, StrUtils;
+
+{ TScope }
+
+constructor TScope.TGuard.Create(const ACleanup: TThreadMethod);
+begin
+  inherited Create;
+  FCleanup := ACleanup;
+end;
+
+destructor TScope.TGuard.Destroy;
+var CleanupMethod: TThreadMethod;
+begin
+  CleanupMethod := FCleanup;
+  FCleanup := nil;
+  try
+    try
+      if Assigned(CleanupMethod) then CleanupMethod;
+    finally
+      inherited;
+    end;
+  except
+    // The outer destructor skips its instance release when Cleanup raises.
+    // The private guardian must still be freed before its exception propagates.
+    FreeInstance;
+    raise;
+  end;
+end;
+
+class function TScope.Create(const ACleanup: TThreadMethod): TScope;
+begin
+  if not Assigned(ACleanup) then
+    raise EArgumentNilException.Create('ACleanup');
+  Result.FGuardian := TGuard.Create(ACleanup);
+end;
+
+function TScope.GetIsEmpty: Boolean;
+begin
+  Result := not Assigned(FGuardian);
+end;
+
+{$IFDEF FPC}
+class operator TScope.Copy(constref ASource: TScope; var ADestination: TScope);
+{$ELSE}
+class operator TScope.Assign(var ADestination: TScope; const [ref] ASource: TScope);
+{$ENDIF}
+var Guardian: IInterface;
+begin
+  if @ASource = @ADestination then Exit;
+  // Pin the source before releasing the destination. If cleanup raises, the
+  // destination stays empty and the original source retains its ownership.
+  Guardian := ASource.FGuardian;
+  ADestination.Reset;
+  ADestination.FGuardian := Guardian;
+end;
+
+class operator TScope.Finalize(var AScope: TScope);
+begin
+  // Detach before the RTL finalizes managed fields, including overwrite paths.
+  AScope.Reset;
+end;
+
+procedure TScope.Reset;
+var Guardian: Pointer;
+begin
+  // Detach this reference before invoking user cleanup, which may raise. A raw
+  // local prevents a second compiler-managed release during exception unwind.
+  Guardian := Pointer(FGuardian);
+  Pointer(FGuardian) := nil;
+  if Assigned(Guardian) then IInterface(Guardian)._Release;
+end;
 
 const
   IntlDateTimeFormat : TFormatSettings = (

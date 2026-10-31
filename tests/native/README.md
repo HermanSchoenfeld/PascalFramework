@@ -163,6 +163,22 @@ desktop. The projects use ordinary source/resource builds with no build events.
 Data-row outputs: `tests/lib/Delphi/<Platform>/data-row-variant/<Config>`.
 Grid admission outputs: `tests/lib/Delphi/<Platform>/grid-throttle/<Config>`.
 
+## Managed scopes and disposal bags
+
+Build [ScopeProbe.dproj](ScopeProbe.dproj) in Delphi 13, or compile
+[ScopeProbe.dpr](ScopeProbe.dpr) with FPC's `-MDelphi` option and both the framework
+source and parent test directory on the unit search path. It runs 63 shared assertions from [UScope.Checks](../UScope.Checks.pas),
+[UDisposables.Scope.Checks](../UDisposables.Scope.Checks.pas) and
+[UReadWriteScope.Checks](../UReadWriteScope.Checks.pas).
+Results go to standard output; success exits zero and an assertion failure exits one.
+It needs no UI, wallet data, installed package or network connection.
+
+The checks cover automatic exits, copied/returned `TScope` records, fields and
+arrays, borrowed cleanup targets, nil methods and cleanup failures, original bag
+ordering/transfers/reallocation, both
+recursion policies, promotion/downgrade, blocked acquisition and thread affinity.
+Delphi enables shutdown leak reporting; FPC can run with heap tracing (`-gh`).
+
 ## Whole-source caches
 
 Build [BulkCacheProbe.dproj](BulkCacheProbe.dproj) with Delphi or compile its

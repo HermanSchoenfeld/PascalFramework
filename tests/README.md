@@ -10,6 +10,8 @@ or VCL controls.
 
 | Fixture | Coverage |
 | --- | --- |
+| [UScope.Tests](UScope.Tests.pas) | Deferred cleanup methods, default/empty ownership, routine return/Exit/unwind, returned records, shared copies, overwrite/reset, arrays and fields, callback failures, borrowed targets and object Free callbacks. |
+| [UReadWriteScope.Tests](UReadWriteScope.Tests.pas) | Automatic read/write/upgradeable ownership, all exit paths, copies, return/field lifetimes, recursion, promotion under both policies, downgrades, concurrent readers, blocked writers, failed acquisition and wrong-thread release. |
 | [UCache.Tests](UCache.Tests.pas) | Per-key and whole-source fetching, preloaded snapshots, bulk writes, missing keys, fetch-once retention, expiration/invalidation, eviction, pins, callbacks, failures and value ownership. |
 | [UWizard.Tests](UWizard.Tests.pas) | Shared-model initialization, validation order, dynamic routes, Back navigation, finish/cancel vetoes and retry, terminal states, reentry, host closure and screen ownership. |
 | [UWizardDemo.Tests](UWizardDemo.Tests.pas) | The actual designer-backed showcase screens, command buttons, Name/Age validation, optional branches, route actions and retryable lifecycle outcomes. |
@@ -21,7 +23,7 @@ or VCL controls.
 | [UFramework.UI.Integration.Tests](UFramework.UI.Integration.Tests.pas) | Duration values, docked forms, main-thread completion, worker lifetime, source replacement, recovery and concurrent schemas. |
 | [UCommon.Tests](UCommon.Tests.pas) | General utilities, exact log metadata, sample/population variance, byte-exact UTF-8 appends, signed/unsigned Variants and queued-listener disposal. |
 | [UCommon.Collections.Tests](UCommon.Collections.Tests.pas) | Array/list adapters, predicate inversion, exact-count copying, range boundaries, filtered object ownership, empty inputs, failures and cleanup. |
-| [UMemory.Tests](UMemory.Tests.pas) | Scoped object/memory ownership, allocation and disposal behavior. |
+| [UMemory.Tests](UMemory.Tests.pas) | Original disposal bags: automatic exits, object/memory transfers, allocation/reallocation, growth and reverse cleanup, class/record fields and continued cleanup after failures. |
 
 [UWizard.TestScreens](UWizard.TestScreens.pas) keeps a reference-model generic
 specialization in a separate unit to catch compiler compatibility regressions.
@@ -78,6 +80,7 @@ runner. See the [native guide](native/README.md) for arguments and expected resu
 
 | Project | Native behavior |
 | --- | --- |
+| [ScopeProbe.dproj](native/ScopeProbe.dproj) | The same 63 scope, disposal-bag and read/write-scope checks used by FPCUnit, including cleanup failures and copy/assignment recovery. |
 | [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared whole-source cache assertions and public API recipes. |
 | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Actual cell bounds at pixel/DPI/header/scrollbar/resize boundaries. |
 | [ReadWriteLockProbe.dproj](native/ReadWriteLockProbe.dproj) | Real concurrent read/write/upgradeable ownership, recursion and timeout/cleanup behavior. |

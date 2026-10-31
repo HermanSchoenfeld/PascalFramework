@@ -66,6 +66,7 @@ generics and protected/private implementation types are excluded.
 
 | Public type | Worked example | Note |
 | --- | --- | --- |
+| `TScope` | [ScopedReadWriteLocking](../examples/demo/UCoreApiExamples.pas) | Managed record; copied scopes retain one cleanup until the last owner ends. |
 | `SizeInt` | [CommonValuesAndResults](../examples/demo/UCoreApiExamples.pas) | Delphi compatibility alias; FPC provides the corresponding built-in type. |
 | `PtrInt` | [CommonValuesAndResults](../examples/demo/UCoreApiExamples.pas) | Delphi compatibility alias; FPC provides the corresponding built-in type. |
 | `QWord` | [CommonValuesAndResults](../examples/demo/UCoreApiExamples.pas) | Delphi compatibility alias; FPC provides the corresponding built-in type. |
@@ -186,7 +187,7 @@ generics and protected/private implementation types are excluded.
 | `ELockRecursionException` | [ReadWriteLocking](../examples/demo/UCoreApiExamples.pas) |  |
 | `ESynchronizationLockException` | [ReadWriteLocking](../examples/demo/UCoreApiExamples.pas) |  |
 | `ELockDisposedException` | [ReadWriteLocking](../examples/demo/UCoreApiExamples.pas) |  |
-| `TReadWriteLock` | [ReadWriteLocking](../examples/demo/UCoreApiExamples.pas) |  |
+| `TReadWriteLock` | [ReadWriteLocking / ScopedReadWriteLocking](../examples/demo/UCoreApiExamples.pas) | Explicit Acquire/Release methods and automatic TScope read/write/upgradeable ownership. |
 
 ## UMemory
 

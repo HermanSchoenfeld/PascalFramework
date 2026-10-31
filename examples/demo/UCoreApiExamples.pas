@@ -46,6 +46,17 @@ type
     constructor Create(ADispatcher: TThreadNotify; AListener: TExampleListener);
   end;
 
+  // The callback target and its borrowed flag outlive the nested scope.
+  TTemporaryFlag = class
+  private
+    FFlag: PBoolean;
+    FPrevious: Boolean;
+  public
+    constructor Create(AFlag: PBoolean);
+    procedure Activate;
+    procedure Restore;
+  end;
+
   // The base handles rows, filtering, sorting and paging; an adapter supplies
   // only its source items, column descriptions and field values.
   TExampleDataSource = class(TCustomDataSource<Integer>)
@@ -289,6 +300,78 @@ begin
     // Join producers before their dispatcher or borrowed receivers are freed.
     LProducer.Free;
   end;
+end;
+
+constructor TTemporaryFlag.Create(AFlag: PBoolean);
+begin
+  inherited Create;
+  FFlag := AFlag;
+end;
+
+procedure TTemporaryFlag.Activate;
+begin
+  FPrevious := FFlag^;
+  FFlag^ := True;
+end;
+
+procedure TTemporaryFlag.Restore;
+begin
+  if Assigned(FFlag) then FFlag^ := FPrevious;
+end;
+
+procedure ScopedReadWriteLocking;
+var
+  Resources: TDisposables;
+  Gate: TReadWriteLock;
+  Value: Integer;
+  Active: Boolean;
+  Flag: TTemporaryFlag;
+
+  procedure WriteValue;
+  var Scope: TScope;
+  begin
+    Scope := Gate.EnterWriteScope;
+    Require(Gate.IsWriteLockHeld, 'managed write scope is held');
+    Inc(Value);
+  end;
+
+  procedure ReadValue;
+  var Scope: TScope;
+  begin
+    Scope := Gate.EnterReadScope;
+    Require(Gate.IsReadLockHeld and (Value = 1), 'managed read scope sees the value');
+  end;
+
+  procedure TemporaryChange;
+  var Scope: TScope;
+  begin
+    Scope := TScope.Create(Flag.Restore);
+    Flag.Activate;
+    Require(Active and not Scope.IsEmpty, 'custom cleanup is retained');
+    WriteValue;
+    ReadValue;
+  end;
+
+  procedure UpgradeAndWrite;
+  var Scope: TScope;
+  begin
+    Scope := Gate.EnterUpgradeableReadScope;
+    if Value = 1 then WriteValue;
+    Require(Gate.IsUpgradeableReadLockHeld and not Gate.IsWriteLockHeld,
+      'inner write released while the upgradeable scope remains held');
+  end;
+
+begin
+  Gate := Resources.AddObject(TReadWriteLock.Create) as TReadWriteLock;
+  Value := 0;
+  Active := False;
+  Flag := Resources.AddObject(TTemporaryFlag.Create(@Active)) as TTemporaryFlag;
+  TemporaryChange;
+  Require(not Active, 'custom scope automatically restored the flag');
+  UpgradeAndWrite;
+  Require((Value = 2) and not Gate.IsReadLockHeld and
+    not Gate.IsWriteLockHeld and not Gate.IsUpgradeableReadLockHeld,
+    'routine exits automatically released every managed lock scope');
 end;
 
 procedure ReadWriteLocking;
@@ -625,6 +708,7 @@ begin
   Notifications;
   AOutput.Add('Events: multicast subscription and worker-to-main-thread dispatch passed.');
   ReadWriteLocking;
+  ScopedReadWriteLocking;
   AOutput.Add('Read/Write Locking: nested upgrade/write scopes and ownership errors passed.');
   DataRowsAndPaging;
   SearchExpressions;
