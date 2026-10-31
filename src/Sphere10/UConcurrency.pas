@@ -13,7 +13,7 @@ unit UConcurrency;
 
 interface
 
-uses Classes, SysUtils, SyncObjs, Generics.Collections;
+uses Classes, SysUtils, SyncObjs, Generics.Collections, UCommon;
 
 type
   TLockRecursionPolicy = (lrpNoRecursion, lrpSupportsRecursion);
@@ -78,6 +78,14 @@ type
     constructor Create(ARecursionPolicy: TLockRecursionPolicy = lrpNoRecursion);
     destructor Destroy; override;
     procedure Dispose;
+    // Keep the returned managed record in a local variable. Each scope owns
+    // one acquisition; copies retain it until the last copy is finalized.
+    // The lock must outlive every scope, all on the acquiring thread.
+    function EnterReadScope: TScope;
+    function EnterWriteScope: TScope;
+    function EnterUpgradeableReadScope: TScope;
+    // Pair every successful Acquire/TryAcquire with the matching Release on
+    // the same thread. Promotion adds a write acquisition to upgradeable read.
     procedure AcquireReadLock;
     function TryAcquireReadLock(AMillisecondsTimeout: Integer): Boolean;
     procedure ReleaseReadLock;
@@ -135,6 +143,48 @@ begin
   finally
     FGate.Release;
   end;
+end;
+
+function TReadWriteLock.EnterReadScope: TScope;
+var Scope: TScope;
+begin
+  AcquireReadLock;
+  try
+    Scope := TScope.Create(ReleaseReadLock);
+  except
+    // Scope creation did not adopt this acquisition. Unwind it exactly once.
+    ReleaseReadLock;
+    raise;
+  end;
+  // Assignment to the caller can itself release a previous scope. Keep it
+  // outside the construction handler: Scope now owns this acquisition.
+  Result := Scope;
+end;
+
+function TReadWriteLock.EnterWriteScope: TScope;
+var Scope: TScope;
+begin
+  AcquireWriteLock;
+  try
+    Scope := TScope.Create(ReleaseWriteLock);
+  except
+    ReleaseWriteLock;
+    raise;
+  end;
+  Result := Scope;
+end;
+
+function TReadWriteLock.EnterUpgradeableReadScope: TScope;
+var Scope: TScope;
+begin
+  AcquireUpgradeableReadLock;
+  try
+    Scope := TScope.Create(ReleaseUpgradeableReadLock);
+  except
+    ReleaseUpgradeableReadLock;
+    raise;
+  end;
+  Result := Scope;
 end;
 
 procedure TReadWriteLock.AcquireReadLock;
@@ -354,7 +404,7 @@ end;
 procedure TReadWriteLock.ReleaseLock(AKind: TLockKind);
 var LThreadID: TThreadID; LCounts: TThreadCounts; LCount: Integer;
 begin
-  // Every typed Exit balances ONE same-thread acquisition of that mode. In
+  // Every typed Release balances ONE same-thread acquisition of that mode. In
   // particular, ReleaseWriteLock after promotion retains the surrounding upgrader.
   LThreadID := TThread.CurrentThread.ThreadID;
   FGate.Acquire;

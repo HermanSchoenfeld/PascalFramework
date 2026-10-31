@@ -74,7 +74,7 @@ provider calls. The card follows the throttle's waiting state.
 | --- | --- |
 | Arrays and collections | All array methods/overloads, list operations, comparers, predicates and transformation adapters. |
 | Scoped disposal | Several objects and memory blocks, class-owned disposal bags and explicit ownership transfer. |
-| Core API | Results, dates, statistics, files, Variants, notifications, locking, data sources, search expressions and common visuals. |
+| Core API | Results, dates, statistics, files, Variants, notifications, TScope cleanup, automatic read/write/upgradeable scopes, explicit locking, data sources, search expressions and common visuals. |
 | UI API | Column callbacks, selection, VCL compatibility controls and a model-bound wizard lifecycle. |
 
 Each runner checks its results and appends completion to the memo. The

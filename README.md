@@ -44,8 +44,8 @@ GitHub results separately from local Delphi and Lazarus checks.
 | [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with paging and automatic page sizes, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
 | [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, whole-source and preloaded snapshots, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
 | [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
-| [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
-| [UCommon.pas](src/Sphere10/UCommon.pas) | Shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
+| [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, reverse-order disposal, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
+| [UCommon.pas](src/Sphere10/UCommon.pas) | Managed cleanup through `TScope`; shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
 | [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
 | [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Named Variant rows and column schemas, text/numeric search expressions, filter/sort criteria and generic data sources with filtering, sorting, paging and opt-in invalidatable snapshots. |
 | [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
@@ -545,11 +545,63 @@ are idempotent. A rejected finish/cancel stays active for retry; accepted comple
 runs once. See the [wizard guide](examples/demo/README.md) for callback signatures,
 Back navigation and screen lifetimes.
 
+## Managed scopes
+
+[TScope](src/Sphere10/UCommon.pas) is a managed record that runs resource cleanup
+when its last owning copy is finalized. Declare a local to retain it through a
+procedure, including `Exit` and exceptions. Its private guardian retains a cleanup
+method, so scopes can be returned and copied without pointing to a stack record.
+
+Pass the method to run when the scope ends:
+
+```pascal
+program ManagedScope;
+
+{$IFDEF FPC}{$mode Delphi}{$H+}{$ENDIF}
+uses Classes, UCommon, UMemory;
+
+procedure Demo;
+var
+  Resources: TDisposables;
+  Lines: TStringList;
+
+  procedure Work;
+  var Scope: TScope;
+  begin
+    Scope := TScope.Create(Lines.Clear);
+    Lines.Add('Working');
+    WriteLn(Lines[0]);
+  end; // Calls Lines.Clear automatically.
+
+begin
+  Lines := Resources.AddObject(TStringList.Create) as TStringList;
+  Work;
+  WriteLn('Items after scope: ', Lines.Count); // 0
+end;
+
+begin
+  Demo;
+end.
+```
+
+A default scope is empty; `IsEmpty` tests that state. `Create` accepts a bound
+cleanup method and rejects nil. The callback's target must outlive the scope;
+retaining the method does not take ownership of that object. `Reset` drops this record's
+ownership; other copies, including compiler-generated result temporaries, can
+retain cleanup until their enclosing routine exits. Keep cleanup on the thread
+required by its resource. Cleanup errors propagate; the releasing record is detached first
+so a caught failure cannot release that same guardian again.
+
+The [shared executable example](examples/demo/UCoreApiExamples.pas) temporarily
+changes a flag, restores it through a custom cleanup, and uses all three lock
+scope modes. Neither a caller-side interface variable nor a `finally` is needed.
+
 ## Scoped disposal
 
 [TDisposables](src/Sphere10/UMemory.pas) owns several objects and memory blocks
 through one record. It releases them in reverse registration order when the
-record's scope ends, including when a procedure raises an exception.
+record's scope ends, including when a procedure raises an exception. Its original
+implementation remains independent of `TScope`.
 
 ```pascal
 uses Classes, UMemory;
@@ -656,9 +708,11 @@ end;
 Use `AddMem` to adopt an existing `System.GetMem` allocation; use the bag's
 `FreeMem` to release a registered allocation early. `Objects[...]` is the default
 property form of `AddObject`, for example
-`lines := scope[TStringList.Create] as TStringList`. Keep a bag in its original
-local variable or class field: do not copy the record or free its registered
-objects manually.
+`lines := scope[TStringList.Create] as TStringList`. Keep an initialized bag in
+its original local variable or class field: do not copy or return the bag, and
+do not free a registered object manually. Remove it first to transfer ownership.
+If cleanup fails, the bag still attempts all remaining
+resources and then propagates the first error.
 
 [TDisposePolicy](src/Sphere10/UMemory.pas) is the shared cleanup-policy enum.
 `AddObject` selects `idpFree`, and `AddMem`/`GetMem` select `idpFreeMem`.
@@ -1101,6 +1155,48 @@ Use upgradeable read when an inspection may lead to a change. One thread can
 reserve that mode while other readers continue; its write waits for those readers
 to leave. Timed acquisition and optional recursion support controlled contention.
 
+Retain a [TScope](src/Sphere10/UCommon.pas) local to release an acquisition
+automatically:
+
+```pascal
+uses UCommon, UConcurrency;
+
+procedure ChangeValue(Gate: TReadWriteLock; var Value: Integer);
+var
+  Scope: TScope;
+begin
+  Scope := Gate.EnterWriteScope;
+  Inc(Value);
+end; // Also releases on Exit or an exception.
+
+function ReadValue(Gate: TReadWriteLock; var Value: Integer): Integer;
+var
+  Scope: TScope;
+begin
+  Scope := Gate.EnterReadScope;
+  Result := Value;
+end;
+
+procedure ChangeIfNeeded(Gate: TReadWriteLock; var Value: Integer);
+var
+  Scope: TScope;
+begin
+  Scope := Gate.EnterUpgradeableReadScope;
+  if Value = 0 then ChangeValue(Gate, Value);
+  // ChangeValue's write scope has ended; this upgradeable scope remains held.
+end;
+```
+
+Each scope owns one typed acquisition. Copies retain that same acquisition;
+they do not acquire another lock. Keep the lock alive until every scope copy
+ends, and finalize lock scopes on the acquiring thread. For code shared with
+FPC, a plain nested `begin`/`end` does not create a shorter managed-local lifetime;
+use a helper procedure as above when an inner write must finish earlier.
+Always retain the returned record instead of discarding it.
+
+The lower-level `Acquire*Lock`, `TryAcquire*Lock` and `Release*Lock` methods remain
+available for explicit ownership:
+
 ```pascal
 uses UConcurrency;
 
@@ -1154,7 +1250,7 @@ the example. The write acquisition is additional:
 `ReleaseWriteLock` releases only that write acquisition; the surrounding
 `ReleaseUpgradeableReadLock` remains necessary. The nested `try`/`finally` blocks
 above preserve that balance when protected work raises an exception. Recursive
-acquisitions likewise require one matching typed exit for each successful entry;
+acquisitions likewise require one matching typed release for each acquisition;
 the lock never guesses which mode a caller intends to release.
 
 Each `TryAcquire*Lock` accepts integer milliseconds: `-1` waits indefinitely,
