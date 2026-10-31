@@ -53,7 +53,7 @@ type
       FObjectFetchCount : Integer;
       FCreateObjects : boolean;
       FObjectSize : SizeInt;
-      function NewCache(ACapacity: SizeInt = 100; AReapPolicy: TStringCacheBase.TCacheReapPolicy = TStringCacheBase.TCacheReapPolicy.crpLeastUsed; AExpirationPolicy: TStringCacheBase.TExpirationPolicy = TStringCacheBase.TExpirationPolicy.epNone; AStalePolicy: TStringCacheBase.TStaleValuePolicy = TStringCacheBase.TStaleValuePolicy.svpAssumeNeverStale) : TTestStringCache;
+      function NewCache(ACapacity: SizeInt = 100; AReapPolicy: TCacheReapPolicy = TCacheReapPolicy.crpLeastUsed; AExpirationPolicy: TCacheExpirationPolicy = TCacheExpirationPolicy.epNone; AStalePolicy: TCacheStaleValuePolicy = TCacheStaleValuePolicy.svpAssumeNeverStale) : TTestStringCache;
       procedure Fetching(Sender: TObject; const AKey: Integer);
       procedure Fetched(Sender: TObject; const AKey: Integer; const AValue: AnsiString);
       procedure Removing(Sender: TObject; const AKey: Integer; AItem: TCachedItem<AnsiString>);
@@ -152,6 +152,8 @@ type
       procedure ReapRetainsExpiredFetchOnceEntry;
       procedure ReapPreservesRefreshableSnapshot;
       procedure ReapKeepsArgumentAndDestructionGuards;
+    procedure UnitScopedPoliciesAreSharedAcrossCacheKinds;
+    procedure UnitScopedCallbacksAreSharedAcrossCacheKinds;
   end;
 
 implementation
@@ -239,10 +241,10 @@ begin
   Result := Stale;
 end;
 
-function TCacheTests.NewCache(ACapacity: SizeInt; AReapPolicy: TStringCacheBase.TCacheReapPolicy; AExpirationPolicy: TStringCacheBase.TExpirationPolicy; AStalePolicy: TStringCacheBase.TStaleValuePolicy) : TTestStringCache;
+function TCacheTests.NewCache(ACapacity: SizeInt; AReapPolicy: TCacheReapPolicy; AExpirationPolicy: TCacheExpirationPolicy; AStalePolicy: TCacheStaleValuePolicy) : TTestStringCache;
 begin
   FreeAndNil(FCache);
-  FCache := TTestStringCache.Create(nil, idpNone, AReapPolicy, AExpirationPolicy, TStringCacheBase.TNullValuePolicy.nvpCacheNormally, ACapacity, TTimeSpan.FromSeconds(1), 0.1, AStalePolicy);
+  FCache := TTestStringCache.Create(nil, idpNone, AReapPolicy, AExpirationPolicy, TCacheNullValuePolicy.nvpCacheNormally, ACapacity, TTimeSpan.FromSeconds(1), 0.1, AStalePolicy);
   FCache.FetchValue := 'first';
   Result := FCache;
 end;
@@ -348,7 +350,7 @@ end;
 
 procedure TCacheTests.ExpirationSinceFetch;
 begin
-  NewCache(100, TStringCacheBase.TCacheReapPolicy.crpLeastUsed, TStringCacheBase.TExpirationPolicy.epSinceFetchedTime);
+  NewCache(100, TCacheReapPolicy.crpLeastUsed, TCacheExpirationPolicy.epSinceFetchedTime);
   FCache.Get(1).FFetchedOn := Now - 1;
   AssertFalse(FCache.ContainsCachedItem(1));
   FCache.FetchValue := 'second';
@@ -358,7 +360,7 @@ end;
 
 procedure TCacheTests.ExpirationSinceAccess;
 begin
-  NewCache(100, TStringCacheBase.TCacheReapPolicy.crpLeastUsed, TStringCacheBase.TExpirationPolicy.epSinceLastAccessedTime);
+  NewCache(100, TCacheReapPolicy.crpLeastUsed, TCacheExpirationPolicy.epSinceLastAccessedTime);
   FCache.Get(1).FFetchedOn := Now - 1;
   AssertTrue(FCache.ContainsCachedItem(1));
   FCache.Get(1).FLastAccessedOn := Now - 1;
@@ -382,7 +384,7 @@ type
 var
   cache : TIntegerCache;
 begin
-  cache := TIntegerCache.Create(nil, TIntegerCache.TValueFetcher.FromGlobalFunction(IntegerFetch), nil, idpNone, TIntegerCache.TCacheReapPolicy.crpNone, TIntegerCache.TExpirationPolicy.epNone, TIntegerCache.TNullValuePolicy.nvpThrow, 0, TTimeSpan.MaxValue);
+  cache := TIntegerCache.Create(nil, TCacheValueFetcher<Integer,Integer>.FromGlobalFunction(IntegerFetch), nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpThrow, 0, TTimeSpan.MaxValue);
   try
     AssertEquals(0, cache[0]);
     AssertEquals(1, cache.ItemCount);
@@ -395,7 +397,7 @@ procedure TCacheTests.NullIsCachedNormally;
 var
   cache : TObjectActionCache;
 begin
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpNone, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
   try
     AssertNull(cache[1]);
     AssertNull(cache[1]);
@@ -410,7 +412,7 @@ procedure TCacheTests.NullReturnDoesNotCache;
 var
   cache : TObjectActionCache;
 begin
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpNone, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpReturnButDontCache, 10, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpReturnButDontCache, 10, TTimeSpan.MaxValue);
   try
     AssertNull(cache[1]);
     AssertNull(cache[1]);
@@ -426,7 +428,7 @@ procedure TCacheTests.NullThrowDoesNotAdmit;
 var
   cache : TObjectActionCache;
 begin
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpNone, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpThrow, 10, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpThrow, 10, TTimeSpan.MaxValue);
   try
     try
       cache.Get(1);
@@ -444,7 +446,7 @@ procedure TCacheTests.NullNotificationRetainsCallbackValue;
 var
   cache : TObjectActionCache;
 begin
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpNone, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpReturnButDontCache, 10, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpReturnButDontCache, 10, TTimeSpan.MaxValue);
   try
     cache.ItemFetched := ObjectFetched;
     AssertNull(cache[1]);
@@ -473,7 +475,7 @@ end;
 
 procedure TCacheTests.LargestEviction;
 begin
-  NewCache(6, TStringCacheBase.TCacheReapPolicy.crpLargest);
+  NewCache(6, TCacheReapPolicy.crpLargest);
   FCache[1] := 'a';
   FCache[2] := 'bb';
   FCache[3] := 'ccc';
@@ -483,7 +485,7 @@ end;
 
 procedure TCacheTests.SmallestEviction;
 begin
-  NewCache(6, TStringCacheBase.TCacheReapPolicy.crpSmallest);
+  NewCache(6, TCacheReapPolicy.crpSmallest);
   FCache[1] := 'a';
   FCache[2] := 'bb';
   FCache[3] := 'ccc';
@@ -493,7 +495,7 @@ end;
 
 procedure TCacheTests.OldestEviction;
 begin
-  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  NewCache(3, TCacheReapPolicy.crpOldest);
   FCache[1] := 'a';
   FCache[2] := 'b';
   FCache[3] := 'c';
@@ -504,7 +506,7 @@ end;
 
 procedure TCacheTests.IdleEviction;
 begin
-  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpIdle);
+  NewCache(3, TCacheReapPolicy.crpIdle);
   FCache[1] := 'a';
   FCache[2] := 'b';
   FCache[3] := 'c';
@@ -515,7 +517,7 @@ end;
 
 procedure TCacheTests.ASAPEVIctsEnough;
 begin
-  NewCache(5, TStringCacheBase.TCacheReapPolicy.crpASAP);
+  NewCache(5, TCacheReapPolicy.crpASAP);
   FCache[1] := 'a';
   FCache[2] := 'b';
   FCache[3] := 'c';
@@ -529,7 +531,7 @@ end;
 
 procedure TCacheTests.ExpiredEntriesAreEvictedFirst;
 begin
-  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  NewCache(3, TCacheReapPolicy.crpOldest);
   FCache[1] := 'a';
   FCache[2] := 'b';
   FCache[3] := 'c';
@@ -542,7 +544,7 @@ end;
 
 procedure TCacheTests.NoneOnlyReapsInvalidatedEntries;
 begin
-  NewCache(2, TStringCacheBase.TCacheReapPolicy.crpNone);
+  NewCache(2, TCacheReapPolicy.crpNone);
   FCache[1] := 'a';
   FCache[2] := 'b';
   AssertEquals(0, Integer(FCache.Reap(2)));
@@ -610,7 +612,7 @@ end;
 
 procedure TCacheTests.ReplacementCreditsExistingSize;
 begin
-  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpNone);
+  NewCache(3, TCacheReapPolicy.crpNone);
   FCache[1] := 'aa';
   FCache[2] := 'b';
   FCache[1] := 'cc';
@@ -660,7 +662,7 @@ procedure TCacheTests.BulkLoadPreservesEarlierWritesOnFailure;
 var
   values : TStringPairList;
 begin
-  NewCache(3, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  NewCache(3, TCacheReapPolicy.crpOldest);
   values := TStringPairList.Create;
   try
     values.Add(TStringPair.Create(1, 'a'));
@@ -685,7 +687,7 @@ procedure TCacheTests.BulkLoadRespectsPinsAndCapacity;
 var
   values : TStringPairList;
 begin
-  NewCache(6, TStringCacheBase.TCacheReapPolicy.crpOldest);
+  NewCache(6, TCacheReapPolicy.crpOldest);
   FCache[1] := 'pin';
   FCache.Get(1).CanPurge := false;
   values := TStringPairList.Create;
@@ -713,11 +715,11 @@ begin
   DisposedObjectCount := 0;
   FObjectSize := 1;
   cache := TObjectActionCache.Create(nil,
-    TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject),
-    TObjectActionCache.TSizeEstimator.FromObjectFunction(EstimateObject),
-    idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone,
-    TObjectActionCache.TExpirationPolicy.epNone,
-    TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
+    TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject),
+    TCacheSizeEstimator<TObject>.FromObjectFunction(EstimateObject),
+    idpFreeAndNil, TCacheReapPolicy.crpNone,
+    TCacheExpirationPolicy.epNone,
+    TCacheNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
   values := TList<TObjectPair>.Create;
   first := TTrackedObject.Create;
   second := TTrackedObject.Create;
@@ -752,7 +754,7 @@ var
   cache : TObjectActionCache;
   values : TList<TObjectPair>;
   value : TObject;
-  policy : TObjectActionCache.TNullValuePolicy;
+  policy : TCacheNullValuePolicy;
 begin
   FObjectFetchCount := 0;
   values := TList<TObjectPair>.Create;
@@ -760,16 +762,16 @@ begin
   try
     values.Add(TObjectPair.Create(1, nil));
     values.Add(TObjectPair.Create(2, value));
-    for policy := Low(TObjectActionCache.TNullValuePolicy) to High(TObjectActionCache.TNullValuePolicy) do begin
+    for policy := Low(TCacheNullValuePolicy) to High(TCacheNullValuePolicy) do begin
       cache := TObjectActionCache.Create(nil,
-        TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil,
-        idpNone, TObjectActionCache.TCacheReapPolicy.crpNone,
-        TObjectActionCache.TExpirationPolicy.epNone, policy, 1, TTimeSpan.MaxValue);
+        TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil,
+        idpNone, TCacheReapPolicy.crpNone,
+        TCacheExpirationPolicy.epNone, policy, 1, TTimeSpan.MaxValue);
       try
         // Prefetched nulls obey the configured policy when read, just as SetValue does.
         cache.BulkLoad(values);
         AssertEquals(2, cache.ItemCount);
-        if policy = TObjectActionCache.TNullValuePolicy.nvpThrow then begin
+        if policy = TCacheNullValuePolicy.nvpThrow then begin
           try
             cache.Get(1);
             Fail('A prohibited prefetched null must throw on read');
@@ -777,7 +779,7 @@ begin
           AssertEquals(2, cache.ItemCount);
         end else begin
           AssertNull(cache[1]);
-          AssertEquals(policy = TObjectActionCache.TNullValuePolicy.nvpCacheNormally,
+          AssertEquals(policy = TCacheNullValuePolicy.nvpCacheNormally,
             cache.ContainsCachedItem(1));
         end;
         AssertTrue(value = cache[2]);
@@ -830,13 +832,13 @@ begin
   cache := nil;
   try
     try
-      cache := TTestStringCache.Create(nil, idpNone, TStringCacheBase.TCacheReapPolicy.crpNone, TStringCacheBase.TExpirationPolicy.epNone, TStringCacheBase.TNullValuePolicy.nvpCacheNormally, -1, TTimeSpan.MaxValue);
+      cache := TTestStringCache.Create(nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, -1, TTimeSpan.MaxValue);
       Fail('Negative capacity must be rejected');
     except
       on E: EArgumentException do ;
     end;
     try
-      cache := TTestStringCache.Create(nil, idpNone, TStringCacheBase.TCacheReapPolicy.crpNone, TStringCacheBase.TExpirationPolicy.epNone, TStringCacheBase.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue, 1);
+      cache := TTestStringCache.Create(nil, idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue, 1);
       Fail('Invalid reap level must be rejected');
     except
       on E: EArgumentException do ;
@@ -848,7 +850,7 @@ end;
 
 procedure TCacheTests.StalenessRefetchesOnDemand;
 begin
-  NewCache(100, TStringCacheBase.TCacheReapPolicy.crpNone, TStringCacheBase.TExpirationPolicy.epNone, TStringCacheBase.TStaleValuePolicy.svpCheckStaleOnDemand);
+  NewCache(100, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheStaleValuePolicy.svpCheckStaleOnDemand);
   FCache.Get(1);
   FCache.Stale := true;
   FCache.FetchValue := 'second';
@@ -860,7 +862,7 @@ procedure TCacheTests.StalenessHookCanRemoveCurrentEntry;
 var
   item : TCachedItem<AnsiString>;
 begin
-  NewCache(100, TStringCacheBase.TCacheReapPolicy.crpNone, TStringCacheBase.TExpirationPolicy.epNone, TStringCacheBase.TStaleValuePolicy.svpCheckStaleOnDemand);
+  NewCache(100, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheStaleValuePolicy.svpCheckStaleOnDemand);
   FCache[1] := 'original';
   FCache.RemoveDuringStaleness := true;
   item := FCache.Get(1);
@@ -875,7 +877,7 @@ procedure TCacheTests.StaleRemovedEntryRefetchesSafely;
 var
   item : TCachedItem<AnsiString>;
 begin
-  NewCache(100, TStringCacheBase.TCacheReapPolicy.crpNone, TStringCacheBase.TExpirationPolicy.epNone, TStringCacheBase.TStaleValuePolicy.svpCheckStaleOnDemand);
+  NewCache(100, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheStaleValuePolicy.svpCheckStaleOnDemand);
   FCache[1] := 'original';
   FCache.RemoveDuringStaleness := true;
   FCache.Stale := true;
@@ -1029,7 +1031,7 @@ var
   first, second : TObject;
 begin
   DisposedObjectCount := 0;
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpFreeAndNil, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
   first := TTrackedObject.Create;
   second := TTrackedObject.Create;
   try
@@ -1052,7 +1054,7 @@ var
 begin
   DisposedObjectCount := 0;
   FCreateObjects := true;
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), nil, idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), nil, idpFreeAndNil, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
   try
     AssertNotNull(cache[1]);
     cache.Remove(1);
@@ -1070,7 +1072,7 @@ begin
   DisposedObjectCount := 0;
   FCreateObjects := true;
   FObjectSize := 2;
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), TObjectActionCache.TSizeEstimator.FromObjectFunction(EstimateObject), idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), TCacheSizeEstimator<TObject>.FromObjectFunction(EstimateObject), idpFreeAndNil, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
   try
     try
       cache.Get(1);
@@ -1094,7 +1096,7 @@ begin
   DisposedObjectCount := 0;
   FObjectSize := 2;
   value := TTrackedObject.Create;
-  cache := TObjectActionCache.Create(nil, TObjectActionCache.TValueFetcher.FromObjectFunction(FetchObject), TObjectActionCache.TSizeEstimator.FromObjectFunction(EstimateObject), idpFreeAndNil, TObjectActionCache.TCacheReapPolicy.crpNone, TObjectActionCache.TExpirationPolicy.epNone, TObjectActionCache.TNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
+  cache := TObjectActionCache.Create(nil, TCacheValueFetcher<Integer,TObject>.FromObjectFunction(FetchObject), TCacheSizeEstimator<TObject>.FromObjectFunction(EstimateObject), idpFreeAndNil, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 1, TTimeSpan.MaxValue);
   try
     try
       cache[1] := value;
@@ -1160,7 +1162,7 @@ procedure TCacheTests.GlobalAdapters;
 var
   cache : TStringActionCache;
 begin
-  cache := TStringActionCache.Create(nil, TStringActionCache.TValueFetcher.FromGlobalFunction(GlobalFetch), TStringActionCache.TSizeEstimator.FromGlobalFunction(GlobalEstimate), idpNone, TStringActionCache.TCacheReapPolicy.crpNone, TStringActionCache.TExpirationPolicy.epNone, TStringActionCache.TNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
+  cache := TStringActionCache.Create(nil, TCacheValueFetcher<Integer,AnsiString>.FromGlobalFunction(GlobalFetch), TCacheSizeEstimator<AnsiString>.FromGlobalFunction(GlobalEstimate), idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
   try
     AssertEquals('123', cache[123]);
     AssertEquals(3, Integer(cache.CurrentSize));
@@ -1173,7 +1175,7 @@ procedure TCacheTests.ObjectAdapters;
 var
   cache : TStringActionCache;
 begin
-  cache := TStringActionCache.Create(nil, TStringActionCache.TValueFetcher.FromObjectFunction(FetchString), TStringActionCache.TSizeEstimator.FromObjectFunction(EstimateString), idpNone, TStringActionCache.TCacheReapPolicy.crpNone, TStringActionCache.TExpirationPolicy.epNone, TStringActionCache.TNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
+  cache := TStringActionCache.Create(nil, TCacheValueFetcher<Integer,AnsiString>.FromObjectFunction(FetchString), TCacheSizeEstimator<AnsiString>.FromObjectFunction(EstimateString), idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
   try
     AssertEquals('123', cache[123]);
     AssertEquals(3, Integer(cache.CurrentSize));
@@ -1196,7 +1198,7 @@ var
   end;
 begin
   suffix := '!';
-  cache := TStringActionCache.Create(nil, TStringActionCache.TValueFetcher.FromNestedFunction(Fetch), TStringActionCache.TSizeEstimator.FromNestedFunction(Estimate), idpNone, TStringActionCache.TCacheReapPolicy.crpNone, TStringActionCache.TExpirationPolicy.epNone, TStringActionCache.TNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
+  cache := TStringActionCache.Create(nil, TCacheValueFetcher<Integer,AnsiString>.FromNestedFunction(Fetch), TCacheSizeEstimator<AnsiString>.FromNestedFunction(Estimate), idpNone, TCacheReapPolicy.crpNone, TCacheExpirationPolicy.epNone, TCacheNullValuePolicy.nvpCacheNormally, 10, TTimeSpan.MaxValue);
   try
     AssertEquals('123!', cache[123]);
     AssertEquals(4, Integer(cache.CurrentSize));
@@ -1338,6 +1340,16 @@ end;
 procedure TBulkCacheTests.ReapKeepsArgumentAndDestructionGuards;
 begin
   RunBulkCacheCheck(27);
+end;
+
+procedure TBulkCacheTests.UnitScopedPoliciesAreSharedAcrossCacheKinds;
+begin
+  RunBulkCacheCheck(28);
+end;
+
+procedure TBulkCacheTests.UnitScopedCallbacksAreSharedAcrossCacheKinds;
+begin
+  RunBulkCacheCheck(29);
 end;
 
 initialization

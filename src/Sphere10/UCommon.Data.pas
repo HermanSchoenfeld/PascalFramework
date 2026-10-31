@@ -468,11 +468,11 @@ procedure TCustomDataSource<T>.EnsureSnapshotCache;
 begin
   if Assigned(FSnapshotCache) then Exit;
   FSnapshotCache := TSnapshotCache.Create(nil,
-    TSnapshotCache.TValueFetcher.FromObjectFunction(FetchSnapshot),
-    TSnapshotCache.TSizeEstimator.FromObjectFunction(EstimateSnapshot),
-    idpNone, TSnapshotCache.TCacheReapPolicy.crpOldest,
-    TSnapshotCache.TExpirationPolicy.epNone,
-    TSnapshotCache.TNullValuePolicy.nvpCacheNormally, 2, TTimeSpan.MaxValue);
+    TCacheValueFetcher<Integer,TSnapshotItems>.FromObjectFunction(FetchSnapshot),
+    TCacheSizeEstimator<TSnapshotItems>.FromObjectFunction(EstimateSnapshot),
+    idpNone, TCacheReapPolicy.crpOldest,
+    TCacheExpirationPolicy.epNone,
+    TCacheNullValuePolicy.nvpCacheNormally, 2, TTimeSpan.MaxValue);
 end;
 
 destructor TCustomDataSource<T>.Destroy;

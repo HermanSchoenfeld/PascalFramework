@@ -42,7 +42,7 @@ GitHub results separately from local Delphi and Lazarus checks.
 | Unit | Description |
 | --- | --- |
 | [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with paging and automatic page sizes, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
-| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, whole-source and preloaded snapshots, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
+| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, bulk-fetch and preloaded caches, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
 | [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
 | [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, reverse-order disposal, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
 | [UCommon.pas](src/Sphere10/UCommon.pas) | Managed cleanup through `TScope`; shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
@@ -302,6 +302,9 @@ object methods and nested functions.
 Subclasses supply [CheckStaleness](src/Sphere10/UCache.pas) for application-specific
 stale checks.
 
+Policies and callback types are declared at unit scope. For example,
+`TCacheExpirationPolicy` configures any cache without a generic base alias.
+
 ```pascal
 program BasicCache;
 {$IFDEF FPC}{$mode Delphi}{$H+}{$ENDIF}
@@ -325,11 +328,11 @@ var
   cache : TStringCache;
 begin
   cache := TStringCache.Create(nil,
-    TStringCache.TValueFetcher.FromGlobalFunction(Fetch),
-    TStringCache.TSizeEstimator.FromGlobalFunction(Estimate),
-    idpNone, TStringCache.TCacheReapPolicy.crpLeastUsed,
-    TStringCache.TExpirationPolicy.epSinceFetchedTime,
-    TStringCache.TNullValuePolicy.nvpCacheNormally,
+    TCacheValueFetcher<Integer,String>.FromGlobalFunction(Fetch),
+    TCacheSizeEstimator<String>.FromGlobalFunction(Estimate),
+    idpNone, TCacheReapPolicy.crpLeastUsed,
+    TCacheExpirationPolicy.epSinceFetchedTime,
+    TCacheNullValuePolicy.nvpCacheNormally,
     1024, TTimeSpan.FromSeconds(30));
   try
     WriteLn(cache[7]);              // Fetch.
@@ -345,6 +348,12 @@ begin
 end.
 ```
 
+Cache configuration uses the unit-level `TCacheExpirationPolicy`,
+`TCacheReapPolicy`, `TCacheNullValuePolicy` and `TCacheStaleValuePolicy` types from
+[UCache](src/Sphere10/UCache.pas), shared by every key/value specialization.
+Callbacks, fetcher adapters, events and bulk dictionaries are also unit-level
+types, such as `TCacheValueFetcher<TKey,TValue>` and `TCacheBulkValues<TKey,TValue>`.
+
 The [size estimator](src/Sphere10/UCache.pas) defines capacity units. The example
 uses `Length(AValue) * SizeOf(Char)` to count native string payload bytes;
 returning `1` instead counts entries. This excludes object/string allocation
@@ -354,6 +363,9 @@ Cache operations and callbacks use a recursive lock. Callbacks may access the
 same cache again, but must not destroy it. `Get` exposes a borrowed entry; keep
 entries and object values alive while using them outside an operation. The value
 indexer copies its result while the lock is held.
+
+The ordinary per-key cache above fetches a missing entry, reuses a fresh entry,
+and fetches again on the first read after invalidation.
 
 ```mermaid
 sequenceDiagram
@@ -385,7 +397,7 @@ A rejected explicit write leaves ownership with its caller. Returned metadata an
 owned values are borrowed. See [more cache examples](examples/demo/README.md) for
 object ownership, notifications, capacity and callback adapters.
 
-## Whole-source cache snapshots
+## Bulk-Fetch Caching
 
 [TBulkFetchActionCache<TKey,TValue>](src/Sphere10/UCache.pas) loads a complete dictionary in one provider call. Its first read, `ContainsCachedItem` or `GetAllCachedValues` loads that snapshot. Ordinary missing, expired or stale reads refresh the source at most once per request. With `FetchOnceOnly = True`, reads retain loaded values despite expiry or invalidation. `ForceRefresh` replaces the snapshot; `Purge` clears it for a later reload. Bulk `Reap` validates its arguments and returns zero without evicting snapshot entries.
 
@@ -394,9 +406,8 @@ uses Classes, SysUtils, Generics.Collections, UCommon, UMemory, UCache;
 
 type
   TCatalogue = TBulkFetchActionCache<Integer,String>;
-  TCatalogueBase = TCacheBase<Integer,String>;
 
-procedure FetchCatalogue(AValues: TCatalogue.TBulkValues);
+procedure FetchCatalogue(AValues: TCacheBulkValues<Integer,String>);
 begin
   // Replace these entries with one database/query result for the whole catalogue.
   AValues.Add(1,'apple');
@@ -410,13 +421,13 @@ var
   snapshot: TArray<String>;
 begin
   cache := TCatalogue(resources.AddObject(TCatalogue.Create(nil,
-    TCatalogue.TBulkValueFetcher.FromGlobalFunction(FetchCatalogue),
-    TCatalogueBase.TExpirationPolicy.epNone,TTimeSpan.MaxValue,True)));
+    TCacheBulkValueFetcher<Integer,String>.FromGlobalFunction(FetchCatalogue),
+    TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue,True)));
   AOutput.Add(cache[1]);                 // One provider call loads keys 1 and 2.
   AOutput.Add(cache[2]);                 // Uses the already loaded snapshot.
   cache.Invalidate(1);
   AOutput.Add(cache[1]);                 // Fetch-once retains the original value.
-  cache.ForceRefresh;                   // Purge first, then fetch the whole source.
+  cache.ForceRefresh;                   // Purge first, then fetch the batch again.
   snapshot := cache.GetAllCachedValues; // A copied array of the current values.
   AOutput.Add(IntToStr(Length(snapshot)));
 end; // resources frees the cache automatically.
@@ -449,7 +460,7 @@ begin
 end; // reverse registration order frees cache before source.
 ```
 
-The [complete executable examples](examples/demo/UCacheApiExamples.pas) cover ordinary global/object/nested callbacks, interface wrappers, typed notifications, a cache subclass with stale detection, entry metadata, explicit `BulkLoad`, whole-source snapshots and preloaded dictionaries. `BulkLoad` remains sequential explicit admission: duplicate keys use the last value, a later failure keeps earlier successful writes, and no provider is called.
+The [complete executable examples](examples/demo/UCacheApiExamples.pas) cover ordinary global/object/nested callbacks, interface wrappers, typed notifications, a cache subclass with stale detection, entry metadata, explicit `BulkLoad`, bulk-fetch caches and preloaded dictionaries. `BulkLoad` remains sequential explicit admission: duplicate keys use the last value, a later failure keeps earlier successful writes, and no provider is called.
 ## Wizards
 
 [TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens in
@@ -1413,7 +1424,7 @@ Recipes display their results in the memo. Array, core and UI recipes also check
 | --- | --- |
 | [Arrays and collections](examples/demo/UArrayCollectionExamples.pas) | Every array operation and overload; all public comparer, predicate, list and transformation adapters. |
 | [Scoped resources](examples/demo/UDisposalReadmeExamples.pas) | Several owned objects and memory blocks; automatic cleanup in local scopes and class-owned bags; ownership transfer. |
-| [Caches](examples/demo/UCacheApiExamples.pas) | Per-key and whole-source caches, preloaded dictionaries, callback families, entry metadata, notifications and subclassed stale checks. |
+| [Caches](examples/demo/UCacheApiExamples.pas) | Per-key and bulk-fetch caches, preloaded dictionaries, callback families, entry metadata, notifications and subclassed stale checks. |
 | [Core utilities](examples/demo/UCoreApiExamples.pas) | Results, dates, statistics, Variants, files, queued notifications, read/write locking, data sources, search expressions and common UI helpers. |
 | [Grid and wizard APIs](examples/demo/UUiApiExamples.pas) | Column callbacks, selection, native adapters, typed wizard models, dynamic routes, host windows and lifecycle callbacks. |
 

@@ -12,7 +12,7 @@ or VCL controls.
 | --- | --- |
 | [UScope.Tests](UScope.Tests.pas) | Deferred cleanup methods, default/empty ownership, routine return/Exit/unwind, returned records, shared copies, overwrite/reset, arrays and fields, callback failures, borrowed targets and object Free callbacks. |
 | [UReadWriteScope.Tests](UReadWriteScope.Tests.pas) | Automatic read/write/upgradeable ownership, all exit paths, copies, return/field lifetimes, recursion, promotion under both policies, downgrades, concurrent readers, blocked writers, failed acquisition and wrong-thread release. |
-| [UCache.Tests](UCache.Tests.pas) | Per-key and whole-source fetching, preloaded snapshots, bulk writes, missing keys, fetch-once retention, expiration/invalidation, eviction, pins, callbacks, failures and value ownership. |
+| [UCache.Tests](UCache.Tests.pas) | Unit-level policies, callback adapters and shared events across cache kinds; per-key and bulk-fetch caching, preloaded snapshots, bulk writes, missing keys, fetch-once retention, expiration/invalidation, eviction, pins, failures and value ownership. |
 | [UWizard.Tests](UWizard.Tests.pas) | Shared-model initialization, validation order, dynamic routes, Back navigation, finish/cancel vetoes and retry, terminal states, reentry, host closure and screen ownership. |
 | [UWizardDemo.Tests](UWizardDemo.Tests.pas) | The actual designer-backed showcase screens, command buttons, Name/Age validation, optional branches, route actions and retryable lifecycle outcomes. |
 | [UConcurrency.Tests](UConcurrency.Tests.pas) | Concurrent readers, exclusive writers, recursive ownership, upgradeable-read promotion/downgrade, finite/zero/infinite waits, rejected read promotion, wrong-thread release, writer preference, ownership/waiter counts and safe disposal. |
@@ -81,7 +81,7 @@ runner. See the [native guide](native/README.md) for arguments and expected resu
 | Project | Native behavior |
 | --- | --- |
 | [ScopeProbe.dproj](native/ScopeProbe.dproj) | The same 63 scope, disposal-bag and read/write-scope checks used by FPCUnit, including cleanup failures and copy/assignment recovery. |
-| [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared whole-source cache assertions and public API recipes. |
+| [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared bulk-fetch cache assertions and public API recipes. |
 | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Actual cell bounds at pixel/DPI/header/scrollbar/resize boundaries. |
 | [ReadWriteLockProbe.dproj](native/ReadWriteLockProbe.dproj) | Real concurrent read/write/upgradeable ownership, recursion and timeout/cleanup behavior. |
 | [NativeThrottleProbe.dproj](native/NativeThrottleProbe.dproj) | Real five-second VCL timer scenarios, including physical callback resets, independent bursts, cancellation and exception recovery. |

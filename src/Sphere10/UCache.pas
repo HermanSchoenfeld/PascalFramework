@@ -30,7 +30,13 @@ uses
   UCommon, UMemory;
 
 type
-  TItemDisposePolicy = TDisposePolicy;
+  TCacheItemDisposePolicy = TDisposePolicy;
+
+  // Cache policies are shared by every key/value specialization and cache kind.
+  TCacheExpirationPolicy = (epSinceFetchedTime, epSinceLastAccessedTime, epNone);
+  TCacheReapPolicy = (crpLeastUsed, crpLargest, crpSmallest, crpOldest, crpIdle, crpASAP, crpNone);
+  TCacheNullValuePolicy = (nvpCacheNormally, nvpReturnButDontCache, nvpThrow);
+  TCacheStaleValuePolicy = (svpAssumeNeverStale, svpCheckStaleOnDemand);
 
   { TCachedItem }
 
@@ -49,9 +55,9 @@ type
       FLastAccessedOn : TDateTime;
       FAccessedCount : DWord;
       FSize : SizeInt;
-      FDisposePolicy : TItemDisposePolicy;
+      FDisposePolicy : TCacheItemDisposePolicy;
       FValue : TValue;
-      constructor Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TItemDisposePolicy);
+      constructor Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TCacheItemDisposePolicy);
       destructor Destroy; override;
       property Invalidated : boolean read FInvalidated;
       property Purged : boolean read FPurged;
@@ -63,6 +69,144 @@ type
       property Value : TValue read FValue;
   end;
 
+  // Public callback contracts are independent of a particular cache class.
+  TCacheItemFetchingEvent<TKey> = procedure(Sender: TObject; const AKey: TKey) of object;
+  TCacheItemValueEvent<TKey, TValue> = procedure(Sender: TObject; const AKey: TKey; const AValue: TValue) of object;
+  TCacheItemRemovingEvent<TKey, TValue> = procedure(Sender: TObject; const AKey: TKey; AItem: TCachedItem<TValue>) of object;
+
+  ICacheValueFetcher<TKey, TValue> = interface
+    function Fetch(const AKey: TKey): TValue;
+  end;
+
+  ICacheSizeEstimator<TValue> = interface
+    function Estimate(const AValue: TValue): SizeInt;
+  end;
+
+  {$IFDEF FPC}
+  TCacheNestedFetchFunc<TKey, TValue> = function(const AKey: TKey): TValue is nested;
+  TCacheNestedEstimateFunc<TValue> = function(const AValue: TValue): SizeInt is nested;
+  {$ELSE}
+  TCacheNestedFetchFunc<TKey, TValue> = reference to function(const AKey: TKey): TValue;
+  TCacheNestedEstimateFunc<TValue> = reference to function(const AValue: TValue): SizeInt;
+  {$ENDIF}
+  TCacheObjectFetchFunc<TKey, TValue> = function(const AKey: TKey): TValue of object;
+  TCacheGlobalFetchFunc<TKey, TValue> = function(const AKey: TKey): TValue;
+  TCacheObjectEstimateFunc<TValue> = function(const AValue: TValue): SizeInt of object;
+  TCacheGlobalEstimateFunc<TValue> = function(const AValue: TValue): SizeInt;
+
+  TCacheValueFetcher<TKey, TValue> = class(TInterfacedObject, ICacheValueFetcher<TKey, TValue>)
+  private type
+    GlobalFunctionValueFetcher = class(TInterfacedObject, ICacheValueFetcher<TKey, TValue>)
+    private
+      FFunc: TCacheGlobalFetchFunc<TKey, TValue>;
+    public
+      constructor Create(const AFunc: TCacheGlobalFetchFunc<TKey, TValue>);
+      function Fetch(const AKey: TKey): TValue;
+    end;
+    ObjectFunctionValueFetcher = class(TInterfacedObject, ICacheValueFetcher<TKey, TValue>)
+    private
+      FFunc: TCacheObjectFetchFunc<TKey, TValue>;
+    public
+      constructor Create(const AFunc: TCacheObjectFetchFunc<TKey, TValue>);
+      function Fetch(const AKey: TKey): TValue;
+    end;
+    NestedFunctionValueFetcher = class(TInterfacedObject, ICacheValueFetcher<TKey, TValue>)
+    private
+      FFunc: TCacheNestedFetchFunc<TKey, TValue>;
+    public
+      constructor Create(const AFunc: TCacheNestedFetchFunc<TKey, TValue>);
+      function Fetch(const AKey: TKey): TValue;
+    end;
+  private
+    FFetcher: ICacheValueFetcher<TKey, TValue>;
+  public
+    constructor Create(const AFetcher: ICacheValueFetcher<TKey, TValue>);
+    function Fetch(const AKey: TKey): TValue;
+    class function FromNestedFunction(const AFunc: TCacheNestedFetchFunc<TKey, TValue>): ICacheValueFetcher<TKey, TValue>;
+    class function FromObjectFunction(const AFunc: TCacheObjectFetchFunc<TKey, TValue>): ICacheValueFetcher<TKey, TValue>;
+    class function FromGlobalFunction(const AFunc: TCacheGlobalFetchFunc<TKey, TValue>): ICacheValueFetcher<TKey, TValue>;
+  end;
+
+  TCacheSizeEstimator<TValue> = class(TInterfacedObject, ICacheSizeEstimator<TValue>)
+  private type
+    GlobalFunctionEstimator = class(TInterfacedObject, ICacheSizeEstimator<TValue>)
+    private
+      FFunc: TCacheGlobalEstimateFunc<TValue>;
+    public
+      constructor Create(const AFunc: TCacheGlobalEstimateFunc<TValue>);
+      function Estimate(const AValue: TValue): SizeInt;
+    end;
+    ObjectFunctionEstimator = class(TInterfacedObject, ICacheSizeEstimator<TValue>)
+    private
+      FFunc: TCacheObjectEstimateFunc<TValue>;
+    public
+      constructor Create(const AFunc: TCacheObjectEstimateFunc<TValue>);
+      function Estimate(const AValue: TValue): SizeInt;
+    end;
+    NestedFunctionEstimator = class(TInterfacedObject, ICacheSizeEstimator<TValue>)
+    private
+      FFunc: TCacheNestedEstimateFunc<TValue>;
+    public
+      constructor Create(const AFunc: TCacheNestedEstimateFunc<TValue>);
+      function Estimate(const AValue: TValue): SizeInt;
+    end;
+  private
+    FEstimator: ICacheSizeEstimator<TValue>;
+  public
+    constructor Create(const AEstimator: ICacheSizeEstimator<TValue>);
+    function Estimate(const AValue: TValue): SizeInt;
+    class function FromNestedFunction(const AFunc: TCacheNestedEstimateFunc<TValue>): ICacheSizeEstimator<TValue>;
+    class function FromObjectFunction(const AFunc: TCacheObjectEstimateFunc<TValue>): ICacheSizeEstimator<TValue>;
+    class function FromGlobalFunction(const AFunc: TCacheGlobalEstimateFunc<TValue>): ICacheSizeEstimator<TValue>;
+  end;
+
+  // A named dictionary subclass keeps this generic contract portable to FPC.
+  TCacheBulkValues<TKey, TValue> = class(TDictionary<TKey, TValue>)
+  end;
+  ICacheBulkValueFetcher<TKey, TValue> = interface
+    procedure Fetch(AValues: TCacheBulkValues<TKey, TValue>);
+  end;
+  {$IFDEF FPC}
+  TCacheNestedBulkFetchProc<TKey, TValue> = procedure(AValues: TCacheBulkValues<TKey, TValue>) is nested;
+  {$ELSE}
+  TCacheNestedBulkFetchProc<TKey, TValue> = reference to procedure(AValues: TCacheBulkValues<TKey, TValue>);
+  {$ENDIF}
+  TCacheObjectBulkFetchProc<TKey, TValue> = procedure(AValues: TCacheBulkValues<TKey, TValue>) of object;
+  TCacheGlobalBulkFetchProc<TKey, TValue> = procedure(AValues: TCacheBulkValues<TKey, TValue>);
+
+  TCacheBulkValueFetcher<TKey, TValue> = class(TInterfacedObject, ICacheBulkValueFetcher<TKey, TValue>)
+  private type
+    TGlobalFetcher = class(TInterfacedObject, ICacheBulkValueFetcher<TKey, TValue>)
+    private
+      FProc: TCacheGlobalBulkFetchProc<TKey, TValue>;
+    public
+      constructor Create(const AProc: TCacheGlobalBulkFetchProc<TKey, TValue>);
+      procedure Fetch(AValues: TCacheBulkValues<TKey, TValue>);
+    end;
+    TObjectFetcher = class(TInterfacedObject, ICacheBulkValueFetcher<TKey, TValue>)
+    private
+      FProc: TCacheObjectBulkFetchProc<TKey, TValue>;
+    public
+      constructor Create(const AProc: TCacheObjectBulkFetchProc<TKey, TValue>);
+      procedure Fetch(AValues: TCacheBulkValues<TKey, TValue>);
+    end;
+    TNestedFetcher = class(TInterfacedObject, ICacheBulkValueFetcher<TKey, TValue>)
+    private
+      FProc: TCacheNestedBulkFetchProc<TKey, TValue>;
+    public
+      constructor Create(const AProc: TCacheNestedBulkFetchProc<TKey, TValue>);
+      procedure Fetch(AValues: TCacheBulkValues<TKey, TValue>);
+    end;
+  private
+    FFetcher: ICacheBulkValueFetcher<TKey, TValue>;
+  public
+    constructor Create(const AFetcher: ICacheBulkValueFetcher<TKey, TValue>);
+    procedure Fetch(AValues: TCacheBulkValues<TKey, TValue>);
+    class function FromNestedFunction(const AProc: TCacheNestedBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>; static;
+    class function FromObjectFunction(const AProc: TCacheObjectBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>; static;
+    class function FromGlobalFunction(const AProc: TCacheGlobalBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>; static;
+  end;
+
   { TCacheBase }
 
   // Operations and callbacks run under a recursive lock. A callback may call the
@@ -70,24 +214,18 @@ type
   // synchronization when used after an operation; the value indexer copies its
   // result while the lock is held. Standard Delphi events have one handler each.
   TCacheBase<TKey, TValue> = class(TComponent)
-    public type
-      TExpirationPolicy = (epSinceFetchedTime, epSinceLastAccessedTime, epNone);
-      TCacheReapPolicy = (crpLeastUsed, crpLargest, crpSmallest, crpOldest, crpIdle, crpASAP, crpNone);
-      TNullValuePolicy = (nvpCacheNormally, nvpReturnButDontCache, nvpThrow);
-      TStaleValuePolicy = (svpAssumeNeverStale, svpCheckStaleOnDemand);
-      TItemFetchingEvent = procedure(Sender: TObject; const AKey: TKey) of object;
-      TItemValueEvent = procedure(Sender: TObject; const AKey: TKey; const AValue: TValue) of object;
-      TItemRemovingEvent = procedure(Sender: TObject; const AKey: TKey; AItem: TCachedItem<TValue>) of object;
+    protected type
+      // Generic implementation aliases kept protected for FPC.
       __TCachedItem_TValue = TCachedItem<TValue>;
       __TPair_TKey_TValue = TPair<TKey, TValue>;
       __TPair_TKey_TCachedItem = TPair<TKey, __TCachedItem_TValue>;
     private
-      FItemFetching : TItemFetchingEvent;
-      FItemFetched : TItemValueEvent;
-      FItemRemoving : TItemRemovingEvent;
-      FItemRemoved : TItemValueEvent;
+      FItemFetching : TCacheItemFetchingEvent<TKey>;
+      FItemFetched : TCacheItemValueEvent<TKey, TValue>;
+      FItemRemoving : TCacheItemRemovingEvent<TKey, TValue>;
+      FItemRemoved : TCacheItemValueEvent<TKey, TValue>;
       FReapLevel : Double;
-      FStaleValuePolicy : TStaleValuePolicy;
+      FStaleValuePolicy : TCacheStaleValuePolicy;
       FLastUpdateOn : TDateTime;
       FLastAccessedOn : TDateTime;
       FTotalAccesses : QWord;
@@ -109,11 +247,11 @@ type
     protected
       FCurrentSize : SizeInt;
       FMaxCapacity : SizeInt;
-      FItemDisposePolicy : TItemDisposePolicy;
+      FItemDisposePolicy : TCacheItemDisposePolicy;
       FExpirationDuration : TTimeSpan;
-      FExpirationPolicy : TExpirationPolicy;
+      FExpirationPolicy : TCacheExpirationPolicy;
       FReapPolicy : TCacheReapPolicy;
-      FNullValuePolicy : TNullValuePolicy;
+      FNullValuePolicy : TCacheNullValuePolicy;
       FInternalStorage : __TDictionary_TKey_TCachedItem_TValue;
       FLock : TCriticalSection;
       function EstimateSize(const AVal: TValue) : SizeInt; virtual; abstract;
@@ -137,14 +275,14 @@ type
       function AddItemInternal(const AKey: TKey; const AVal: TValue) : __TCachedItem_TValue;
       procedure RemoveItemInternal(const AKey: TKey);
     public
-      constructor Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullValuePolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale); overload;
+      constructor Create(AOwner:TComponent; const AItemDisposePolicy : TCacheItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TCacheExpirationPolicy; const ANullValuePolicy : TCacheNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale); overload;
       destructor Destroy; override;
       // Fetching precedes Fetch; Fetched follows successful admission (or an
       // uncached null result). Removing precedes removal; Removed follows it.
-      property ItemFetching : TItemFetchingEvent read FItemFetching write FItemFetching;
-      property ItemFetched : TItemValueEvent read FItemFetched write FItemFetched;
-      property ItemRemoving : TItemRemovingEvent read FItemRemoving write FItemRemoving;
-      property ItemRemoved : TItemValueEvent read FItemRemoved write FItemRemoved;
+      property ItemFetching : TCacheItemFetchingEvent<TKey> read FItemFetching write FItemFetching;
+      property ItemFetched : TCacheItemValueEvent<TKey, TValue> read FItemFetched write FItemFetched;
+      property ItemRemoving : TCacheItemRemovingEvent<TKey, TValue> read FItemRemoving write FItemRemoving;
+      property ItemRemoved : TCacheItemValueEvent<TKey, TValue> read FItemRemoved write FItemRemoved;
       property ItemCount : Integer read GetItemCount;
       // Snapshot of membership. Entries are borrowed and must not be freed by callers.
       property CachedItems : TArray<__TCachedItem_TValue> read GetCachedItems;
@@ -157,10 +295,10 @@ type
       property LastAccessedOn : TDateTime read FLastAccessedOn;
       property TotalAccesses : QWord read FTotalAccesses;
       property ExpirationDuration : TTimeSpan read FExpirationDuration;
-      property ExpirationPolicy : TExpirationPolicy read FExpirationPolicy;
+      property ExpirationPolicy : TCacheExpirationPolicy read FExpirationPolicy;
       property ReapPolicy : TCacheReapPolicy read FReapPolicy;
-      property NullValuePolicy : TNullValuePolicy read FNullValuePolicy;
-      property StaleValuePolicy : TStaleValuePolicy read FStaleValuePolicy;
+      property NullValuePolicy : TCacheNullValuePolicy read FNullValuePolicy;
+      property StaleValuePolicy : TCacheStaleValuePolicy read FStaleValuePolicy;
 
       // Borrowed until removal; the most recent Get result also survives until the next Get.
       function Get(const AKey: TKey) : __TCachedItem_TValue; virtual;
@@ -188,104 +326,19 @@ type
   { TActionCache }
 
   TActionCache<TKey, TValue> = class(TCacheBase<TKey, TValue>)
-    public type
-      {$IFNDEF FPC}
-      TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
-      TCacheReapPolicy = TCacheBase<TKey,TValue>.TCacheReapPolicy;
-      TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
-      TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
-      {$ENDIF}
-      IValueFetcher = interface
-        function Fetch(const AKey: TKey): TValue;
-      end;
-      ISizeEstimator = interface
-        function Estimate(const AValue: TValue) : SizeInt;
-      end;
-      {$IFDEF FPC}
-      TNestedFetchFunc = function (const AKey : TKey) : TValue is nested;
-      {$ELSE}
-      TNestedFetchFunc = reference to function (const AKey : TKey) : TValue;
-      {$ENDIF}
-      TObjectFetchFunc = function (const AKey : TKey) : TValue of object;
-      TGlobalFetchFunc = function (const AKey : TKey) : TValue;
-      {$IFDEF FPC}
-      TNestedEstimateFunc = function (const AValue : TValue) : SizeInt is nested;
-      {$ELSE}
-      TNestedEstimateFunc = reference to function (const AValue : TValue) : SizeInt;
-      {$ENDIF}
-      TObjectEstimateFunc = function (const AValue : TValue) : SizeInt of object;
-      TGlobalEstimateFunc = function (const AValue : TValue) : SizeInt;
-      TValueFetcher = class (TInterfacedObject, IValueFetcher)
-        private
-          FFetcher : IValueFetcher;
-        public
-          constructor Create(const AFetcher: IValueFetcher);
-          function Fetch(const AKey: TKey): TValue;
-          class function FromNestedFunction(const AFunc: TNestedFetchFunc) : IValueFetcher;
-          class function FromObjectFunction(const AFunc: TObjectFetchFunc) : IValueFetcher;
-          class function FromGlobalFunction(const AFunc: TGlobalFetchFunc) : IValueFetcher;
-      end;
-      TSizeEstimator = class (TInterfacedObject, ISizeEstimator)
-        private
-          FEstimator : ISizeEstimator;
-        public
-          constructor Create(const AEstimator: ISizeEstimator);
-          function Estimate(const AValue: TValue) : SizeInt;
-          class function FromNestedFunction(const AFunc: TNestedEstimateFunc) : ISizeEstimator;
-          class function FromObjectFunction(const AFunc: TObjectEstimateFunc) : ISizeEstimator;
-          class function FromGlobalFunction(const AFunc: TGlobalEstimateFunc) : ISizeEstimator;
-      end;
-    private type
-      GlobalFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
-        private
-          FFunc : TGlobalFetchFunc;
-        public
-          constructor Create(const AFunc: TGlobalFetchFunc);
-          function Fetch(const AKey: TKey): TValue;
-      end;
-      ObjectFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
-        private
-          FFunc : TObjectFetchFunc;
-        public
-          constructor Create(const AFunc: TObjectFetchFunc);
-          function Fetch(const AKey: TKey): TValue;
-      end;
-      NestedFunctionValueFetcher = class (TInterfacedObject, IValueFetcher)
-        private
-          FFunc : TNestedFetchFunc;
-        public
-          constructor Create(const AFunc: TNestedFetchFunc);
-          function Fetch(const AKey: TKey): TValue;
-      end;
-      GlobalFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
-        private
-          FFunc : TGlobalEstimateFunc;
-        public
-          constructor Create(const AFunc: TGlobalEstimateFunc);
-          function Estimate(const AValue: TValue): SizeInt;
-      end;
-      ObjectFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
-        private
-          FFunc : TObjectEstimateFunc;
-        public
-          constructor Create(const AFunc: TObjectEstimateFunc);
-          function Estimate(const AValue: TValue): SizeInt;
-      end;
-      NestedFunctionEstimator = class (TInterfacedObject, ISizeEstimator)
-        private
-          FFunc : TNestedEstimateFunc;
-        public
-          constructor Create(const AFunc: TNestedEstimateFunc);
-          function Estimate(const AValue: TValue): SizeInt;
-      end;
-    private
-      FValueFetcher : IValueFetcher;
-      FSizeEstimator : ISizeEstimator;
-    protected
-      function EstimateSize(const AVal: TValue) : SizeInt; override;
-      function Fetch(const AKey: TKey): TValue; override;
-    public
-      constructor Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TExpirationPolicy; const ANullPolicy : TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double = 0.1; AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale); overload;
+  private
+    FValueFetcher: ICacheValueFetcher<TKey, TValue>;
+    FSizeEstimator: ICacheSizeEstimator<TValue>;
+  protected
+    function EstimateSize(const AVal: TValue): SizeInt; override;
+    function Fetch(const AKey: TKey): TValue; override;
+  public
+    constructor Create(AOwner: TComponent; const AValueFetcher: ICacheValueFetcher<TKey, TValue>;
+      const ASizeEstimator: ICacheSizeEstimator<TValue>; const AItemDisposePolicy: TCacheItemDisposePolicy;
+      const AReapPolicy: TCacheReapPolicy; const AExpirationPolicy: TCacheExpirationPolicy;
+      const ANullPolicy: TCacheNullValuePolicy; const AMaxCapacity: SizeInt;
+      const AExpirationDuration: TTimeSpan; AReapLevel: Double = 0.1;
+      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale); overload;
   end;
 
   { A whole-source cache. A first read loads every entry; an ordinary missing,
@@ -293,13 +346,6 @@ type
     snapshot until explicit ForceRefresh or Purge. Payload objects are borrowed;
     the fetch callback fills a temporary dictionary owned by the cache. }
   TBulkFetchCacheBase<TKey, TValue> = class(TCacheBase<TKey, TValue>)
-  public type
-    {$IFNDEF FPC}
-    TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
-    TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
-    TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
-    {$ENDIF}
-    TBulkValues = TDictionary<TKey, TValue>;
   private
     FFetchOnceOnly, FLoaded, FRefreshing: Boolean;
     FFetchCount: Cardinal;
@@ -308,12 +354,12 @@ type
     function EstimateSize(const AVal: TValue) : SizeInt; override;
     function Fetch(const AKey: TKey): TValue; override;
     function ShouldFetch(const AKey: TKey; AItem: TCachedItem<TValue>) : boolean; override;
-    procedure BulkFetch(AValues: TBulkValues); virtual; abstract;
+    procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); virtual; abstract;
   public
-    constructor Create(AOwner: TComponent; const AExpirationPolicy: TExpirationPolicy;
+    constructor Create(AOwner: TComponent; const AExpirationPolicy: TCacheExpirationPolicy;
       const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean = false;
-      ANullValuePolicy: TNullValuePolicy = nvpCacheNormally;
-      AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale;
+      ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally;
+      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale;
       const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
     function Get(const AKey: TKey): TCachedItem<TValue>; override;
     function ContainsCachedItem(const AKey: TKey): Boolean; override;
@@ -330,61 +376,15 @@ type
   end;
 
   TBulkFetchActionCache<TKey, TValue> = class(TBulkFetchCacheBase<TKey, TValue>)
-  public type
-    {$IFNDEF FPC}
-    TExpirationPolicy = TCacheBase<TKey,TValue>.TExpirationPolicy;
-    TNullValuePolicy = TCacheBase<TKey,TValue>.TNullValuePolicy;
-    TStaleValuePolicy = TCacheBase<TKey,TValue>.TStaleValuePolicy;
-    {$ENDIF}
-    TBulkValues = TDictionary<TKey, TValue>;
-    IBulkValueFetcher = interface
-      procedure Fetch(AValues: TBulkValues);
-    end;
-    {$IFDEF FPC}
-    TNestedBulkFetchProc = procedure(AValues: TBulkValues) is nested;
-    {$ELSE}
-    TNestedBulkFetchProc = reference to procedure(AValues: TBulkValues);
-    {$ENDIF}
-    TObjectBulkFetchProc = procedure(AValues: TBulkValues) of object;
-    TGlobalBulkFetchProc = procedure(AValues: TBulkValues);
-    TBulkValueFetcher = class(TInterfacedObject, IBulkValueFetcher)
-    private
-      FFetcher: IBulkValueFetcher;
-    public
-      constructor Create(const AFetcher: IBulkValueFetcher);
-      procedure Fetch(AValues: TBulkValues);
-      class function FromNestedFunction(const AProc: TNestedBulkFetchProc): IBulkValueFetcher; static;
-      class function FromObjectFunction(const AProc: TObjectBulkFetchProc): IBulkValueFetcher; static;
-      class function FromGlobalFunction(const AProc: TGlobalBulkFetchProc): IBulkValueFetcher; static;
-    end;
-  private type
-    TGlobalFetcher = class(TInterfacedObject, IBulkValueFetcher)
-    private FProc: TGlobalBulkFetchProc;
-    public
-      constructor Create(const AProc: TGlobalBulkFetchProc);
-      procedure Fetch(AValues: TBulkValues);
-    end;
-    TObjectFetcher = class(TInterfacedObject, IBulkValueFetcher)
-    private FProc: TObjectBulkFetchProc;
-    public
-      constructor Create(const AProc: TObjectBulkFetchProc);
-      procedure Fetch(AValues: TBulkValues);
-    end;
-    TNestedFetcher = class(TInterfacedObject, IBulkValueFetcher)
-    private FProc: TNestedBulkFetchProc;
-    public
-      constructor Create(const AProc: TNestedBulkFetchProc);
-      procedure Fetch(AValues: TBulkValues);
-    end;
   private
-    FFetcher: IBulkValueFetcher;
+    FFetcher: ICacheBulkValueFetcher<TKey, TValue>;
   protected
-    procedure BulkFetch(AValues: TBulkValues); override;
+    procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); override;
   public
-    constructor Create(AOwner: TComponent; const AFetcher: IBulkValueFetcher;
-      const AExpirationPolicy: TExpirationPolicy; const AExpirationDuration: TTimeSpan;
-      AFetchOnceOnly: Boolean = false; ANullValuePolicy: TNullValuePolicy = nvpCacheNormally;
-      AStaleValuePolicy: TStaleValuePolicy = svpAssumeNeverStale;
+    constructor Create(AOwner: TComponent; const AFetcher: ICacheBulkValueFetcher<TKey, TValue>;
+      const AExpirationPolicy: TCacheExpirationPolicy; const AExpirationDuration: TTimeSpan;
+      AFetchOnceOnly: Boolean = false; ANullValuePolicy: TCacheNullValuePolicy = nvpCacheNormally;
+      AStaleValuePolicy: TCacheStaleValuePolicy = svpAssumeNeverStale;
       const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
   end;
 
@@ -394,7 +394,7 @@ type
   private
     FValues: TDictionary<TKey, TValue>;
   protected
-    procedure BulkFetch(AValues: TDictionary<TKey, TValue>); override;
+    procedure BulkFetch(AValues: TCacheBulkValues<TKey, TValue>); override;
   public
     constructor Create(AOwner: TComponent; AValues: TDictionary<TKey, TValue>;
       const AKeyComparer: IEqualityComparer<TKey> = nil); overload;
@@ -407,7 +407,7 @@ uses
 
 { TCachedItem }
 
-constructor TCachedItem<TValue>.Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TItemDisposePolicy);
+constructor TCachedItem<TValue>.Create(const AValue : TValue; ASize: SizeInt; ADisposePolicy : TCacheItemDisposePolicy);
 begin
   inherited Create;
   FCanPurge := true;
@@ -437,7 +437,7 @@ end;
 
 { TCacheBase }
 
-constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TCacheReapPolicy; const AExpirationPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy; const ANullValuePolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy);
+constructor TCacheBase<TKey, TValue>.Create(AOwner:TComponent; const AItemDisposePolicy : TCacheItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TCacheExpirationPolicy; const ANullValuePolicy : TCacheNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TCacheStaleValuePolicy);
 begin
   inherited Create(AOwner);
   if AMaxCapacity < 0 then
@@ -1058,7 +1058,7 @@ end;
 
 { TActionCache }
 
-constructor TActionCache<TKey, TValue>.Create(AOwner:TComponent; const AValueFetcher : IValueFetcher; const ASizeEstimator : ISizeEstimator; const AItemDisposePolicy : TItemDisposePolicy; const AReapPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TCacheReapPolicy; const AExpirationPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy; const ANullPolicy : {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy);
+constructor TActionCache<TKey, TValue>.Create(AOwner:TComponent; const AValueFetcher : ICacheValueFetcher<TKey, TValue>; const ASizeEstimator : ICacheSizeEstimator<TValue>; const AItemDisposePolicy : TCacheItemDisposePolicy; const AReapPolicy : TCacheReapPolicy; const AExpirationPolicy : TCacheExpirationPolicy; const ANullPolicy : TCacheNullValuePolicy; const AMaxCapacity : SizeInt; const AExpirationDuration : TTimeSpan; AReapLevel: Double; AStaleValuePolicy: TCacheStaleValuePolicy);
 begin
   inherited Create(AOwner, AItemDisposePolicy, AReapPolicy, AExpirationPolicy, ANullPolicy, AMaxCapacity, AExpirationDuration, AReapLevel, AStaleValuePolicy);
   if not Assigned(AValueFetcher) then
@@ -1080,7 +1080,7 @@ begin
     Result := 0;
 end;
 
-constructor TActionCache<TKey, TValue>.TValueFetcher.Create(const AFetcher: IValueFetcher);
+constructor TCacheValueFetcher<TKey, TValue>.Create(const AFetcher: ICacheValueFetcher<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AFetcher) then
@@ -1088,27 +1088,27 @@ begin
   FFetcher := AFetcher;
 end;
 
-function TActionCache<TKey, TValue>.TValueFetcher.Fetch(const AKey: TKey): TValue;
+function TCacheValueFetcher<TKey, TValue>.Fetch(const AKey: TKey): TValue;
 begin
   Result := FFetcher.Fetch(AKey);
 end;
 
-class function TActionCache<TKey, TValue>.TValueFetcher.FromNestedFunction(const AFunc: TNestedFetchFunc) : IValueFetcher;
+class function TCacheValueFetcher<TKey, TValue>.FromNestedFunction(const AFunc: TCacheNestedFetchFunc<TKey, TValue>) : ICacheValueFetcher<TKey, TValue>;
 begin
   Result := NestedFunctionValueFetcher.Create(AFunc);
 end;
 
-class function TActionCache<TKey, TValue>.TValueFetcher.FromObjectFunction(const AFunc: TObjectFetchFunc) : IValueFetcher;
+class function TCacheValueFetcher<TKey, TValue>.FromObjectFunction(const AFunc: TCacheObjectFetchFunc<TKey, TValue>) : ICacheValueFetcher<TKey, TValue>;
 begin
   Result := ObjectFunctionValueFetcher.Create(AFunc);
 end;
 
-class function TActionCache<TKey, TValue>.TValueFetcher.FromGlobalFunction(const AFunc: TGlobalFetchFunc) : IValueFetcher;
+class function TCacheValueFetcher<TKey, TValue>.FromGlobalFunction(const AFunc: TCacheGlobalFetchFunc<TKey, TValue>) : ICacheValueFetcher<TKey, TValue>;
 begin
   Result := GlobalFunctionValueFetcher.Create(AFunc);
 end;
 
-constructor TActionCache<TKey, TValue>.TSizeEstimator.Create(const AEstimator: ISizeEstimator);
+constructor TCacheSizeEstimator<TValue>.Create(const AEstimator: ICacheSizeEstimator<TValue>);
 begin
   inherited Create;
   if not Assigned(AEstimator) then
@@ -1116,27 +1116,27 @@ begin
   FEstimator := AEstimator;
 end;
 
-function TActionCache<TKey, TValue>.TSizeEstimator.Estimate(const AValue: TValue) : SizeInt;
+function TCacheSizeEstimator<TValue>.Estimate(const AValue: TValue) : SizeInt;
 begin
   Result := FEstimator.Estimate(AValue);
 end;
 
-class function TActionCache<TKey, TValue>.TSizeEstimator.FromNestedFunction(const AFunc: TNestedEstimateFunc) : ISizeEstimator;
+class function TCacheSizeEstimator<TValue>.FromNestedFunction(const AFunc: TCacheNestedEstimateFunc<TValue>) : ICacheSizeEstimator<TValue>;
 begin
   Result := NestedFunctionEstimator.Create(AFunc);
 end;
 
-class function TActionCache<TKey, TValue>.TSizeEstimator.FromObjectFunction(const AFunc: TObjectEstimateFunc) : ISizeEstimator;
+class function TCacheSizeEstimator<TValue>.FromObjectFunction(const AFunc: TCacheObjectEstimateFunc<TValue>) : ICacheSizeEstimator<TValue>;
 begin
   Result := ObjectFunctionEstimator.Create(AFunc);
 end;
 
-class function TActionCache<TKey, TValue>.TSizeEstimator.FromGlobalFunction(const AFunc: TGlobalEstimateFunc) : ISizeEstimator;
+class function TCacheSizeEstimator<TValue>.FromGlobalFunction(const AFunc: TCacheGlobalEstimateFunc<TValue>) : ICacheSizeEstimator<TValue>;
 begin
   Result := GlobalFunctionEstimator.Create(AFunc);
 end;
 
-constructor TActionCache<TKey, TValue>.GlobalFunctionValueFetcher.Create(const AFunc: TGlobalFetchFunc);
+constructor TCacheValueFetcher<TKey, TValue>.GlobalFunctionValueFetcher.Create(const AFunc: TCacheGlobalFetchFunc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1144,12 +1144,12 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.GlobalFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+function TCacheValueFetcher<TKey, TValue>.GlobalFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
 begin
   Result := FFunc(AKey);
 end;
 
-constructor TActionCache<TKey, TValue>.ObjectFunctionValueFetcher.Create(const AFunc: TObjectFetchFunc);
+constructor TCacheValueFetcher<TKey, TValue>.ObjectFunctionValueFetcher.Create(const AFunc: TCacheObjectFetchFunc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1157,12 +1157,12 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.ObjectFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+function TCacheValueFetcher<TKey, TValue>.ObjectFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
 begin
   Result := FFunc(AKey);
 end;
 
-constructor TActionCache<TKey, TValue>.NestedFunctionValueFetcher.Create(const AFunc: TNestedFetchFunc);
+constructor TCacheValueFetcher<TKey, TValue>.NestedFunctionValueFetcher.Create(const AFunc: TCacheNestedFetchFunc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1170,12 +1170,12 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.NestedFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
+function TCacheValueFetcher<TKey, TValue>.NestedFunctionValueFetcher.Fetch(const AKey: TKey): TValue;
 begin
   Result := FFunc(AKey);
 end;
 
-constructor TActionCache<TKey, TValue>.GlobalFunctionEstimator.Create(const AFunc: TGlobalEstimateFunc);
+constructor TCacheSizeEstimator<TValue>.GlobalFunctionEstimator.Create(const AFunc: TCacheGlobalEstimateFunc<TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1183,12 +1183,12 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.GlobalFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+function TCacheSizeEstimator<TValue>.GlobalFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
 begin
   Result := FFunc(AValue);
 end;
 
-constructor TActionCache<TKey, TValue>.ObjectFunctionEstimator.Create(const AFunc: TObjectEstimateFunc);
+constructor TCacheSizeEstimator<TValue>.ObjectFunctionEstimator.Create(const AFunc: TCacheObjectEstimateFunc<TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1196,12 +1196,12 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.ObjectFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+function TCacheSizeEstimator<TValue>.ObjectFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
 begin
   Result := FFunc(AValue);
 end;
 
-constructor TActionCache<TKey, TValue>.NestedFunctionEstimator.Create(const AFunc: TNestedEstimateFunc);
+constructor TCacheSizeEstimator<TValue>.NestedFunctionEstimator.Create(const AFunc: TCacheNestedEstimateFunc<TValue>);
 begin
   inherited Create;
   if not Assigned(AFunc) then
@@ -1209,7 +1209,7 @@ begin
   FFunc := AFunc;
 end;
 
-function TActionCache<TKey, TValue>.NestedFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
+function TCacheSizeEstimator<TValue>.NestedFunctionEstimator.Estimate(const AValue: TValue): SizeInt;
 begin
   Result := FFunc(AValue);
 end;
@@ -1217,13 +1217,13 @@ end;
 { TBulkFetchCacheBase }
 
 constructor TBulkFetchCacheBase<TKey, TValue>.Create(AOwner: TComponent;
-  const AExpirationPolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy;
+  const AExpirationPolicy: TCacheExpirationPolicy;
   const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
-  ANullValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy;
-  AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy;
+  ANullValuePolicy: TCacheNullValuePolicy;
+  AStaleValuePolicy: TCacheStaleValuePolicy;
   const AKeyComparer: IEqualityComparer<TKey>);
 begin
-  inherited Create(AOwner,idpNone,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TCacheReapPolicy.{$ENDIF}crpNone,
+  inherited Create(AOwner,idpNone,TCacheReapPolicy.crpNone,
     AExpirationPolicy,ANullValuePolicy,High(SizeInt),AExpirationDuration,0.1,AStaleValuePolicy);
   FFetchOnceOnly := AFetchOnceOnly;
   FKeyComparer := AKeyComparer;
@@ -1249,7 +1249,7 @@ function TBulkFetchCacheBase<TKey, TValue>.Fetch(const AKey: TKey): TValue;
 var item: {$IFDEF FPC}__TCachedItem_TValue{$ELSE}TCachedItem<TValue>{$ENDIF};
 begin
   if FInternalStorage.TryGetValue(AKey,item) then Result := item.Value
-  else if FNullValuePolicy = {$IFNDEF FPC}TCacheBase<TKey,TValue>.TNullValuePolicy.{$ENDIF}nvpThrow then
+  else if FNullValuePolicy = TCacheNullValuePolicy.nvpThrow then
     raise EInvalidOperation.Create('The bulk cache source does not contain the requested key.')
   else Result := Default(TValue);
 end;
@@ -1298,7 +1298,7 @@ begin
 end;
 
 procedure TBulkFetchCacheBase<TKey, TValue>.ForceRefresh;
-var values: TBulkValues; pair: TPair<TKey,TValue>;
+var values: TCacheBulkValues<TKey, TValue>; pair: TPair<TKey,TValue>;
 begin
   FLock.Acquire;
   try
@@ -1311,8 +1311,8 @@ begin
       // resurrect the previous snapshot. The temporary container is always ours;
       // class/pointer payloads stay borrowed from the provider/source owner.
       Purge;
-      if Assigned(FKeyComparer) then values := TBulkValues.Create(FKeyComparer)
-      else values := TBulkValues.Create;
+      if Assigned(FKeyComparer) then values := TCacheBulkValues<TKey, TValue>.Create(FKeyComparer)
+      else values := TCacheBulkValues<TKey, TValue>.Create;
       try
         BulkFetch(values);
         for pair in values do SetValue(pair.Key,pair.Value);
@@ -1350,11 +1350,11 @@ end;
 { TBulkFetchActionCache }
 
 constructor TBulkFetchActionCache<TKey, TValue>.Create(AOwner: TComponent;
-  const AFetcher: IBulkValueFetcher;
-  const AExpirationPolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TExpirationPolicy;
+  const AFetcher: ICacheBulkValueFetcher<TKey, TValue>;
+  const AExpirationPolicy: TCacheExpirationPolicy;
   const AExpirationDuration: TTimeSpan; AFetchOnceOnly: Boolean;
-  ANullValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TNullValuePolicy;
-  AStaleValuePolicy: {$IFNDEF FPC}TCacheBase<TKey,TValue>.{$ENDIF}TStaleValuePolicy;
+  ANullValuePolicy: TCacheNullValuePolicy;
+  AStaleValuePolicy: TCacheStaleValuePolicy;
   const AKeyComparer: IEqualityComparer<TKey>);
 begin
   inherited Create(AOwner,AExpirationPolicy,AExpirationDuration,AFetchOnceOnly,
@@ -1363,70 +1363,70 @@ begin
   FFetcher := AFetcher;
 end;
 
-procedure TBulkFetchActionCache<TKey, TValue>.BulkFetch(AValues: TBulkValues);
+procedure TBulkFetchActionCache<TKey, TValue>.BulkFetch(AValues: TCacheBulkValues<TKey, TValue>);
 begin
   FFetcher.Fetch(AValues);
 end;
 
-constructor TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Create(const AFetcher: IBulkValueFetcher);
+constructor TCacheBulkValueFetcher<TKey, TValue>.Create(const AFetcher: ICacheBulkValueFetcher<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AFetcher) then raise EArgumentNilException.Create('AFetcher');
   FFetcher := AFetcher;
 end;
 
-procedure TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.Fetch(AValues: TBulkValues);
+procedure TCacheBulkValueFetcher<TKey, TValue>.Fetch(AValues: TCacheBulkValues<TKey, TValue>);
 begin
   FFetcher.Fetch(AValues);
 end;
 
-class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromGlobalFunction(const AProc: TGlobalBulkFetchProc): IBulkValueFetcher;
+class function TCacheBulkValueFetcher<TKey, TValue>.FromGlobalFunction(const AProc: TCacheGlobalBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>;
 begin
   Result := TGlobalFetcher.Create(AProc);
 end;
 
-class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromObjectFunction(const AProc: TObjectBulkFetchProc): IBulkValueFetcher;
+class function TCacheBulkValueFetcher<TKey, TValue>.FromObjectFunction(const AProc: TCacheObjectBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>;
 begin
   Result := TObjectFetcher.Create(AProc);
 end;
 
-class function TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher.FromNestedFunction(const AProc: TNestedBulkFetchProc): IBulkValueFetcher;
+class function TCacheBulkValueFetcher<TKey, TValue>.FromNestedFunction(const AProc: TCacheNestedBulkFetchProc<TKey, TValue>): ICacheBulkValueFetcher<TKey, TValue>;
 begin
   Result := TNestedFetcher.Create(AProc);
 end;
 
-constructor TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Create(const AProc: TGlobalBulkFetchProc);
+constructor TCacheBulkValueFetcher<TKey, TValue>.TGlobalFetcher.Create(const AProc: TCacheGlobalBulkFetchProc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
   FProc := AProc;
 end;
 
-procedure TBulkFetchActionCache<TKey, TValue>.TGlobalFetcher.Fetch(AValues: TBulkValues);
+procedure TCacheBulkValueFetcher<TKey, TValue>.TGlobalFetcher.Fetch(AValues: TCacheBulkValues<TKey, TValue>);
 begin
   FProc(AValues);
 end;
 
-constructor TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Create(const AProc: TObjectBulkFetchProc);
+constructor TCacheBulkValueFetcher<TKey, TValue>.TObjectFetcher.Create(const AProc: TCacheObjectBulkFetchProc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
   FProc := AProc;
 end;
 
-procedure TBulkFetchActionCache<TKey, TValue>.TObjectFetcher.Fetch(AValues: TBulkValues);
+procedure TCacheBulkValueFetcher<TKey, TValue>.TObjectFetcher.Fetch(AValues: TCacheBulkValues<TKey, TValue>);
 begin
   FProc(AValues);
 end;
 
-constructor TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Create(const AProc: TNestedBulkFetchProc);
+constructor TCacheBulkValueFetcher<TKey, TValue>.TNestedFetcher.Create(const AProc: TCacheNestedBulkFetchProc<TKey, TValue>);
 begin
   inherited Create;
   if not Assigned(AProc) then raise EArgumentNilException.Create('AProc');
   FProc := AProc;
 end;
 
-procedure TBulkFetchActionCache<TKey, TValue>.TNestedFetcher.Fetch(AValues: TBulkValues);
+procedure TCacheBulkValueFetcher<TKey, TValue>.TNestedFetcher.Fetch(AValues: TCacheBulkValues<TKey, TValue>);
 begin
   FProc(AValues);
 end;
@@ -1436,14 +1436,14 @@ end;
 constructor TPreloadedCache<TKey, TValue>.Create(AOwner: TComponent;
   AValues: TDictionary<TKey, TValue>; const AKeyComparer: IEqualityComparer<TKey>);
 begin
-  inherited Create(AOwner,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TExpirationPolicy.{$ENDIF}epNone,
-    TTimeSpan.MaxValue,True,{$IFNDEF FPC}TCacheBase<TKey,TValue>.TNullValuePolicy.{$ENDIF}nvpCacheNormally,
-    {$IFNDEF FPC}TCacheBase<TKey,TValue>.TStaleValuePolicy.{$ENDIF}svpAssumeNeverStale,AKeyComparer);
+  inherited Create(AOwner,TCacheExpirationPolicy.epNone,
+    TTimeSpan.MaxValue,True,TCacheNullValuePolicy.nvpCacheNormally,
+    TCacheStaleValuePolicy.svpAssumeNeverStale,AKeyComparer);
   if not Assigned(AValues) then raise EArgumentNilException.Create('AValues');
   FValues := AValues;
 end;
 
-procedure TPreloadedCache<TKey, TValue>.BulkFetch(AValues: TDictionary<TKey, TValue>);
+procedure TPreloadedCache<TKey, TValue>.BulkFetch(AValues: TCacheBulkValues<TKey, TValue>);
 var pair: TPair<TKey,TValue>;
 begin
   for pair in FValues do AValues.AddOrSetValue(pair.Key,pair.Value);

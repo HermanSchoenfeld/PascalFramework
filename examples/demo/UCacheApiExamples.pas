@@ -25,10 +25,6 @@ type
   TAction = TActionCache<Integer,String>;
   TBulk = TBulkFetchActionCache<Integer,String>;
   TBulkFamily = TBulkFetchCacheBase<Integer,String>;
-  TExpiry = TCacheFamily.TExpirationPolicy;
-  TReap = TCacheFamily.TCacheReapPolicy;
-  TNull = TCacheFamily.TNullValuePolicy;
-  TStale = TCacheFamily.TStaleValuePolicy;
   TValuePairs = TList<TPair<Integer,String>>;
 
   // A subclass supplies value retrieval, size and optional stale detection.
@@ -49,7 +45,7 @@ type
     FRevision: Integer;
     function FetchValue(const AKey: Integer): String;
     function MeasureValue(const AValue: String): SizeInt;
-    procedure FillAll(AValues: TBulk.TBulkValues);
+    procedure FillAll(AValues: TCacheBulkValues<Integer,String>);
     procedure Fetching(Sender: TObject; const AKey: Integer);
     procedure Fetched(Sender: TObject; const AKey: Integer; const AValue: String);
     procedure Removing(Sender: TObject; const AKey: Integer; AItem: TCachedItem<String>);
@@ -72,7 +68,7 @@ begin
   Result := Length(AValue) * SizeOf(Char);
 end;
 
-procedure GlobalFillAll(AValues: TBulk.TBulkValues);
+procedure GlobalFillAll(AValues: TCacheBulkValues<Integer,String>);
 begin
   AValues.Add(1,'global catalogue');
   AValues.Add(2,'second product');
@@ -113,7 +109,7 @@ begin
   Result := GlobalMeasure(AValue);
 end;
 
-procedure TCacheExamples.FillAll(AValues: TBulk.TBulkValues);
+procedure TCacheExamples.FillAll(AValues: TCacheBulkValues<Integer,String>);
 var pair: TPair<Integer,String>;
 begin
   for pair in FSource do AValues.AddOrSetValue(pair.Key,pair.Value);
@@ -142,22 +138,22 @@ end;
 procedure TCacheExamples.ShowCallbacks;
 var
   cache: TAction;
-  fetcher: TAction.IValueFetcher;
-  estimator: TAction.ISizeEstimator;
-  globalFetch: TAction.TGlobalFetchFunc;
-  globalEstimate: TAction.TGlobalEstimateFunc;
-  objectFetch: TAction.TObjectFetchFunc;
-  objectEstimate: TAction.TObjectEstimateFunc;
-  nestedFetch: TAction.TNestedFetchFunc;
-  nestedEstimate: TAction.TNestedEstimateFunc;
-  fetchingEvent: TCacheFamily.TItemFetchingEvent;
-  fetchedEvent, removedEvent: TCacheFamily.TItemValueEvent;
-  removingEvent: TCacheFamily.TItemRemovingEvent;
+  fetcher: ICacheValueFetcher<Integer,String>;
+  estimator: ICacheSizeEstimator<String>;
+  globalFetch: TCacheGlobalFetchFunc<Integer,String>;
+  globalEstimate: TCacheGlobalEstimateFunc<String>;
+  objectFetch: TCacheObjectFetchFunc<Integer,String>;
+  objectEstimate: TCacheObjectEstimateFunc<String>;
+  nestedFetch: TCacheNestedFetchFunc<Integer,String>;
+  nestedEstimate: TCacheNestedEstimateFunc<String>;
+  fetchingEvent: TCacheItemFetchingEvent<Integer>;
+  fetchedEvent, removedEvent: TCacheItemValueEvent<Integer,String>;
+  removingEvent: TCacheItemRemovingEvent<Integer,String>;
   suffix: String;
-  procedure Show(const AFetcher: TAction.IValueFetcher; const AEstimator: TAction.ISizeEstimator);
+  procedure Show(const AFetcher: ICacheValueFetcher<Integer,String>; const AEstimator: ICacheSizeEstimator<String>);
   begin
     cache := TAction(FResources.AddObject(TAction.Create(nil,AFetcher,AEstimator,
-      idpNone,TReap.crpOldest,TExpiry.epNone,TNull.nvpCacheNormally,1024,TTimeSpan.MaxValue)));
+      idpNone,TCacheReapPolicy.crpOldest,TCacheExpirationPolicy.epNone,TCacheNullValuePolicy.nvpCacheNormally,1024,TTimeSpan.MaxValue)));
     cache.ItemFetching := fetchingEvent; cache.ItemFetched := fetchedEvent;
     cache.ItemRemoving := removingEvent; cache.ItemRemoved := removedEvent;
     FOutput.Add(cache[41]);
@@ -179,15 +175,15 @@ begin
   removingEvent := Removing; removedEvent := Removed;
   globalFetch := UCacheApiExamples.GlobalFetch;
   globalEstimate := GlobalMeasure;
-  fetcher := TAction.TValueFetcher.FromGlobalFunction(globalFetch);
-  estimator := TAction.TSizeEstimator.FromGlobalFunction(globalEstimate);
+  fetcher := TCacheValueFetcher<Integer,String>.FromGlobalFunction(globalFetch);
+  estimator := TCacheSizeEstimator<String>.FromGlobalFunction(globalEstimate);
   // The wrappers also accept an existing interface implementation.
-  fetcher := TAction.TValueFetcher.Create(fetcher);
-  estimator := TAction.TSizeEstimator.Create(estimator);
+  fetcher := TCacheValueFetcher<Integer,String>.Create(fetcher);
+  estimator := TCacheSizeEstimator<String>.Create(estimator);
   Show(fetcher,estimator);
   objectFetch := FetchValue; objectEstimate := MeasureValue;
-  Show(TAction.TValueFetcher.FromObjectFunction(objectFetch),
-    TAction.TSizeEstimator.FromObjectFunction(objectEstimate));
+  Show(TCacheValueFetcher<Integer,String>.FromObjectFunction(objectFetch),
+    TCacheSizeEstimator<String>.FromObjectFunction(objectEstimate));
   suffix := ' captured suffix';
   {$IFDEF FPC}
   nestedFetch := FetchNested; nestedEstimate := MeasureNested;
@@ -203,9 +199,9 @@ begin
   {$ENDIF}
   // A nested callback must not outlive captured stack locals under Free Pascal.
   // Free the cache here instead of retaining it in the session disposal bag.
-  cache := TAction.Create(nil,TAction.TValueFetcher.FromNestedFunction(nestedFetch),
-    TAction.TSizeEstimator.FromNestedFunction(nestedEstimate),idpNone,
-    TReap.crpOldest,TExpiry.epNone,TNull.nvpCacheNormally,1024,TTimeSpan.MaxValue);
+  cache := TAction.Create(nil,TCacheValueFetcher<Integer,String>.FromNestedFunction(nestedFetch),
+    TCacheSizeEstimator<String>.FromNestedFunction(nestedEstimate),idpNone,
+    TCacheReapPolicy.crpOldest,TCacheExpirationPolicy.epNone,TCacheNullValuePolicy.nvpCacheNormally,1024,TTimeSpan.MaxValue);
   try FOutput.Add(cache[42]); finally cache.Free; end;
 end;
 
@@ -213,17 +209,17 @@ procedure TCacheExamples.ShowSubclass;
 var
   cache: TRevisionCache;
   entry: TCachedItem<String>;
-  policy: TItemDisposePolicy;
-  valuePair: TCacheFamily.__TPair_TKey_TValue;
-  entryPair: TCacheFamily.__TPair_TKey_TCachedItem;
-  entryAlias: TCacheFamily.__TCachedItem_TValue;
+  policy: TCacheItemDisposePolicy;
+  valuePair: TPair<Integer,String>;
+  entryPair: TPair<Integer,TCachedItem<String>>;
+  entryAlias: TCachedItem<String>;
   pairs: TList<TPair<Integer,String>>;
 begin
   FOutput.Add('Custom cache: stale detection, entries and explicit bulk admission');
   policy := idpNone; // Native strings manage themselves; no object ownership transfer.
   cache := TRevisionCache(FResources.AddObject(TRevisionCache.Create(nil,policy,
-    TReap.crpOldest,TExpiry.epSinceFetchedTime,TNull.nvpCacheNormally,4096,
-    TTimeSpan.FromMinutes(1),0.1,TStale.svpCheckStaleOnDemand)));
+    TCacheReapPolicy.crpOldest,TCacheExpirationPolicy.epSinceFetchedTime,TCacheNullValuePolicy.nvpCacheNormally,4096,
+    TTimeSpan.FromMinutes(1),0.1,TCacheStaleValuePolicy.svpCheckStaleOnDemand)));
   FOutput.Add(cache[5]); cache.Revision := 1;
   FOutput.Add(cache[5]); // CheckStaleness causes a new fetch for revision 1.
   entry := cache.Get(5); // Borrowed metadata: never Free this returned entry.
@@ -245,14 +241,14 @@ procedure TCacheExamples.ShowBulkFetch;
 var
   cache: TBulk;
   family: TBulkFamily;
-  values: TBulkFamily.TBulkValues;
-  fetcher: TBulk.IBulkValueFetcher;
-  globalProc: TBulk.TGlobalBulkFetchProc;
-  objectProc: TBulk.TObjectBulkFetchProc;
-  nestedProc: TBulk.TNestedBulkFetchProc;
+  values: TCacheBulkValues<Integer,String>;
+  fetcher: ICacheBulkValueFetcher<Integer,String>;
+  globalProc: TCacheGlobalBulkFetchProc<Integer,String>;
+  objectProc: TCacheObjectBulkFetchProc<Integer,String>;
+  nestedProc: TCacheNestedBulkFetchProc<Integer,String>;
   localText: String;
   {$IFDEF FPC}
-  procedure FillNested(AValues: TBulk.TBulkValues);
+  procedure FillNested(AValues: TCacheBulkValues<Integer,String>);
   begin
     AValues.Add(3,localText);
   end;
@@ -260,9 +256,9 @@ var
 begin
   FOutput.Add('Bulk fetch: one provider call loads the complete source');
   objectProc := FillAll;
-  fetcher := TBulk.TBulkValueFetcher.FromObjectFunction(objectProc);
-  fetcher := TBulk.TBulkValueFetcher.Create(fetcher);
-  cache := TBulk(FResources.AddObject(TBulk.Create(nil,fetcher,TExpiry.epNone,TTimeSpan.MaxValue,True)));
+  fetcher := TCacheBulkValueFetcher<Integer,String>.FromObjectFunction(objectProc);
+  fetcher := TCacheBulkValueFetcher<Integer,String>.Create(fetcher);
+  cache := TBulk(FResources.AddObject(TBulk.Create(nil,fetcher,TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue,True)));
   family := cache;
   FOutput.Add(family[1]); // Fetches both apple and pear in a single batch.
   FSource[1] := 'apricot';
@@ -270,21 +266,21 @@ begin
   FOutput.Add(family[1]); // FetchOnceOnly preserves apple until an explicit refresh.
   family.ForceRefresh;
   FOutput.Add(family[1]); // Now apricot.
-  values := TBulkFamily.TBulkValues(FResources.AddObject(TBulkFamily.TBulkValues.Create));
+  values := TCacheBulkValues<Integer,String>(FResources.AddObject(TCacheBulkValues<Integer,String>.Create));
   globalProc := GlobalFillAll;
-  fetcher := TBulk.TBulkValueFetcher.FromGlobalFunction(globalProc);
+  fetcher := TCacheBulkValueFetcher<Integer,String>.FromGlobalFunction(globalProc);
   fetcher.Fetch(values);
   FOutput.Add(values[1]);
   localText := 'captured bulk entry';
   {$IFDEF FPC}
   nestedProc := FillNested;
   {$ELSE}
-  nestedProc := procedure(AValues: TBulk.TBulkValues)
+  nestedProc := procedure(AValues: TCacheBulkValues<Integer,String>)
     begin
       AValues.Add(3,localText);
     end;
   {$ENDIF}
-  fetcher := TBulk.TBulkValueFetcher.FromNestedFunction(nestedProc);
+  fetcher := TCacheBulkValueFetcher<Integer,String>.FromNestedFunction(nestedProc);
   fetcher.Fetch(values);
   fetcher := nil; // Release this callback before captured stack locals leave scope.
   FOutput.Add(values[3]);

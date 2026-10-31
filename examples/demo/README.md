@@ -51,7 +51,7 @@ capacity/eviction, pins, lifecycle callbacks and object ownership. Its memo show
 fetch counts and disposal outcomes. [UCacheDemo.pas](UCacheDemo.pas) contains the code.
 
 **Run complete cache API** adds subclassed stale detection, every callback adapter,
-entry metadata, explicit bulk writes, whole-source snapshots and borrowed
+entry metadata, explicit bulk writes, bulk-fetch caching and borrowed
 preloaded dictionaries. [UCacheApiExamples.pas](UCacheApiExamples.pas) contains the
 worked recipes; the [main README](../../README.md#caching) explains their contracts.
 
