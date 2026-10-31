@@ -360,18 +360,24 @@ sequenceDiagram
     participant App as Application
     participant Cache as TActionCache
     participant Source as Fetch callback
-    App->>Cache: cache[key]
-    alt Present and fresh
-        Cache-->>App: Cached value
-    else Missing, expired or stale
-        Cache->>Cache: Remove old entry, if present
-        Cache->>Source: Fetch(key)
-        Source-->>Cache: Value
-        Cache->>Cache: Make space if needed and store
-        Cache-->>App: Value
-    end
-    App->>Cache: Invalidate(key)
-    Note over Cache: Mark stale. Next read fetches again
+    App->>Cache: cache[7]
+    Note over Cache: No cached entry
+    Cache->>Source: Fetch(7)
+    Source-->>Cache: Fetched value
+    Cache->>Cache: Store fetched value
+    Cache-->>App: Return fetched value
+    App->>Cache: cache[7]
+    Note over Cache: Cached entry<br/>is fresh
+    Cache-->>App: Return cached value
+    App->>Cache: Invalidate(7)
+    Cache->>Cache: Mark entry invalidated
+    App->>Cache: cache[7]
+    Note over Cache: Cached entry<br/>is invalidated
+    Cache->>Cache: Remove invalidated entry
+    Cache->>Source: Fetch(7)
+    Source-->>Cache: Fetched value
+    Cache->>Cache: Store fetched value
+    Cache-->>App: Return fetched value
 ```
 
 Object caches use [idpFreeAndNil](src/Sphere10/UMemory.pas) to free admitted objects on removal or destruction.
