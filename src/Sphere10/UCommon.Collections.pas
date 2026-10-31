@@ -14,6 +14,33 @@ unit UCommon.Collections;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                       | Purpose
+  ---------------------------+-----------------------------------------------------------------------
+  TComparerTool<T>           | Creates and combines comparison functions and comparer objects.
+  IPredicate<T>              | Tests whether a value satisfies a condition.
+  ITransformer<T1, T2>       | Converts a value from one generic type to another.
+  TPredicateTool<T>          | Creates and combines reusable value predicates.
+  TListTool<T>               | Copies, slices, filters and removes list contents.
+  TListTool<T1, T2>          | Transforms list or array values into another element type.
+  TSortedHashSetTool<T>      | Removes and returns one value from a Free Pascal sorted hash set.
+  TNestedComparer<T>         | Adapts a nested comparison function to IComparer<T>.
+  TObjectComparer<T>         | Adapts an object comparison method to IComparer<T>.
+  TGlobalComparer<T>         | Adapts a global comparison function to IComparer<T>.
+  TManyComparer<T>           | Applies ordered comparers until one distinguishes the values.
+  TInvertedComparer<T>       | Reverses another comparer's ordering.
+  TNestedPredicate<T>        | Adapts a nested function to IPredicate<T>.
+  TObjectPredicate<T>        | Adapts an object method to IPredicate<T>.
+  TGlobalPredicate<T>        | Adapts a global function to IPredicate<T>.
+  TNotPredicate<T>           | Negates another predicate.
+  TAndManyPredicate<T>       | Requires every supplied predicate to match.
+  TOrManyPredicate<T>        | Matches when any supplied predicate succeeds.
+  TNestedTransformer<T1, T2> | Adapts a nested conversion function to ITransformer<T1, T2>.
+  TObjectTransformer<T1, T2> | Adapts an object conversion method to ITransformer<T1, T2>.
+  TGlobalTransformer<T1, T2> | Adapts a global conversion function to ITransformer<T1, T2>.
+}
+
 {$IFDEF FPC}
   {$mode delphi}
   {$modeswitch nestedprocvars}

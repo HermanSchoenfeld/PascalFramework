@@ -14,6 +14,15 @@ unit UMemory;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                            | Purpose
+  --------------------------------+-----------------------------------------------------------------------
+  TDisposables                    | Releases registered objects and memory in reverse order at scope exit.
+  TDisposables.TDisposablePointer | Associates one owned pointer with its disposal policy.
+  TDisposables.TGuard             | Finalizes the original disposal bag when its guardian is released.
+}
+
 
 {$IFDEF FPC}
   {$MODE DELPHI}{$H+}

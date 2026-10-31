@@ -13,6 +13,26 @@ unit UVisualGrid;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                                   | Purpose
+  ---------------------------------------+-----------------------------------------------------------------------
+  TVisualGridSelection                   | Describes selected cells, rows and their associated data.
+  TVisualColumn                          | Configures a column's binding, layout, filters and appearance.
+  EVisualGridError                       | Reports invalid grid configuration or operations.
+  TVisualGridCaption                     | Exposes the grid caption's text, font, visibility and alignment.
+  TCustomVisualGrid                      | Coordinates rendering, paging, filtering, loading and refreshes.
+  TCustomVisualGrid.TLastFetchDataResult | Stores completion metadata for the latest page fetch.
+  TCustomVisualGrid.TSearchEdit          | Owns the search controls associated with a grid column.
+  TVisualGrid                            | Publishes the reusable grid's design-time properties and events.
+  TVisualCellRenderers                   | Supplies reusable cell-drawing callbacks.
+  TVisualGridSearchExpressionService     | Provides the grid search-service extension point.
+  TDrawGridAccess                        | Exposes protected native grid members to implementation code.
+  TFetchDataThread                       | Fetches page data on the grid's owned background worker.
+  TDrawGrid                              | Adapts VCL grid drawing and geometry to the shared grid implementation.
+  TCheckComboBox                         | Supplies the VCL column-picker control used by the grid.
+}
+
 
 {$IFDEF FPC}
 {$MODE DELPHI}
