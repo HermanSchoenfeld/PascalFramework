@@ -14,6 +14,17 @@ unit UWizard;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type             | Purpose
+  -----------------+-----------------------------------------------------------------------
+  TWizardHostForm  | Hosts one wizard screen and its navigation buttons in one window.
+  TWizardFormBase  | Identifies a hosted wizard screen's model type.
+  TWizardForm<T>   | Provides typed model access and screen validation lifecycle hooks.
+  TWizard<T>       | Coordinates navigation, dynamic routes, finish and cancellation.
+  TActionWizard<T> | Runs a typed wizard with supplied finish and cancel callbacks.
+}
+
 
 {$IFDEF FPC}
   {$MODE Delphi}

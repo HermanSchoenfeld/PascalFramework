@@ -51,6 +51,8 @@ GitHub results separately from local Delphi and Lazarus checks.
 | [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
 | [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Shared-memory synchronization with concurrent readers, one exclusive writer, upgradeable reads, optional recursion, timed acquisition and thread ownership checks. |
 
+Each framework unit starts with a type table and short descriptions.
+
 The bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
 library supplies the Free Pascal lists, dictionaries, queues, stacks and sets;
 Delphi uses its native RTL generics. UI components select Lazarus LCL or Delphi

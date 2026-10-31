@@ -13,6 +13,51 @@ unit UCache;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                                          | Purpose
+  ----------------------------------------------+-------------------------------------------------------------------------
+  TCacheItemDisposePolicy                       | Selects how owned cache values are released.
+  TCacheExpirationPolicy                        | Selects fixed, sliding or unlimited entry lifetime.
+  TCacheReapPolicy                              | Selects eviction order when capacity is needed.
+  TCacheNullValuePolicy                         | Controls admission and return of null values.
+  TCacheStaleValuePolicy                        | Controls on-demand checks for changed source values.
+  TCachedItem<TValue>                           | Retains a value and its lifetime, size and access metadata.
+  TCacheItemFetchingEvent<TKey>                 | Notifies a listener before a per-key fetch.
+  TCacheItemValueEvent<TKey, TValue>            | Notifies a listener with a key and value.
+  TCacheItemRemovingEvent<TKey, TValue>         | Notifies a listener before an entry is removed.
+  ICacheValueFetcher<TKey, TValue>              | Supplies one value for a requested key.
+  ICacheSizeEstimator<TValue>                   | Reports the capacity units used by a value.
+  TCacheNestedFetchFunc<TKey, TValue>           | Defines a captured per-key fetch callback.
+  TCacheObjectFetchFunc<TKey, TValue>           | Defines an object-method per-key fetch callback.
+  TCacheGlobalFetchFunc<TKey, TValue>           | Defines a global per-key fetch callback.
+  TCacheNestedEstimateFunc<TValue>              | Defines a captured value-size callback.
+  TCacheObjectEstimateFunc<TValue>              | Defines an object-method value-size callback.
+  TCacheGlobalEstimateFunc<TValue>              | Defines a global value-size callback.
+  TCacheValueFetcher<TKey, TValue>              | Adapts global, object and captured callbacks to a fetch interface.
+  TCacheValueFetcher.GlobalFunctionValueFetcher | Privately invokes a global per-key fetch callback.
+  TCacheValueFetcher.ObjectFunctionValueFetcher | Privately invokes an object-method fetch callback.
+  TCacheValueFetcher.NestedFunctionValueFetcher | Privately retains and invokes a captured fetch callback.
+  TCacheSizeEstimator<TValue>                   | Adapts size callbacks to a shared estimation interface.
+  TCacheSizeEstimator.GlobalFunctionEstimator   | Privately invokes a global size callback.
+  TCacheSizeEstimator.ObjectFunctionEstimator   | Privately invokes an object-method size callback.
+  TCacheSizeEstimator.NestedFunctionEstimator   | Privately retains and invokes a captured size callback.
+  TCacheBulkValues<TKey, TValue>                | Holds the dictionary filled by a bulk-fetch provider.
+  ICacheBulkValueFetcher<TKey, TValue>          | Fills a complete batch of cache values.
+  TCacheNestedBulkFetchProc<TKey, TValue>       | Defines a captured bulk-fill callback.
+  TCacheObjectBulkFetchProc<TKey, TValue>       | Defines an object-method bulk-fill callback.
+  TCacheGlobalBulkFetchProc<TKey, TValue>       | Defines a global bulk-fill callback.
+  TCacheBulkValueFetcher<TKey, TValue>          | Adapts bulk-fill callbacks to a shared fetch interface.
+  TCacheBulkValueFetcher.TGlobalFetcher         | Privately invokes a global bulk-fill callback.
+  TCacheBulkValueFetcher.TObjectFetcher         | Privately invokes an object-method bulk-fill callback.
+  TCacheBulkValueFetcher.TNestedFetcher         | Privately retains and invokes a captured bulk-fill callback.
+  TCacheBase<TKey, TValue>                      | Manages cached entries, ownership, expiration and eviction.
+  TActionCache<TKey, TValue>                    | Fetches and sizes individual values through callbacks.
+  TBulkFetchCacheBase<TKey, TValue>             | Loads and refreshes complete batches of values.
+  TBulkFetchActionCache<TKey, TValue>           | Fills bulk cache snapshots through a callback provider.
+  TPreloadedCache<TKey, TValue>                 | Caches a borrowed dictionary as a fetch-once snapshot.
+}
+
 {$IFDEF FPC}
   {$MODE Delphi}
   {$MODESWITCH NESTEDPROCVARS}

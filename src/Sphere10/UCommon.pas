@@ -12,6 +12,29 @@
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                                  | Purpose
+  --------------------------------------+-----------------------------------------------------------------------
+  TScope                                | Runs a retained cleanup method when the final owning scope ends.
+  TScope.TGuard                         | Privately retains and invokes a scope's deferred cleanup method.
+  TTimeSpan                             | Represents durations with arithmetic and millisecond conversions.
+  TBox<T>                               | Holds a generic value in an object with reference identity.
+  TLogMessage                           | Stores diagnostic text with its severity and timestamp.
+  TResult                               | Collects diagnostics and an optional result value with success status.
+  TDateTimeHelper                       | Adds date boundaries, arithmetic, comparisons and formatting.
+  TNotifyManyEvent                      | Retains multicast handlers and their main-thread delivery choices.
+  TNotifyManyEventHelper                | Adds, removes and invokes multicast handlers.
+  TThreadNotify                         | Queues notifications for delivery on a selected thread.
+  TThreadNotify.TPendingNotifyManyEvent | Stores one pending sender and handler snapshot.
+  TArrayTool<T>                         | Searches, copies and edits generic arrays.
+  TVariantTool                          | Compares, converts and matches text and numeric Variant values.
+  TFileStreamHelper                     | Adds plain UTF-8 string writing to Delphi file streams.
+  TFileTool                             | Appends UTF-8 text lines to files.
+  TCPUTool                              | Reports the number of logical processors.
+  TStatistics                           | Maintains running totals, extrema, means and variance estimates.
+}
+
 unit UCommon;
 
 {$IFDEF FPC}

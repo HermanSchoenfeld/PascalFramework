@@ -13,6 +13,30 @@ unit UCommon.Data;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{ Types in this unit
+
+  Type                             | Purpose
+  ---------------------------------+-----------------------------------------------------------------------
+  TDataColumn                      | Describes a named column and whether it identifies a row.
+  TDataRow                         | Implements named-field Variant rows and dynamic field access.
+  EDataRow                         | Reports invalid data-row access or operations.
+  TDataRowData                     | Stores the internal named-row Variant layout.
+  TColumnFilter                    | Holds a column's search values and sorting configuration.
+  TDataTable                       | Pairs column metadata with an array of Variant rows.
+  EDataTable                       | Reports invalid table configuration or operations.
+  TColumnFilterPredicate<T>        | Adapts a column filter and item callback into a predicate.
+  TColumnFieldComparer<T>          | Adapts a column's sort callback into a comparer.
+  TPageFetchParams                 | Describes a page request, its filters and filter-combination rule.
+  TPageFetchResult                 | Reports the returned page index, page count and total row count.
+  IDataSource                      | Supplies filtered and sorted pages of named Variant rows.
+  TCustomDataSource<T>             | Provides generic paging, filtering, sorting and snapshot caching.
+  TExpressionRecord                | Stores a parsed text, numeric or range search expression.
+  ESearchExpressionParserException | Reports an invalid search expression.
+  TSearchExpressionService         | Parses text, numeric and range search expressions.
+  TDataSourceTool<T>               | Builds row comparers and predicates from column filters.
+  TUTF8Char                        | Holds one decoded UTF-8 character for the expression tokenizer.
+}
+
 {$IFDEF FPC}
   {$MODE Delphi}
   {$MODESWITCH NESTEDPROCVARS}
