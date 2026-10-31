@@ -179,7 +179,7 @@ ordering/transfers/reallocation, both
 recursion policies, promotion/downgrade, blocked acquisition and thread affinity.
 Delphi enables shutdown leak reporting; FPC can run with heap tracing (`-gh`).
 
-## Whole-source caches
+## Bulk-Fetch Caching
 
 Build [BulkCacheProbe.dproj](BulkCacheProbe.dproj) with Delphi or compile its
 [shared source](BulkCacheProbe.dpr) with Lazarus/FPC. It runs the same bulk-cache

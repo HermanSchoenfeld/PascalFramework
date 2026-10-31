@@ -15,49 +15,35 @@ generics and protected/private implementation types are excluded.
 
 | Public type | Worked example | Note |
 | --- | --- | --- |
-| `TItemDisposePolicy` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheItemDisposePolicy` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCachedItem<TValue>` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheBase<TKey, TValue>` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.TExpirationPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TCacheBase<TKey, TValue>.TCacheReapPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TCacheBase<TKey, TValue>.TNullValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TCacheBase<TKey, TValue>.TStaleValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TCacheBase<TKey, TValue>.TItemFetchingEvent` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.TItemValueEvent` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.TItemRemovingEvent` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.__TCachedItem_TValue` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.__TPair_TKey_TValue` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBase<TKey, TValue>.__TPair_TKey_TCachedItem` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheExpirationPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Fixed/sliding expiration or no expiration. |
+| `TCacheReapPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Capacity eviction strategy. |
+| `TCacheNullValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Retain, bypass or reject null values. |
+| `TCacheStaleValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Optional on-demand staleness checks. |
+| `TCacheItemFetchingEvent<TKey>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheItemValueEvent<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheItemRemovingEvent<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TActionCache<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TExpirationPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TActionCache<TKey, TValue>.TCacheReapPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TActionCache<TKey, TValue>.TNullValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TActionCache<TKey, TValue>.TStaleValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TActionCache<TKey, TValue>.IValueFetcher` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.ISizeEstimator` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TNestedFetchFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TObjectFetchFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TGlobalFetchFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TNestedEstimateFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TObjectEstimateFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TGlobalEstimateFunc` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TValueFetcher` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TActionCache<TKey, TValue>.TSizeEstimator` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `ICacheValueFetcher<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `ICacheSizeEstimator<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheNestedFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheObjectFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheGlobalFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheNestedEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheObjectEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheGlobalEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheValueFetcher<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheSizeEstimator<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TBulkFetchCacheBase<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchCacheBase<TKey, TValue>.TExpirationPolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchCacheBase<TKey, TValue>.TNullValuePolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchCacheBase<TKey, TValue>.TStaleValuePolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchCacheBase<TKey, TValue>.TBulkValues` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheBulkValues<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TBulkFetchActionCache<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.TExpirationPolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchActionCache<TKey, TValue>.TNullValuePolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchActionCache<TKey, TValue>.TStaleValuePolicy` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) | Policy aliases share the demonstrated base type. |
-| `TBulkFetchActionCache<TKey, TValue>.TBulkValues` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.IBulkValueFetcher` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.TNestedBulkFetchProc` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.TObjectBulkFetchProc` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.TGlobalBulkFetchProc` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TBulkFetchActionCache<TKey, TValue>.TBulkValueFetcher` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `ICacheBulkValueFetcher<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheNestedBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheObjectBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheGlobalBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheBulkValueFetcher<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TPreloadedCache<TKey, TValue>` | [ShowPreloaded](../examples/demo/UCacheApiExamples.pas) |  |
 
 ## UCommon

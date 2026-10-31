@@ -10,7 +10,7 @@ unit UBulkCacheChecks;
 
 interface
 
-const BulkCacheCheckCount = 27;
+const BulkCacheCheckCount = 29;
 
 // The same assertions run from FPCUnit and the native Delphi probe.
 procedure RunBulkCacheCheck(AIndex: Integer);
@@ -25,13 +25,11 @@ uses
 
 type
   TPlainBase = TCacheBase<Integer, String>;
-  TObjectPlainBase = TCacheBase<Integer, TObject>;
-  TExpiry = TPlainBase.TExpirationPolicy;
-  TStale = TPlainBase.TStaleValuePolicy;
-  TNull = TPlainBase.TNullValuePolicy;
   TBulkBase = TBulkFetchCacheBase<Integer, String>;
   TBulkAction = TBulkFetchActionCache<Integer, String>;
-  TValues = TDictionary<Integer, String>;
+  TPerKeyAction = TActionCache<Integer, String>;
+  TScalarAction = TActionCache<String, Integer>;
+  TValues = TCacheBulkValues<Integer, String>;
   TTestBulk = class(TBulkBase)
   public
     Source: TValues;
@@ -48,11 +46,18 @@ type
   public
     Source: TValues;
     Cache: TTestBulk;
+    FetchingCount, FetchedCount, RemovingCount, RemovedCount: Integer;
     constructor Create(AOnce: Boolean;
-      AExpiry: TExpiry;
-      AStale: TStale;
-      ANull: TNull);
+      AExpiry: TCacheExpirationPolicy;
+      AStale: TCacheStaleValuePolicy;
+      ANull: TCacheNullValuePolicy);
     procedure FillValues(AValues: TValues);
+    function FetchValue(const AKey: Integer): String;
+    function EstimateValue(const AValue: String): SizeInt;
+    procedure Fetching(Sender: TObject; const AKey: Integer);
+    procedure Fetched(Sender: TObject; const AKey: Integer; const AValue: String);
+    procedure Removing(Sender: TObject; const AKey: Integer; AItem: TCachedItem<String>);
+    procedure Removed(Sender: TObject; const AKey: Integer; const AValue: String);
   end;
 
   TBulkReader = class(TThread)
@@ -64,10 +69,10 @@ type
   end;
 
   TObjectBulk = TBulkFetchActionCache<Integer, TObject>;
-  TObjectValues = TDictionary<Integer, TObject>;
+  TObjectValues = TCacheBulkValues<Integer, TObject>;
   TInterfaceBulk = TBulkFetchActionCache<Integer, IInterface>;
   TInterfaceCache = TCacheBase<Integer, IInterface>;
-  TInterfaceValues = TDictionary<Integer, IInterface>;
+  TInterfaceValues = TCacheBulkValues<Integer, IInterface>;
   TDestructionCheckValue = class(TInterfacedObject)
   private
     FCache: TInterfaceCache;
@@ -87,8 +92,8 @@ begin
   if not ACondition then raise Exception.Create(AMessage);
 end;
 
-constructor TContext.Create(AOnce: Boolean; AExpiry: TExpiry;
-  AStale: TStale; ANull: TNull);
+constructor TContext.Create(AOnce: Boolean; AExpiry: TCacheExpirationPolicy;
+  AStale: TCacheStaleValuePolicy; ANull: TCacheNullValuePolicy);
 begin
   inherited Create;
   Source := TValues(FResources.AddObject(TValues.Create));
@@ -102,6 +107,36 @@ procedure TContext.FillValues(AValues: TValues);
 var pair: TPair<Integer,String>;
 begin
   for pair in Source do AValues.AddOrSetValue(pair.Key,pair.Value);
+end;
+
+function TContext.FetchValue(const AKey: Integer): String;
+begin
+  Result := IntToStr(AKey);
+end;
+
+function TContext.EstimateValue(const AValue: String): SizeInt;
+begin
+  Result := Length(AValue);
+end;
+
+procedure TContext.Fetching(Sender: TObject; const AKey: Integer);
+begin
+  Inc(FetchingCount);
+end;
+
+procedure TContext.Fetched(Sender: TObject; const AKey: Integer; const AValue: String);
+begin
+  Inc(FetchedCount);
+end;
+
+procedure TContext.Removing(Sender: TObject; const AKey: Integer; AItem: TCachedItem<String>);
+begin
+  Inc(RemovingCount);
+end;
+
+procedure TContext.Removed(Sender: TObject; const AKey: Integer; const AValue: String);
+begin
+  Inc(RemovedCount);
 end;
 
 procedure TTestBulk.BulkFetch(AValues: TValues);
@@ -160,6 +195,223 @@ begin
   AValues.Add(7,'global');
 end;
 
+function FetchPerKey(const AKey: Integer): String;
+begin
+  Result := IntToStr(AKey);
+end;
+
+function FetchScalar(const AKey: String): Integer;
+begin
+  Result := Length(AKey);
+end;
+
+function EstimateText(const AValue: String): SizeInt;
+begin
+  Result := Length(AValue);
+end;
+
+procedure CheckSiblingCallbacks;
+var
+  resources: TDisposables;
+  ctx: TContext;
+  perKey: TPerKeyAction;
+  bulk: TBulkAction;
+  preloaded: TPreloadedCache<Integer, String>;
+  values: TCacheBulkValues<Integer, String>;
+  globalFetch: TCacheGlobalFetchFunc<Integer, String>;
+  objectFetch: TCacheObjectFetchFunc<Integer, String>;
+  nestedFetch: TCacheNestedFetchFunc<Integer, String>;
+  globalEstimate: TCacheGlobalEstimateFunc<String>;
+  objectEstimate: TCacheObjectEstimateFunc<String>;
+  nestedEstimate: TCacheNestedEstimateFunc<String>;
+  globalBulk: TCacheGlobalBulkFetchProc<Integer, String>;
+  objectBulk: TCacheObjectBulkFetchProc<Integer, String>;
+  nestedBulk: TCacheNestedBulkFetchProc<Integer, String>;
+  fetcher: ICacheValueFetcher<Integer, String>;
+  estimator: ICacheSizeEstimator<String>;
+  bulkFetcher: ICacheBulkValueFetcher<Integer, String>;
+  fetching: TCacheItemFetchingEvent<Integer>;
+  fetched, removed: TCacheItemValueEvent<Integer, String>;
+  removing: TCacheItemRemovingEvent<Integer, String>;
+  suffix: String;
+  {$IFDEF FPC}
+  function FetchNested(const AKey: Integer): String;
+  begin
+    Result := IntToStr(AKey) + suffix;
+  end;
+  function EstimateNested(const AValue: String): SizeInt;
+  begin
+    Result := Length(AValue) + Length(suffix);
+  end;
+  procedure FillNested(AValues: TCacheBulkValues<Integer, String>);
+  begin
+    AValues.Add(9,suffix);
+  end;
+  {$ENDIF}
+begin
+  ctx := TContext(resources.AddObject(TContext.Create(False,TCacheExpirationPolicy.epNone,
+    TCacheStaleValuePolicy.svpAssumeNeverStale,TCacheNullValuePolicy.nvpCacheNormally)));
+  values := TCacheBulkValues<Integer, String>(resources.AddObject(TCacheBulkValues<Integer, String>.Create));
+  globalFetch := FetchPerKey;
+  globalEstimate := EstimateText;
+  fetcher := TCacheValueFetcher<Integer, String>.FromGlobalFunction(globalFetch);
+  estimator := TCacheSizeEstimator<String>.FromGlobalFunction(globalEstimate);
+  fetcher := TCacheValueFetcher<Integer, String>.Create(fetcher);
+  estimator := TCacheSizeEstimator<String>.Create(estimator);
+  Check(fetcher.Fetch(7) = '7','Unit-scoped global fetch adapter and wrapper');
+  Check(estimator.Estimate('seven') = 5,'Unit-scoped global estimator and wrapper');
+  objectFetch := ctx.FetchValue;
+  objectEstimate := ctx.EstimateValue;
+  Check(TCacheValueFetcher<Integer, String>.FromObjectFunction(objectFetch).Fetch(8) = '8',
+    'Unit-scoped object fetch adapter');
+  Check(TCacheSizeEstimator<String>.FromObjectFunction(objectEstimate).Estimate('eight') = 5,
+    'Unit-scoped object estimator');
+  globalBulk := GlobalFill;
+  objectBulk := ctx.FillValues;
+  bulkFetcher := TCacheBulkValueFetcher<Integer, String>.FromGlobalFunction(globalBulk);
+  bulkFetcher := TCacheBulkValueFetcher<Integer, String>.Create(bulkFetcher);
+  bulkFetcher.Fetch(values);
+  Check(values[7] = 'global','Unit-scoped global bulk adapter and wrapper');
+  values.Clear;
+  TCacheBulkValueFetcher<Integer, String>.FromObjectFunction(objectBulk).Fetch(values);
+  Check(values[2] = 'two','Unit-scoped object bulk adapter');
+  values.Clear;
+  suffix := 'nested';
+  {$IFDEF FPC}
+  nestedFetch := FetchNested;
+  nestedEstimate := EstimateNested;
+  nestedBulk := FillNested;
+  {$ELSE}
+  nestedFetch := function(const AKey: Integer): String
+    begin
+      Result := IntToStr(AKey) + suffix;
+    end;
+  nestedEstimate := function(const AValue: String): SizeInt
+    begin
+      Result := Length(AValue) + Length(suffix);
+    end;
+  nestedBulk := procedure(AValues: TCacheBulkValues<Integer, String>)
+    begin
+      AValues.Add(9,suffix);
+    end;
+  {$ENDIF}
+  Check(TCacheValueFetcher<Integer, String>.FromNestedFunction(nestedFetch).Fetch(9) = '9nested',
+    'Unit-scoped nested fetch adapter');
+  Check(TCacheSizeEstimator<String>.FromNestedFunction(nestedEstimate).Estimate('nine') = 10,
+    'Unit-scoped nested estimator');
+  TCacheBulkValueFetcher<Integer, String>.FromNestedFunction(nestedBulk).Fetch(values);
+  Check(values[9] = 'nested','Unit-scoped nested bulk adapter');
+
+  // One event variable now binds to each cache kind without inherited-type aliases or casts.
+  fetching := ctx.Fetching;
+  fetched := ctx.Fetched;
+  removing := ctx.Removing;
+  removed := ctx.Removed;
+  perKey := TPerKeyAction(resources.AddObject(TPerKeyAction.Create(nil,fetcher,estimator,
+    idpNone,TCacheReapPolicy.crpNone,TCacheExpirationPolicy.epNone,
+    TCacheNullValuePolicy.nvpCacheNormally,10,TTimeSpan.MaxValue)));
+  bulk := TBulkAction(resources.AddObject(TBulkAction.Create(nil,bulkFetcher,
+    TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue)));
+  preloaded := TPreloadedCache<Integer, String>(resources.AddObject(
+    TPreloadedCache<Integer, String>.Create(nil,ctx.Source)));
+  perKey.ItemFetching := fetching;
+  bulk.ItemFetching := fetching;
+  preloaded.ItemFetching := fetching;
+  perKey.ItemFetched := fetched;
+  bulk.ItemFetched := fetched;
+  preloaded.ItemFetched := fetched;
+  perKey.ItemRemoving := removing;
+  bulk.ItemRemoving := removing;
+  preloaded.ItemRemoving := removing;
+  perKey.ItemRemoved := removed;
+  bulk.ItemRemoved := removed;
+  preloaded.ItemRemoved := removed;
+  Check(perKey[7] = '7','Ordinary cache uses sibling adapters and shared events');
+  Check(bulk[7] = 'global','Bulk cache uses sibling adapters and shared events');
+  Check(preloaded[1] = 'one','Preloaded cache uses the shared events');
+  perKey.Purge;
+  bulk.Purge;
+  preloaded.Purge;
+  // Bulk snapshots use explicit admission; only the ordinary request invokes per-key fetching.
+  Check(ctx.FetchingCount = 1,'Bulk admission does not invent per-key fetching notifications');
+  Check(ctx.FetchedCount = 1,'Bulk admission does not invent per-key fetched notifications');
+  Check(ctx.RemovingCount = 4,'All cache kinds publish removing through one event type');
+  Check(ctx.RemovedCount = 4,'All cache kinds publish removed through one event type');
+end;
+
+procedure CheckUnitScopedPolicies;
+var
+  resources: TDisposables;
+  perKey: TPerKeyAction;
+  scalar: TScalarAction;
+  bulk: TBulkAction;
+  preloaded: TPreloadedCache<Integer, String>;
+  source: TDictionary<Integer, String>;
+  expiration: TCacheExpirationPolicy;
+  reap: TCacheReapPolicy;
+  nulls: TCacheNullValuePolicy;
+  stale: TCacheStaleValuePolicy;
+begin
+  // Every specialization must accept the same policy variables without a base alias or cast.
+  for expiration := Low(TCacheExpirationPolicy) to High(TCacheExpirationPolicy) do
+    for reap := Low(TCacheReapPolicy) to High(TCacheReapPolicy) do
+      for nulls := Low(TCacheNullValuePolicy) to High(TCacheNullValuePolicy) do
+        for stale := Low(TCacheStaleValuePolicy) to High(TCacheStaleValuePolicy) do begin
+          perKey := TPerKeyAction.Create(nil,
+            TCacheValueFetcher<Integer,String>.FromGlobalFunction(FetchPerKey),nil,
+            idpNone,reap,expiration,nulls,4,TTimeSpan.MaxValue,0.1,stale);
+          try
+            scalar := TScalarAction.Create(nil,
+              TCacheValueFetcher<String,Integer>.FromGlobalFunction(FetchScalar),nil,
+              idpNone,perKey.ReapPolicy,perKey.ExpirationPolicy,
+              perKey.NullValuePolicy,4,TTimeSpan.MaxValue,0.1,perKey.StaleValuePolicy);
+            try
+              Check(scalar.ReapPolicy = reap,'Reap policy is shared across specializations');
+              Check(scalar.ExpirationPolicy = expiration,'Expiration policy is shared across specializations');
+              Check(scalar.NullValuePolicy = nulls,'Null policy is shared across specializations');
+              Check(scalar.StaleValuePolicy = stale,'Stale policy is shared across specializations');
+              Check(perKey[7] = '7','Per-key cache uses shared policy configuration');
+              Check(scalar['seven'] = 5,'A different key/value specialization uses the same policies');
+            finally
+              scalar.Free;
+            end;
+          finally
+            perKey.Free;
+          end;
+        end;
+
+  for expiration := Low(TCacheExpirationPolicy) to High(TCacheExpirationPolicy) do
+    for nulls := Low(TCacheNullValuePolicy) to High(TCacheNullValuePolicy) do
+      for stale := Low(TCacheStaleValuePolicy) to High(TCacheStaleValuePolicy) do begin
+        bulk := TBulkAction.Create(nil,
+          TCacheBulkValueFetcher<Integer,String>.FromGlobalFunction(GlobalFill),
+          expiration,TTimeSpan.MaxValue,False,nulls,stale);
+        try
+          Check(bulk.ExpirationPolicy = expiration,'Bulk constructor accepts the unit expiration type');
+          Check(bulk.NullValuePolicy = nulls,'Bulk constructor accepts the unit null type');
+          Check(bulk.StaleValuePolicy = stale,'Bulk constructor accepts the unit stale type');
+          Check(bulk[7] = 'global','Bulk cache remains usable with every policy configuration');
+        finally
+          bulk.Free;
+        end;
+      end;
+
+  // Preloaded sources still accept an ordinary caller-owned RTL dictionary.
+  source := TDictionary<Integer, String>(resources.AddObject(TDictionary<Integer, String>.Create));
+  source.Add(7,'preloaded');
+  preloaded := TPreloadedCache<Integer, String>(resources.AddObject(
+    TPreloadedCache<Integer, String>.Create(nil,source)));
+  expiration := preloaded.ExpirationPolicy;
+  reap := preloaded.ReapPolicy;
+  nulls := preloaded.NullValuePolicy;
+  stale := preloaded.StaleValuePolicy;
+  Check(expiration = TCacheExpirationPolicy.epNone,'Preloaded cache exposes the shared expiration type');
+  Check(reap = TCacheReapPolicy.crpNone,'Preloaded cache exposes the shared reap type');
+  Check(nulls = TCacheNullValuePolicy.nvpCacheNormally,'Preloaded cache exposes the shared null type');
+  Check(stale = TCacheStaleValuePolicy.svpAssumeNeverStale,'Preloaded cache exposes the shared stale type');
+  Check(preloaded[7] = 'preloaded','Preloaded cache retains its source behavior');
+end;
+
 procedure RunBulkCacheCheck(AIndex: Integer);
 var
   ctx: TContext;
@@ -170,18 +422,18 @@ var
   failed: Boolean;
   i: Integer;
   readers: array[0..3] of TBulkReader;
-  fetcher: TBulkAction.IBulkValueFetcher;
-  wrapper: TBulkAction.TBulkValueFetcher;
-  nullPolicy: TObjectPlainBase.TNullValuePolicy;
+  fetcher: ICacheBulkValueFetcher<Integer,String>;
+  wrapper: TCacheBulkValueFetcher<Integer,String>;
+  nullPolicy: TCacheNullValuePolicy;
   objectCache: TObjectBulk;
   objectValue: TTrackedValue;
   nestedValue: String;
   original: TCachedItem<String>;
   interfaceCache: TInterfaceBulk;
-  interfaceFetcher: TInterfaceBulk.TNestedBulkFetchProc;
+  interfaceFetcher: TCacheNestedBulkFetchProc<Integer,IInterface>;
   destructionRejected: Boolean;
-  objectFetcher: TObjectBulk.TNestedBulkFetchProc;
-  nestedFetcher: TBulkAction.TNestedBulkFetchProc;
+  objectFetcher: TCacheNestedBulkFetchProc<Integer,TObject>;
+  nestedFetcher: TCacheNestedBulkFetchProc<Integer,String>;
   {$IFDEF FPC}
   procedure NestedFill(AValues: TValues);
   begin
@@ -198,6 +450,14 @@ var
   end;
   {$ENDIF}
 begin
+  if AIndex = 29 then begin
+    CheckSiblingCallbacks;
+    Exit;
+  end;
+  if AIndex = 28 then begin
+    CheckUnitScopedPolicies;
+    Exit;
+  end;
   if AIndex = 10 then begin
     // Bulk cache payloads stay owned by the source, including nil policies.
     DestroyedValues := 0;
@@ -211,16 +471,16 @@ begin
         AValues.Add(2,objectValue);
       end;
     {$ENDIF}
-    for nullPolicy := Low(TObjectPlainBase.TNullValuePolicy) to High(TObjectPlainBase.TNullValuePolicy) do begin
-      objectCache := TObjectBulk.Create(nil,TObjectBulk.TBulkValueFetcher.FromNestedFunction(objectFetcher),
-        TObjectPlainBase.TExpirationPolicy.epNone,TTimeSpan.MaxValue,True,nullPolicy);
+    for nullPolicy := Low(TCacheNullValuePolicy) to High(TCacheNullValuePolicy) do begin
+      objectCache := TObjectBulk.Create(nil,TCacheBulkValueFetcher<Integer,TObject>.FromNestedFunction(objectFetcher),
+        TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue,True,nullPolicy);
       try
         failed := False;
         try Check(objectCache[1] = nil,'Null snapshot entry must stay nil');
         except on E: EInvalidOperation do failed := True; end;
-        Check(failed = (nullPolicy = TObjectPlainBase.TNullValuePolicy.nvpThrow),'Null read policy');
+        Check(failed = (nullPolicy = TCacheNullValuePolicy.nvpThrow),'Null read policy');
         Check(objectCache[2] = objectValue,'Non-null borrowed payload');
-        Check(objectCache.ContainsCachedItem(1) = (nullPolicy <> TObjectPlainBase.TNullValuePolicy.nvpReturnButDontCache),
+        Check(objectCache.ContainsCachedItem(1) = (nullPolicy <> TCacheNullValuePolicy.nvpReturnButDontCache),
           'Null membership policy');
         objectCache.ForceRefresh;
       finally objectCache.Free; end;
@@ -230,8 +490,8 @@ begin
   end;
 
   ctx := TContext(resources.AddObject(TContext.Create((AIndex in [5,6,7,8,9,16,17,24,25]),
-    TExpiry.epSinceFetchedTime,
-    TStale.svpCheckStaleOnDemand,TNull.nvpCacheNormally)));
+    TCacheExpirationPolicy.epSinceFetchedTime,
+    TCacheStaleValuePolicy.svpCheckStaleOnDemand,TCacheNullValuePolicy.nvpCacheNormally)));
   case AIndex of
     1: begin
       Check(ctx.Cache[1] = 'one','Initial get');
@@ -318,8 +578,8 @@ begin
       Check(ctx.Source.Count = 2,'Preloaded does not clear source');
     end;
     16: begin
-      ctx := TContext(resources.AddObject(TContext.Create(True,TExpiry.epNone,
-        TStale.svpAssumeNeverStale,TNull.nvpThrow)));
+      ctx := TContext(resources.AddObject(TContext.Create(True,TCacheExpirationPolicy.epNone,
+        TCacheStaleValuePolicy.svpAssumeNeverStale,TCacheNullValuePolicy.nvpThrow)));
       failed := False;
       try nestedValue := ctx.Cache[99];
       except on E: EInvalidOperation do failed := True; end;
@@ -336,12 +596,12 @@ begin
     end;
     18: begin
       action := TBulkAction(resources.AddObject(TBulkAction.Create(nil,
-        TBulkAction.TBulkValueFetcher.FromGlobalFunction(GlobalFill),
-        TExpiry.epNone,TTimeSpan.MaxValue)));
+        TCacheBulkValueFetcher<Integer,String>.FromGlobalFunction(GlobalFill),
+        TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue)));
       Check(action[7] = 'global','Global adapter');
       action := TBulkAction(resources.AddObject(TBulkAction.Create(nil,
-        TBulkAction.TBulkValueFetcher.FromObjectFunction(ctx.FillValues),
-        TExpiry.epNone,TTimeSpan.MaxValue)));
+        TCacheBulkValueFetcher<Integer,String>.FromObjectFunction(ctx.FillValues),
+        TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue)));
       Check(action[2] = 'two','Object adapter');
       nestedValue := 'nested';
       {$IFDEF FPC}
@@ -352,28 +612,28 @@ begin
           AValues.Add(9,nestedValue);
         end;
       {$ENDIF}
-      fetcher := TBulkAction.TBulkValueFetcher.FromNestedFunction(nestedFetcher);
-      wrapper := TBulkAction.TBulkValueFetcher.Create(fetcher);
+      fetcher := TCacheBulkValueFetcher<Integer,String>.FromNestedFunction(nestedFetcher);
+      wrapper := TCacheBulkValueFetcher<Integer,String>.Create(fetcher);
       fetcher := wrapper;
       action := TBulkAction(resources.AddObject(TBulkAction.Create(nil,fetcher,
-        TExpiry.epNone,TTimeSpan.MaxValue)));
+        TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue)));
       Check(action[9] = 'nested','Nested adapter and interface wrapper');
     end;
     19: begin
       failed := False;
-      try fetcher := TBulkAction.TBulkValueFetcher.FromGlobalFunction(nil);
+      try fetcher := TCacheBulkValueFetcher<Integer,String>.FromGlobalFunction(nil);
       except on E: EArgumentNilException do failed := True; end;
       Check(failed,'Nil global callback rejected'); failed := False;
-      try fetcher := TBulkAction.TBulkValueFetcher.FromObjectFunction(nil);
+      try fetcher := TCacheBulkValueFetcher<Integer,String>.FromObjectFunction(nil);
       except on E: EArgumentNilException do failed := True; end;
       Check(failed,'Nil object callback rejected'); failed := False;
-      try fetcher := TBulkAction.TBulkValueFetcher.FromNestedFunction(nil);
+      try fetcher := TCacheBulkValueFetcher<Integer,String>.FromNestedFunction(nil);
       except on E: EArgumentNilException do failed := True; end;
       Check(failed,'Nil nested callback rejected'); failed := False;
-      try action := TBulkAction.Create(nil,nil,TExpiry.epNone,TTimeSpan.MaxValue);
+      try action := TBulkAction.Create(nil,nil,TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue);
       except on E: EArgumentNilException do failed := True; end;
       Check(failed,'Nil fetcher rejected'); failed := False;
-      try wrapper := TBulkAction.TBulkValueFetcher.Create(nil);
+      try wrapper := TCacheBulkValueFetcher<Integer,String>.Create(nil);
       except on E: EArgumentNilException do failed := True; end;
       Check(failed,'Nil wrapper fetcher rejected'); failed := False;
       try preloaded := TPreloadedCache<Integer,String>.Create(nil,nil);
@@ -447,8 +707,8 @@ begin
           AValues.Add(1,TDestructionCheckValue.Create(interfaceCache,@destructionRejected));
         end;
       {$ENDIF}
-      interfaceCache := TInterfaceBulk.Create(nil,TInterfaceBulk.TBulkValueFetcher.FromNestedFunction(interfaceFetcher),
-        TInterfaceCache.TExpirationPolicy.epNone,TTimeSpan.MaxValue,True);
+      interfaceCache := TInterfaceBulk.Create(nil,TCacheBulkValueFetcher<Integer,IInterface>.FromNestedFunction(interfaceFetcher),
+        TCacheExpirationPolicy.epNone,TTimeSpan.MaxValue,True);
       try
         interfaceCache.Get(1); // The entry owns the last managed interface reference.
       finally interfaceCache.Free; end;

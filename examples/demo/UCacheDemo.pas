@@ -144,11 +144,11 @@ var
 begin
   Log('Global function adapters');
   cache := TStringCache.Create(nil,
-    TStringCache.TValueFetcher.FromGlobalFunction(GlobalFetch),
-    TStringCache.TSizeEstimator.FromGlobalFunction(StringSize),
-    idpNone, TStringCache.TCacheReapPolicy.crpOldest,
-    TStringCache.TExpirationPolicy.epNone,
-    TStringCache.TNullValuePolicy.nvpCacheNormally, 128, TTimeSpan.MaxValue);
+    TCacheValueFetcher<Integer,String>.FromGlobalFunction(GlobalFetch),
+    TCacheSizeEstimator<String>.FromGlobalFunction(StringSize),
+    idpNone, TCacheReapPolicy.crpOldest,
+    TCacheExpirationPolicy.epNone,
+    TCacheNullValuePolicy.nvpCacheNormally, 128, TTimeSpan.MaxValue);
   try
     value := cache[7];
     Log('  ' + string(value));
@@ -168,11 +168,11 @@ begin
   FRevision := 1;
   FFetchCount := 0;
   cache := TStringCache.Create(nil,
-    TStringCache.TValueFetcher.FromObjectFunction(FetchString),
-    TStringCache.TSizeEstimator.FromGlobalFunction(StringSize),
-    idpNone, TStringCache.TCacheReapPolicy.crpOldest,
-    TStringCache.TExpirationPolicy.epSinceFetchedTime,
-    TStringCache.TNullValuePolicy.nvpCacheNormally, 128, TTimeSpan.FromMinutes(1));
+    TCacheValueFetcher<Integer,String>.FromObjectFunction(FetchString),
+    TCacheSizeEstimator<String>.FromGlobalFunction(StringSize),
+    idpNone, TCacheReapPolicy.crpOldest,
+    TCacheExpirationPolicy.epSinceFetchedTime,
+    TCacheNullValuePolicy.nvpCacheNormally, 128, TTimeSpan.FromMinutes(1));
   try
     cache.ItemFetching := Fetching;
     cache.ItemFetched := Fetched;
@@ -206,12 +206,12 @@ begin
   Log('');
   Log('Capacity, eviction and pinning');
   cache := TStringCache.Create(nil,
-    TStringCache.TValueFetcher.FromGlobalFunction(GlobalFetch),
-    TStringCache.TSizeEstimator.FromGlobalFunction(StringSize),
-    idpNone, TStringCache.TCacheReapPolicy.crpOldest,
-    TStringCache.TExpirationPolicy.epNone,
+    TCacheValueFetcher<Integer,String>.FromGlobalFunction(GlobalFetch),
+    TCacheSizeEstimator<String>.FromGlobalFunction(StringSize),
+    idpNone, TCacheReapPolicy.crpOldest,
+    TCacheExpirationPolicy.epNone,
     // Keep the same six-character capacity for FPC and Delphi native Strings.
-    TStringCache.TNullValuePolicy.nvpCacheNormally, 6 * SizeOf(Char), TTimeSpan.MaxValue);
+    TCacheNullValuePolicy.nvpCacheNormally, 6 * SizeOf(Char), TTimeSpan.MaxValue);
   try
     cache.ItemRemoving := Removing;
     cache.ItemRemoved := Removed;
@@ -244,11 +244,11 @@ begin
   Log('');
   Log('Owned objects');
   cache := TObjectCache.Create(nil,
-    TObjectCache.TValueFetcher.FromObjectFunction(FetchPayload),
-    TObjectCache.TSizeEstimator.FromGlobalFunction(ObjectSize),
-    idpFreeAndNil, TObjectCache.TCacheReapPolicy.crpOldest,
-    TObjectCache.TExpirationPolicy.epNone,
-    TObjectCache.TNullValuePolicy.nvpThrow, 2, TTimeSpan.MaxValue);
+    TCacheValueFetcher<Integer,TPayload>.FromObjectFunction(FetchPayload),
+    TCacheSizeEstimator<TPayload>.FromGlobalFunction(ObjectSize),
+    idpFreeAndNil, TCacheReapPolicy.crpOldest,
+    TCacheExpirationPolicy.epNone,
+    TCacheNullValuePolicy.nvpThrow, 2, TTimeSpan.MaxValue);
   try
     payload := cache[1];
     Log('  Borrowed value: ' + string(payload.Name));
