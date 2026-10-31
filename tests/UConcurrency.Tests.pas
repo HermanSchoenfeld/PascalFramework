@@ -11,8 +11,8 @@ uses Classes, SysUtils, SyncObjs, Generics.Collections, fpcunit, testregistry,
   UConcurrency;
 
 type
-  TLockAction = (laRead, laWrite, laUpgrade, laExitRead, laExitWrite,
-    laExitUpgrade, laCancellableRead, laUpgradeThenWrite);
+  TLockAction = (laRead, laWrite, laUpgrade, laReleaseRead, laReleaseWrite,
+    laReleaseUpgrade, laCancellableRead, laUpgradeThenWrite);
 
   TLockWorker = class(TThread)
   private
@@ -122,27 +122,27 @@ begin
   try
     try
       case FAction of
-        laRead: Acquired := FLock.TryEnterReadLock(FTimeout);
-        laWrite: Acquired := FLock.TryEnterWriteLock(FTimeout);
-        laUpgrade: Acquired := FLock.TryEnterUpgradeableReadLock(FTimeout);
-        laExitRead: FLock.ExitReadLock;
-        laExitWrite: FLock.ExitWriteLock;
-        laExitUpgrade: FLock.ExitUpgradeableReadLock;
+        laRead: Acquired := FLock.TryAcquireReadLock(FTimeout);
+        laWrite: Acquired := FLock.TryAcquireWriteLock(FTimeout);
+        laUpgrade: Acquired := FLock.TryAcquireUpgradeableReadLock(FTimeout);
+        laReleaseRead: FLock.ReleaseReadLock;
+        laReleaseWrite: FLock.ReleaseWriteLock;
+        laReleaseUpgrade: FLock.ReleaseUpgradeableReadLock;
         laCancellableRead:
           while not Terminated do
-            if FLock.TryEnterReadLock(FTimeout) then begin
-              FLock.ExitReadLock;
+            if FLock.TryAcquireReadLock(FTimeout) then begin
+              FLock.ReleaseReadLock;
               Break;
             end;
         laUpgradeThenWrite: begin
-          FLock.EnterUpgradeableReadLock;
+          FLock.AcquireUpgradeableReadLock;
           try
             Entered.SetEvent;
             if ReleaseGate.WaitFor(4000) <> wrSignaled then
               raise Exception.Create('Promotion start gate timed out.');
-            Acquired := FLock.TryEnterWriteLock(FTimeout);
-            if Acquired then FLock.ExitWriteLock;
-          finally FLock.ExitUpgradeableReadLock; end;
+            Acquired := FLock.TryAcquireWriteLock(FTimeout);
+            if Acquired then FLock.ReleaseWriteLock;
+          finally FLock.ReleaseUpgradeableReadLock; end;
         end;
       end;
       if Acquired and (FAction in [laRead, laWrite, laUpgrade]) then begin
@@ -155,9 +155,9 @@ begin
             raise Exception.Create('Test release gate timed out.');
         finally
           case FAction of
-            laRead: FLock.ExitReadLock;
-            laWrite: FLock.ExitWriteLock;
-            laUpgrade: FLock.ExitUpgradeableReadLock;
+            laRead: FLock.ReleaseReadLock;
+            laWrite: FLock.ReleaseWriteLock;
+            laUpgrade: FLock.ReleaseUpgradeableReadLock;
           end;
         end;
       end;
@@ -185,9 +185,9 @@ var LWorker: TLockWorker;
 begin
   for LWorker in FWorkers do LWorker.RequestStop;
   // Release test-thread ownership before joining blocked workers after a failure.
-  while FLock.IsWriteLockHeld do FLock.ExitWriteLock;
-  while FLock.IsUpgradeableReadLockHeld do FLock.ExitUpgradeableReadLock;
-  while FLock.IsReadLockHeld do FLock.ExitReadLock;
+  while FLock.IsWriteLockHeld do FLock.ReleaseWriteLock;
+  while FLock.IsUpgradeableReadLockHeld do FLock.ReleaseUpgradeableReadLock;
+  while FLock.IsReadLockHeld do FLock.ReleaseReadLock;
   for LWorker in FWorkers do LWorker.Free;
   FWorkers.Free;
   FLock.Free;
@@ -243,9 +243,9 @@ procedure TReadWriteLockTests.ExpectRecursion(AAction: TLockAction);
 begin
   try
     case AAction of
-      laRead: FLock.TryEnterReadLock(0);
-      laWrite: FLock.TryEnterWriteLock(0);
-      laUpgrade: FLock.TryEnterUpgradeableReadLock(0);
+      laRead: FLock.TryAcquireReadLock(0);
+      laWrite: FLock.TryAcquireWriteLock(0);
+      laUpgrade: FLock.TryAcquireUpgradeableReadLock(0);
     end;
     Fail('This recursion/promotion should be rejected.');
   except on E: ELockRecursionException do ; end;
@@ -262,12 +262,12 @@ end;
 procedure TReadWriteLockTests.DifferentThreadsReadConcurrently;
 var LReader: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LReader := Worker(laRead);
   Await(LReader.Entered, 'Second reader acquires while first still owns');
   AssertEquals(2, FLock.CurrentReadCount);
   AssertEquals(1, FLock.RecursiveReadCount);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   Release(LReader);
   AssertEquals(0, FLock.CurrentReadCount);
 end;
@@ -275,7 +275,7 @@ end;
 procedure TReadWriteLockTests.WriterExcludesOtherReadersWritersAndUpgraders;
 var LAction: TLockAction; LWorker: TLockWorker;
 begin
-  FLock.EnterWriteLock;
+  FLock.AcquireWriteLock;
   for LAction := laRead to laUpgrade do begin
     LWorker := Worker(LAction, 0);
     Completed(LWorker);
@@ -283,18 +283,18 @@ begin
   end;
   AssertTrue(FLock.IsWriteLockHeld);
   AssertEquals(0, FLock.WaitingReadCount + FLock.WaitingWriteCount + FLock.WaitingUpgradeCount);
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
 end;
 
 procedure TReadWriteLockTests.WaitingWriterPrecedesNewReader;
 var LWriter, LReader: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LWriter := Worker(laWrite);
   WaitCount(1, 1);
   LReader := Worker(laRead);
   WaitCount(0, 1);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   Await(LWriter.Entered, 'Waiting writer wins admission');
   AssertEquals(Ord(wrTimeout), Ord(LReader.Entered.WaitFor(0)));
   Release(LWriter);
@@ -305,12 +305,12 @@ end;
 procedure TReadWriteLockTests.WaitingWriterPrecedesNewUpgrader;
 var LWriter, LUpgrade: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LWriter := Worker(laWrite);
   WaitCount(1, 1);
   LUpgrade := Worker(laUpgrade);
   WaitCount(2, 1);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   Await(LWriter.Entered, 'Writer precedes new upgrader');
   AssertEquals(Ord(wrTimeout), Ord(LUpgrade.Entered.WaitFor(0)));
   Release(LWriter);
@@ -321,52 +321,52 @@ end;
 procedure TReadWriteLockTests.RecursiveReadsCountOneReader;
 begin
   RecursivePolicy;
-  FLock.EnterReadLock;
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
+  FLock.AcquireReadLock;
   AssertEquals(2, FLock.RecursiveReadCount);
   AssertEquals(1, FLock.CurrentReadCount);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   AssertTrue(FLock.IsReadLockHeld);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   AssertEquals(0, FLock.CurrentReadCount);
 end;
 
 procedure TReadWriteLockTests.RecursiveWriterCanReadWriteAndUpgrade;
 begin
   RecursivePolicy;
-  FLock.EnterWriteLock;
-  FLock.EnterReadLock;
-  FLock.EnterWriteLock;
-  FLock.EnterUpgradeableReadLock;
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireWriteLock;
+  FLock.AcquireReadLock;
+  FLock.AcquireWriteLock;
+  FLock.AcquireUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   AssertEquals(2, FLock.RecursiveWriteCount);
   AssertEquals(1, FLock.RecursiveReadCount);
   AssertEquals(2, FLock.RecursiveUpgradeCount);
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
   AssertTrue(FLock.IsWriteLockHeld);
-  FLock.ExitReadLock;
-  FLock.ExitUpgradeableReadLock;
-  FLock.ExitWriteLock;
+  FLock.ReleaseReadLock;
+  FLock.ReleaseUpgradeableReadLock;
+  FLock.ReleaseWriteLock;
   AssertTrue(FLock.IsUpgradeableReadLockHeld);
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.NoRecursionRejectsRepeatedAcquisition;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   ExpectRecursion(laRead);
   AssertEquals(1, FLock.RecursiveReadCount);
-  FLock.ExitReadLock;
-  FLock.EnterWriteLock;
+  FLock.ReleaseReadLock;
+  FLock.AcquireWriteLock;
   ExpectRecursion(laWrite);
   ExpectRecursion(laRead);
   ExpectRecursion(laUpgrade);
   AssertEquals(1, FLock.RecursiveWriteCount);
-  FLock.ExitWriteLock;
-  FLock.EnterUpgradeableReadLock;
+  FLock.ReleaseWriteLock;
+  FLock.AcquireUpgradeableReadLock;
   ExpectRecursion(laUpgrade);
   AssertEquals(1, FLock.RecursiveUpgradeCount);
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.OrdinaryReadCannotPromoteUnderEitherPolicy;
@@ -375,81 +375,81 @@ begin
   for LPolicy := lrpNoRecursion to lrpSupportsRecursion do begin
     FLock.Free;
     FLock := TReadWriteLock.Create(LPolicy);
-    FLock.EnterReadLock;
+    FLock.AcquireReadLock;
     ExpectRecursion(laWrite);
     ExpectRecursion(laUpgrade);
     AssertEquals(1, FLock.RecursiveReadCount);
-    FLock.ExitReadLock;
+    FLock.ReleaseReadLock;
   end;
 end;
 
 procedure TReadWriteLockTests.NoRecursionUpgradeableReadThenWriteIsRejected;
 begin
-  FLock.EnterUpgradeableReadLock;
-  FLock.EnterReadLock;
+  FLock.AcquireUpgradeableReadLock;
+  FLock.AcquireReadLock;
   ExpectRecursion(laWrite);
-  FLock.ExitReadLock;
-  AssertTrue(FLock.TryEnterWriteLock(0));
-  FLock.ExitWriteLock;
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseReadLock;
+  AssertTrue(FLock.TryAcquireWriteLock(0));
+  FLock.ReleaseWriteLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.UpgradeableReadPromotesWithoutOtherReaders;
 begin
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   AssertEquals(0, FLock.CurrentReadCount);
-  AssertTrue(FLock.TryEnterWriteLock(0));
+  AssertTrue(FLock.TryAcquireWriteLock(0));
   AssertTrue(FLock.IsWriteLockHeld and FLock.IsUpgradeableReadLockHeld);
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
   AssertTrue(FLock.IsUpgradeableReadLockHeld);
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.RecursiveUpgradeableWithExplicitReadCanPromote;
 begin
   RecursivePolicy;
-  FLock.EnterUpgradeableReadLock;
-  FLock.EnterReadLock;
-  AssertTrue(FLock.TryEnterWriteLock(0));
-  FLock.ExitUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
+  FLock.AcquireReadLock;
+  AssertTrue(FLock.TryAcquireWriteLock(0));
+  FLock.ReleaseUpgradeableReadLock;
   AssertTrue(FLock.IsWriteLockHeld and FLock.IsReadLockHeld);
-  FLock.ExitReadLock;
-  FLock.ExitWriteLock;
+  FLock.ReleaseReadLock;
+  FLock.ReleaseWriteLock;
 end;
 
 procedure TReadWriteLockTests.UpgradeWaitsForOtherReaderAndRetainsOwnershipOnTimeout;
 var LReader: TLockWorker;
 begin
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   LReader := Worker(laRead);
   Await(LReader.Entered, 'Reader shares upgradeable ownership');
-  AssertFalse(FLock.TryEnterWriteLock(70));
+  AssertFalse(FLock.TryAcquireWriteLock(70));
   AssertTrue(FLock.IsUpgradeableReadLockHeld);
   AssertFalse(FLock.IsWriteLockHeld);
   AssertEquals(0, FLock.WaitingWriteCount);
   Release(LReader);
-  AssertTrue(FLock.TryEnterWriteLock(2000));
-  FLock.ExitWriteLock;
-  FLock.ExitUpgradeableReadLock;
+  AssertTrue(FLock.TryAcquireWriteLock(2000));
+  FLock.ReleaseWriteLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.OnlyOneUpgradeableOwnerAndReadersCanShare;
 var LUpgrade, LReader: TLockWorker;
 begin
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   LUpgrade := Worker(laUpgrade, 60);
   LReader := Worker(laRead);
   Await(LReader.Entered, 'Reader shares first upgrader');
   Completed(LUpgrade);
   AssertFalse(LUpgrade.Acquired);
   Release(LReader);
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.WaitingUpgradePromotesWhenOtherReaderReleases;
 var LUpgrade, LReader: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LUpgrade := Worker(laUpgradeThenWrite);
   Await(LUpgrade.Entered, 'Upgradeable read shares existing reader');
   LUpgrade.ReleaseGate.SetEvent;
@@ -457,9 +457,9 @@ begin
   LReader := Worker(laRead);
   WaitCount(0, 1);
   AssertEquals(Ord(wrTimeout), Ord(LUpgrade.Done.WaitFor(0)));
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   Completed(LUpgrade);
-  AssertTrue('Pending promotion succeeds after last other reader exits', LUpgrade.Acquired);
+  AssertTrue('Pending promotion succeeds after last other reader releases its lock', LUpgrade.Acquired);
   Await(LReader.Entered, 'New reader follows completed promotion');
   Release(LReader);
 end;
@@ -468,9 +468,9 @@ procedure TReadWriteLockTests.WriteToReadDowngradeRetainsReader;
 var LWriter, LReader: TLockWorker;
 begin
   RecursivePolicy;
-  FLock.EnterWriteLock;
-  FLock.EnterReadLock;
-  FLock.ExitWriteLock;
+  FLock.AcquireWriteLock;
+  FLock.AcquireReadLock;
+  FLock.ReleaseWriteLock;
   AssertTrue(FLock.IsReadLockHeld);
   LWriter := Worker(laWrite, 0);
   Completed(LWriter);
@@ -478,52 +478,52 @@ begin
   LReader := Worker(laRead);
   Await(LReader.Entered, 'Downgrade permits another reader');
   Release(LReader);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
 end;
 
 procedure TReadWriteLockTests.UpgradeableToReadDowngradeRetainsReader;
 begin
-  FLock.EnterUpgradeableReadLock;
-  FLock.EnterReadLock;
-  FLock.ExitUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
+  FLock.AcquireReadLock;
+  FLock.ReleaseUpgradeableReadLock;
   AssertTrue(FLock.IsReadLockHeld);
   ExpectRecursion(laUpgrade);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
 end;
 
 procedure TReadWriteLockTests.FiniteTimeoutIsBoundedAndRemovesWaiter;
 var LReader: TLockWorker;
 begin
-  FLock.EnterWriteLock;
+  FLock.AcquireWriteLock;
   LReader := Worker(laRead, 90);
   Completed(LReader);
   AssertFalse(LReader.Acquired);
   AssertTrue('Actually waited', LReader.Elapsed >= 75);
   AssertTrue('Bounded timeout', LReader.Elapsed < 1000);
   AssertEquals(0, FLock.WaitingReadCount);
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
 end;
 
 procedure TReadWriteLockTests.ZeroTimeoutDoesNotRegisterWaiter;
 var LWorker: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LWorker := Worker(laWrite, 0);
   Completed(LWorker);
   AssertFalse(LWorker.Acquired);
   AssertTrue(LWorker.Elapsed < 500);
   AssertEquals(0, FLock.WaitingWriteCount);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
 end;
 
 procedure TReadWriteLockTests.InfiniteTimeoutWakesOnRelease;
 var LReader: TLockWorker;
 begin
-  FLock.EnterWriteLock;
+  FLock.AcquireWriteLock;
   LReader := Worker(laRead, -1);
   WaitCount(0, 1);
   AssertEquals(Ord(wrTimeout), Ord(LReader.Done.WaitFor(0)));
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
   Await(LReader.Entered, 'Infinite waiter wakes on release');
   Release(LReader);
 end;
@@ -531,7 +531,7 @@ end;
 procedure TReadWriteLockTests.TimedOutWriterReleasesWaitingReaders;
 var LWriter, LReader: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LWriter := Worker(laWrite, 160);
   WaitCount(1, 1);
   LReader := Worker(laRead);
@@ -541,33 +541,33 @@ begin
   Await(LReader.Entered, 'Writer timeout releases reader while original read remains held');
   AssertTrue(FLock.IsReadLockHeld);
   Release(LReader);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
 end;
 
 procedure TReadWriteLockTests.WrongThreadCannotReleaseAnyMode;
 var LAction: TLockAction; LWorker: TLockWorker;
 begin
-  for LAction := laExitRead to laExitUpgrade do begin
+  for LAction := laReleaseRead to laReleaseUpgrade do begin
     case LAction of
-      laExitRead: FLock.EnterReadLock;
-      laExitWrite: FLock.EnterWriteLock;
-      laExitUpgrade: FLock.EnterUpgradeableReadLock;
+      laReleaseRead: FLock.AcquireReadLock;
+      laReleaseWrite: FLock.AcquireWriteLock;
+      laReleaseUpgrade: FLock.AcquireUpgradeableReadLock;
     end;
     LWorker := Worker(LAction);
     Await(LWorker.Done, 'Wrong-thread release completed');
     AssertEquals('ESynchronizationLockException', LWorker.ErrorClass);
     case LAction of
-      laExitRead: begin
+      laReleaseRead: begin
         AssertTrue(FLock.IsReadLockHeld);
-        FLock.ExitReadLock;
+        FLock.ReleaseReadLock;
       end;
-      laExitWrite: begin
+      laReleaseWrite: begin
         AssertTrue(FLock.IsWriteLockHeld);
-        FLock.ExitWriteLock;
+        FLock.ReleaseWriteLock;
       end;
-      laExitUpgrade: begin
+      laReleaseUpgrade: begin
         AssertTrue(FLock.IsUpgradeableReadLockHeld);
-        FLock.ExitUpgradeableReadLock;
+        FLock.ReleaseUpgradeableReadLock;
       end;
     end;
   end;
@@ -575,50 +575,50 @@ end;
 
 procedure TReadWriteLockTests.UnmatchedReleaseDoesNotChangeOwnership;
 begin
-  FLock.EnterReadLock;
-  try FLock.ExitWriteLock; Fail('Unmatched release');
+  FLock.AcquireReadLock;
+  try FLock.ReleaseWriteLock; Fail('Unmatched release');
   except on E: ESynchronizationLockException do ; end;
   AssertTrue(FLock.IsReadLockHeld);
-  FLock.ExitReadLock;
-  try FLock.ExitReadLock; Fail('Extra release');
+  FLock.ReleaseReadLock;
+  try FLock.ReleaseReadLock; Fail('Extra release');
   except on E: ESynchronizationLockException do ; end;
   AssertEquals(0, FLock.CurrentReadCount);
 end;
 
 procedure TReadWriteLockTests.InvalidTimeoutDoesNotAcquire;
 begin
-  try FLock.TryEnterReadLock(-2); Fail('Invalid read timeout');
+  try FLock.TryAcquireReadLock(-2); Fail('Invalid read timeout');
   except on E: EArgumentOutOfRangeException do ; end;
-  try FLock.TryEnterWriteLock(-2); Fail('Invalid write timeout');
+  try FLock.TryAcquireWriteLock(-2); Fail('Invalid write timeout');
   except on E: EArgumentOutOfRangeException do ; end;
-  try FLock.TryEnterUpgradeableReadLock(-2); Fail('Invalid upgrade timeout');
+  try FLock.TryAcquireUpgradeableReadLock(-2); Fail('Invalid upgrade timeout');
   except on E: EArgumentOutOfRangeException do ; end;
   AssertEquals(0, FLock.CurrentReadCount);
 end;
 
 procedure TReadWriteLockTests.DisposeRejectsActiveOwnershipAndCanBeRetried;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   try FLock.Dispose; Fail('Dispose with owner');
   except on E: ESynchronizationLockException do ; end;
   AssertTrue(FLock.IsReadLockHeld);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   FLock.Dispose;
   FLock.Dispose;
-  try FLock.EnterReadLock; Fail('Disposed acquisition');
+  try FLock.AcquireReadLock; Fail('Disposed acquisition');
   except on E: ELockDisposedException do ; end;
 end;
 
 procedure TReadWriteLockTests.DisposeRejectsWaiterAndWaiterLaterCompletes;
 var LWriter: TLockWorker;
 begin
-  FLock.EnterReadLock;
+  FLock.AcquireReadLock;
   LWriter := Worker(laWrite);
   WaitCount(1, 1);
   try FLock.Dispose; Fail('Dispose with waiter');
   except on E: ESynchronizationLockException do ; end;
   AssertEquals(1, FLock.WaitingWriteCount);
-  FLock.ExitReadLock;
+  FLock.ReleaseReadLock;
   Await(LWriter.Entered, 'Rejected dispose leaves waiter usable');
   Release(LWriter);
   FLock.Dispose;
@@ -627,11 +627,11 @@ end;
 procedure TReadWriteLockTests.DisposedLockRejectsAcquisitions;
 begin
   FLock.Dispose;
-  try FLock.EnterReadLock; Fail('Disposed read');
+  try FLock.AcquireReadLock; Fail('Disposed read');
   except on E: ELockDisposedException do ; end;
-  try FLock.EnterWriteLock; Fail('Disposed write');
+  try FLock.AcquireWriteLock; Fail('Disposed write');
   except on E: ELockDisposedException do ; end;
-  try FLock.EnterUpgradeableReadLock; Fail('Disposed upgrade');
+  try FLock.AcquireUpgradeableReadLock; Fail('Disposed upgrade');
   except on E: ELockDisposedException do ; end;
 end;
 
@@ -639,19 +639,19 @@ procedure TReadWriteLockTests.ExceptionCleanupReleasesOnlyOwnedAcquisitions;
 var LWriter: TLockWorker;
 begin
   RecursivePolicy;
-  FLock.EnterWriteLock;
+  FLock.AcquireWriteLock;
   try
     try
-      FLock.EnterWriteLock;
+      FLock.AcquireWriteLock;
       try
-        FLock.EnterReadLock;
+        FLock.AcquireReadLock;
         try raise EAbort.Create('Expected protected work failure');
-        finally FLock.ExitReadLock; end;
-      finally FLock.ExitWriteLock; end;
+        finally FLock.ReleaseReadLock; end;
+      finally FLock.ReleaseWriteLock; end;
     except on E: EAbort do ; end;
     AssertTrue(FLock.IsWriteLockHeld);
     AssertEquals(1, FLock.RecursiveWriteCount);
-  finally FLock.ExitWriteLock; end;
+  finally FLock.ReleaseWriteLock; end;
   LWriter := Worker(laWrite);
   Await(LWriter.Entered, 'Exception cleanup released ownership');
   Release(LWriter);
@@ -661,8 +661,8 @@ procedure TReadWriteLockTests.HeldAndRecursivePropertiesAreThreadSpecific;
 var LReader: TLockWorker;
 begin
   RecursivePolicy;
-  FLock.EnterUpgradeableReadLock;
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   LReader := Worker(laRead);
   Await(LReader.Entered, 'Independent reader');
   AssertEquals(1, LReader.OwnReadCount);
@@ -671,14 +671,14 @@ begin
   AssertFalse(FLock.IsReadLockHeld);
   AssertEquals(2, FLock.RecursiveUpgradeCount);
   Release(LReader);
-  FLock.ExitUpgradeableReadLock;
-  FLock.ExitUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
+  FLock.ReleaseUpgradeableReadLock;
 end;
 
 procedure TReadWriteLockTests.FiniteWaitPermitsCooperativeCancellation;
 var LReader: TLockWorker; LStarted: UInt64;
 begin
-  FLock.EnterWriteLock;
+  FLock.AcquireWriteLock;
   LReader := Worker(laCancellableRead, 35);
   WaitCount(0, 1);
   LStarted := Tick;
@@ -686,20 +686,20 @@ begin
   Completed(LReader);
   AssertTrue('Cooperative stop completes after finite wait', Tick - LStarted < 700);
   AssertTrue('Cancellation retains owner', FLock.IsWriteLockHeld);
-  FLock.ExitWriteLock;
+  FLock.ReleaseWriteLock;
 end;
 
 procedure TReadWriteLockTests.PromotedWriteExceptionRetainsSurroundingUpgradeableLock;
 var LWriter, LReader: TLockWorker;
 begin
-  FLock.EnterUpgradeableReadLock;
+  FLock.AcquireUpgradeableReadLock;
   try
     try
-      FLock.EnterWriteLock;
+      FLock.AcquireWriteLock;
       try
         raise EAbort.Create('Expected promoted-write failure');
       finally
-        FLock.ExitWriteLock;
+        FLock.ReleaseWriteLock;
       end;
     except on E: EAbort do ; end;
     AssertFalse('Only write ownership was released', FLock.IsWriteLockHeld);
@@ -712,10 +712,10 @@ begin
     Await(LReader.Entered, 'Readers can share the remaining upgradeable lock');
     Release(LReader);
   finally
-    FLock.ExitUpgradeableReadLock;
+    FLock.ReleaseUpgradeableReadLock;
   end;
   LWriter := Worker(laWrite);
-  Await(LWriter.Entered, 'Final typed exit releases the surrounding ownership');
+  Await(LWriter.Entered, 'Final typed release frees the surrounding ownership');
   Release(LWriter);
 end;
 

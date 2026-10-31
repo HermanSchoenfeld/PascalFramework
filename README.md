@@ -1112,35 +1112,35 @@ begin
   gate := TReadWriteLock.Create(lrpNoRecursion);
   try
     value := 0;
-    gate.EnterWriteLock;
+    gate.AcquireWriteLock;
     try
       Inc(value);
     finally
-      gate.ExitWriteLock;
+      gate.ReleaseWriteLock;
     end;
 
     // Other threads may hold their own read locks concurrently.
-    if gate.TryEnterReadLock(0) then
+    if gate.TryAcquireReadLock(0) then
     try
       WriteLn(value);
     finally
-      gate.ExitReadLock;
+      gate.ReleaseReadLock;
     end;
 
     // Choose upgradeable mode before work that may need a write.
-    gate.EnterUpgradeableReadLock;
+    gate.AcquireUpgradeableReadLock;
     try
       if value = 1 then begin
-        gate.EnterWriteLock;
+        gate.AcquireWriteLock;
         try
           value := 2;
         finally
-          gate.ExitWriteLock;
+          gate.ReleaseWriteLock;
         end;
       end;
       // The surrounding upgradeable acquisition is still held here.
     finally
-      gate.ExitUpgradeableReadLock;
+      gate.ReleaseUpgradeableReadLock;
     end;
   finally
     gate.Free;
@@ -1148,18 +1148,18 @@ begin
 end;
 ```
 
-Promotion uses `EnterWriteLock` or `TryEnterWriteLock` while the same thread
+Promotion uses `AcquireWriteLock` or `TryAcquireWriteLock` while the same thread
 holds upgradeable read ownership. This is allowed with `lrpNoRecursion`, as in
 the example. The write acquisition is additional:
-`ExitWriteLock` releases only that write acquisition; the surrounding
-`ExitUpgradeableReadLock` remains necessary. The nested `try`/`finally` blocks
+`ReleaseWriteLock` releases only that write acquisition; the surrounding
+`ReleaseUpgradeableReadLock` remains necessary. The nested `try`/`finally` blocks
 above preserve that balance when protected work raises an exception. Recursive
 acquisitions likewise require one matching typed exit for each successful entry;
 the lock never guesses which mode a caller intends to release.
 
-Each `TryEnter*Lock` accepts integer milliseconds: `-1` waits indefinitely,
+Each `TryAcquire*Lock` accepts integer milliseconds: `-1` waits indefinitely,
 `0` tests immediately, and a positive value bounds the wait; for example,
-`TryEnterWriteLock(5000)` waits up to five seconds. A failed attempt
+`TryAcquireWriteLock(5000)` waits up to five seconds. A failed attempt
 retains any outer acquisition. `lrpNoRecursion` is the default;
 `lrpSupportsRecursion` permits nested ownership, including a writer taking a read
 lock. Ordinary read ownership cannot become write or upgradeable ownership.
@@ -1169,7 +1169,7 @@ Release every acquisition on the thread that acquired it. `Is*LockHeld` and
 `Recursive*Count` describe the calling thread; `CurrentReadCount` counts distinct
 explicit read owners, excluding upgradeable-only access. Stop and join consumers
 before freeing the lock. `Dispose` rejects active owners/waiters without changing
-their state; finite `TryEnter` calls allow consumers to check their own cooperative
+their state; finite `TryAcquire` calls allow consumers to check their own cooperative
 cancellation between waits. See the [shared regression cases](tests/UConcurrency.Tests.pas).
 
 ## Throttled UI events
