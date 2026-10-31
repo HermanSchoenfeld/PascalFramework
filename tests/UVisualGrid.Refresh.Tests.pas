@@ -118,22 +118,34 @@ type
 implementation
 
 procedure TVisualGridViewportTests.UniformRowsFitAtNativePixelBoundaries;
-begin CheckVisualGridViewport(vsUniformRows); end;
+begin
+  CheckVisualGridViewport(vsUniformRows);
+end;
 
 procedure TVisualGridViewportTests.HeaderAndVariableRowsUseTheirNativeHeights;
-begin CheckVisualGridViewport(vsVariableRows); end;
+begin
+  CheckVisualGridViewport(vsVariableRows);
+end;
 
 procedure TVisualGridViewportTests.DpiScaledRowsFitAtNativePixelBoundaries;
-begin CheckVisualGridViewport(vsDpiScaling); end;
+begin
+  CheckVisualGridViewport(vsDpiScaling);
+end;
 
 procedure TVisualGridViewportTests.HorizontalScrollbarReducesTheNativeViewport;
-begin CheckVisualGridViewport(vsHorizontalScrollbar); end;
+begin
+  CheckVisualGridViewport(vsHorizontalScrollbar);
+end;
 
 procedure TVisualGridViewportTests.UnfetchedRowsStillContributePageCapacity;
-begin CheckVisualGridViewport(vsUnfetchedRows); end;
+begin
+  CheckVisualGridViewport(vsUnfetchedRows);
+end;
 
 procedure TVisualGridViewportTests.AutomaticPageSizeTracksNativeResizing;
-begin CheckVisualGridViewport(vsAutomaticResize); end;
+begin
+  CheckVisualGridViewport(vsAutomaticResize);
+end;
 
 type
   TGridRefreshSource = class(TCustomDataSource<Integer>)

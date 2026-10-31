@@ -1206,85 +1206,139 @@ begin
 end;
 
 procedure TBulkCacheTests.InitialGetLoadsCompleteSnapshot;
-begin RunBulkCacheCheck(1); end;
+begin
+  RunBulkCacheCheck(1);
+end;
 
 procedure TBulkCacheTests.InitialMissingKeyFetchesOnce;
-begin RunBulkCacheCheck(2); end;
+begin
+  RunBulkCacheCheck(2);
+end;
 
 procedure TBulkCacheTests.ContainsLoadsOnlyOnce;
-begin RunBulkCacheCheck(3); end;
+begin
+  RunBulkCacheCheck(3);
+end;
 
 procedure TBulkCacheTests.AllValuesReturnsCopiedSnapshot;
-begin RunBulkCacheCheck(4); end;
+begin
+  RunBulkCacheCheck(4);
+end;
 
 procedure TBulkCacheTests.FetchOnceIgnoresInvalidation;
-begin RunBulkCacheCheck(5); end;
+begin
+  RunBulkCacheCheck(5);
+end;
 
 procedure TBulkCacheTests.FetchOnceIgnoresExpiration;
-begin RunBulkCacheCheck(6); end;
+begin
+  RunBulkCacheCheck(6);
+end;
 
 procedure TBulkCacheTests.FetchOnceIgnoresStaleness;
-begin RunBulkCacheCheck(7); end;
+begin
+  RunBulkCacheCheck(7);
+end;
 
 procedure TBulkCacheTests.FetchOnceMissingDoesNotReload;
-begin RunBulkCacheCheck(8); end;
+begin
+  RunBulkCacheCheck(8);
+end;
 
 procedure TBulkCacheTests.PurgeStartsNewSnapshot;
-begin RunBulkCacheCheck(9); end;
+begin
+  RunBulkCacheCheck(9);
+end;
 
 procedure TBulkCacheTests.NullPoliciesKeepBorrowedOwnership;
-begin RunBulkCacheCheck(10); end;
+begin
+  RunBulkCacheCheck(10);
+end;
 
 procedure TBulkCacheTests.InvalidatedSnapshotReloads;
-begin RunBulkCacheCheck(11); end;
+begin
+  RunBulkCacheCheck(11);
+end;
 
 procedure TBulkCacheTests.ExpiredSnapshotReloads;
-begin RunBulkCacheCheck(12); end;
+begin
+  RunBulkCacheCheck(12);
+end;
 
 procedure TBulkCacheTests.StaleSnapshotReloads;
-begin RunBulkCacheCheck(13); end;
+begin
+  RunBulkCacheCheck(13);
+end;
 
 procedure TBulkCacheTests.ProviderFailurePurgesAndCanRetry;
-begin RunBulkCacheCheck(14); end;
+begin
+  RunBulkCacheCheck(14);
+end;
 
 procedure TBulkCacheTests.PreloadedBorrowsOriginalDictionary;
-begin RunBulkCacheCheck(15); end;
+begin
+  RunBulkCacheCheck(15);
+end;
 
 procedure TBulkCacheTests.MissingKeyThrowFetchesOnce;
-begin RunBulkCacheCheck(16); end;
+begin
+  RunBulkCacheCheck(16);
+end;
 
 procedure TBulkCacheTests.RemoveIsUnsupportedThroughBaseReference;
-begin RunBulkCacheCheck(17); end;
+begin
+  RunBulkCacheCheck(17);
+end;
 
 procedure TBulkCacheTests.GlobalObjectNestedAndInterfaceAdapters;
-begin RunBulkCacheCheck(18); end;
+begin
+  RunBulkCacheCheck(18);
+end;
 
 procedure TBulkCacheTests.NilProvidersRejected;
-begin RunBulkCacheCheck(19); end;
+begin
+  RunBulkCacheCheck(19);
+end;
 
 procedure TBulkCacheTests.ConcurrentReadsShareInitialBatch;
-begin RunBulkCacheCheck(20); end;
+begin
+  RunBulkCacheCheck(20);
+end;
 
 procedure TBulkCacheTests.CallbackReentryIsBounded;
-begin RunBulkCacheCheck(21); end;
+begin
+  RunBulkCacheCheck(21);
+end;
 
 procedure TBulkCacheTests.ConfiguredComparer;
-begin RunBulkCacheCheck(22); end;
+begin
+  RunBulkCacheCheck(22);
+end;
 
 procedure TBulkCacheTests.InitiallyStaleFetchesOnce;
-begin RunBulkCacheCheck(23); end;
+begin
+  RunBulkCacheCheck(23);
+end;
 
 procedure TBulkCacheTests.ReapRetainsInvalidatedFetchOnceEntry;
-begin RunBulkCacheCheck(24); end;
+begin
+  RunBulkCacheCheck(24);
+end;
 
 procedure TBulkCacheTests.ReapRetainsExpiredFetchOnceEntry;
-begin RunBulkCacheCheck(25); end;
+begin
+  RunBulkCacheCheck(25);
+end;
 
 procedure TBulkCacheTests.ReapPreservesRefreshableSnapshot;
-begin RunBulkCacheCheck(26); end;
+begin
+  RunBulkCacheCheck(26);
+end;
 
 procedure TBulkCacheTests.ReapKeepsArgumentAndDestructionGuards;
-begin RunBulkCacheCheck(27); end;
+begin
+  RunBulkCacheCheck(27);
+end;
 
 initialization
   RegisterTest(TCacheTests);

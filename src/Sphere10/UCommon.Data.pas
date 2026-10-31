@@ -1227,10 +1227,8 @@ begin
                   AExpressionRecord.TextMatchKind:=tmkMatchTextAnywhere;
                 LLastPercent:=true;
               end;
-            tkNone:
-              AExpressionRecord.TextMatchKind:=tmkMatchTextEnd;
-            tkPercent:
-              raise ESearchExpressionParserException.CreateFmt(sUnexpectedOccurrenceOf_Found, ['%']);
+            tkNone: AExpressionRecord.TextMatchKind:=tmkMatchTextEnd;
+            tkPercent: raise ESearchExpressionParserException.CreateFmt(sUnexpectedOccurrenceOf_Found, ['%']);
           end;
         end
         else
@@ -1249,8 +1247,7 @@ begin
                 tkLessOrEqual: NumericComparisionKind:=nckNumericLTE;
                 tkGreaterOrEqual: NumericComparisionKind:=nckNumericGTE;
               end;
-          ekSet:
-            raise ESearchExpressionParserException.CreateFmt(sUnexpectedTokenFound, [TokenToStr(LToken)]);
+          ekSet: raise ESearchExpressionParserException.CreateFmt(sUnexpectedTokenFound, [TokenToStr(LToken)]);
         end;
       tkOpeningParenthesis, tkOpeningBracket:
         if LExpressionKind = ekSet then

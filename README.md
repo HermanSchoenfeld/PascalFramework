@@ -809,13 +809,19 @@ begin
 end;
 
 function Ascending({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
-begin Result := TComparer<Integer>.Default.Compare(ALeft,ARight); end;
+begin
+  Result := TComparer<Integer>.Default.Compare(ALeft,ARight);
+end;
 
 function Even({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
-begin Result := (AValue mod 2)=0; end;
+begin
+  Result := (AValue mod 2)=0;
+end;
 
 function NumberText({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
-begin Result := 'item '+IntToStr(AValue); end;
+begin
+  Result := 'item '+IntToStr(AValue);
+end;
 
 type
   TCallbacks = class
@@ -825,11 +831,17 @@ type
   end;
 
 function TCallbacks.Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
-begin Result := Ascending(ALeft,ARight); end;
+begin
+  Result := Ascending(ALeft,ARight);
+end;
 function TCallbacks.Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
-begin Result := AValue>0; end;
+begin
+  Result := AValue>0;
+end;
 function TCallbacks.Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
-begin Result := 'object '+IntToStr(AValue); end;
+begin
+  Result := 'object '+IntToStr(AValue);
+end;
 
 procedure CollectionAdapters;
 var
@@ -854,11 +866,17 @@ var
 
   {$IFDEF FPC}
   function CompareInScope(constref ALeft,ARight: Integer): Integer;
-  begin Result := Ascending(ALeft,ARight); end;
+  begin
+    Result := Ascending(ALeft,ARight);
+  end;
   function UnderTen(constref AValue: Integer): Boolean;
-  begin Result := AValue<10; end;
+  begin
+    Result := AValue<10;
+  end;
   function ScopedText(constref AValue: Integer): String;
-  begin Result := 'nested '+IntToStr(AValue); end;
+  begin
+    Result := 'nested '+IntToStr(AValue);
+  end;
   {$ENDIF}
 begin
   callbacks := scope.AddObject(TCallbacks.Create) as TCallbacks;
@@ -868,9 +886,21 @@ begin
   {$IFDEF FPC}
   nestedCompare := CompareInScope; nestedPredicate := UnderTen; nestedTransform := ScopedText;
   {$ELSE}
-  nestedCompare := function(const L,R: Integer): Integer begin Result := Ascending(L,R); end;
-  nestedPredicate := function(const V: Integer): Boolean begin Result := V<10; end;
-  nestedTransform := function(const V: Integer): String begin Result := 'nested '+IntToStr(V); end;
+  nestedCompare :=
+    function(const L,R: Integer): Integer
+    begin
+      Result := Ascending(L,R);
+    end;
+  nestedPredicate :=
+    function(const V: Integer): Boolean
+    begin
+      Result := V<10;
+    end;
+  nestedTransform :=
+    function(const V: Integer): String
+    begin
+      Result := 'nested '+IntToStr(V);
+    end;
   {$ENDIF}
 
   // The factories return reference-counted interfaces. These concrete adapters

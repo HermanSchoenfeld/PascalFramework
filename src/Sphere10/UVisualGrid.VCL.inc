@@ -92,13 +92,20 @@ begin
 end;
 
 function TDrawGrid.GetColumns:THeaderSections;
-begin Result:=FHeader.Sections; end;
+begin
+  Result:=FHeader.Sections;
+end;
 
 procedure TDrawGrid.SetAutoFillColumns(AValue:Boolean);
-begin FAutoFillColumns:=AValue; FitColumns; end;
+begin
+  FAutoFillColumns:=AValue;
+  FitColumns;
+end;
 
 function TDrawGrid.GetGridOptions:TGridOptions;
-begin Result:=Vcl.Grids.TDrawGrid(Self).Options; end;
+begin
+  Result:=Vcl.Grids.TDrawGrid(Self).Options;
+end;
 
 procedure TDrawGrid.SetGridOptions(AValue:TGridOptions);
 begin
@@ -136,7 +143,10 @@ begin
 end;
 
 procedure TDrawGrid.Resize;
-begin inherited; FitColumns; end;
+begin
+  inherited;
+  FitColumns;
+end;
 
 procedure TDrawGrid.ColWidthsChanged;
 var i:Integer;
@@ -239,7 +249,9 @@ begin
 end;
 
 function TDrawGrid.GetSelectedRangeCount:Integer;
-begin if FHasRanges then Result:=Length(FRanges) else Result:=1; end;
+begin
+  if FHasRanges then Result:=Length(FRanges) else Result:=1;
+end;
 
 function TDrawGrid.GetSelectedRange(AIndex:Integer):TRect;
 begin
@@ -249,16 +261,25 @@ end;
 
 function TDrawGrid.GetGridHeight:Integer;
 var i:Integer;
-begin Result:=0; for i:=0 to RowCount-1 do Inc(Result,RowHeights[i]+GridLineWidth); end;
+begin
+  Result:=0;
+  for i:=0 to RowCount-1 do Inc(Result,RowHeights[i]+GridLineWidth);
+end;
 
 procedure TDrawGrid.InvalidateCell(ACol,ARow:Longint; ARedraw:Boolean);
-begin if HandleAllocated then inherited InvalidateCell(ACol,ARow); end;
+begin
+  if HandleAllocated then inherited InvalidateCell(ACol,ARow);
+end;
 
 procedure TDrawGrid.InvalidateRow(ARow:Longint);
-begin if HandleAllocated then inherited InvalidateRow(ARow); end;
+begin
+  if HandleAllocated then inherited InvalidateRow(ARow);
+end;
 
 procedure TDrawGrid.MoveExtend(AExtend:Boolean; ACol,ARow:Integer);
-begin MoveColRow(ACol,ARow,not AExtend,True); end;
+begin
+  MoveColRow(ACol,ARow,not AExtend,True);
+end;
 
 function TDrawGrid.IsFixedCellVisible(ACol,ARow:Integer):Boolean;
 var R:TRect;
@@ -285,10 +306,15 @@ begin
 end;
 
 destructor TCheckComboBox.Destroy;
-begin FStoredItems.Free; inherited; end;
+begin
+  FStoredItems.Free;
+  inherited;
+end;
 
 function TCheckComboBox.ReadStoredItems:TStrings;
-begin Result:=FStoredItems; end;
+begin
+  Result:=FStoredItems;
+end;
 
 procedure TCheckComboBox.SyncItems(Sender:TObject);
 begin
@@ -300,7 +326,10 @@ begin
 end;
 
 procedure TCheckComboBox.CreateWnd;
-begin inherited; SyncItems(Self); end;
+begin
+  inherited;
+  SyncItems(Self);
+end;
 
 procedure TCheckComboBox.AddItem(const AText:string; AState:TCheckBoxState);
 begin
@@ -318,7 +347,9 @@ begin
 end;
 
 function TCheckComboBox.GetChecked(AIndex:Integer):Boolean;
-begin Result:=(AIndex>=0) and (AIndex<Length(FChecks)) and FChecks[AIndex]; end;
+begin
+  Result:=(AIndex>=0) and (AIndex<Length(FChecks)) and FChecks[AIndex];
+end;
 
 procedure TCheckComboBox.SetChecked(AIndex:Integer; AValue:Boolean);
 begin
@@ -330,13 +361,19 @@ begin
 end;
 
 function TCheckComboBox.GetObject(AIndex:Integer):TObject;
-begin Result:=Items.Objects[AIndex]; end;
+begin
+  Result:=Items.Objects[AIndex];
+end;
 
 procedure TCheckComboBox.SetObject(AIndex:Integer; AValue:TObject);
-begin Items.Objects[AIndex]:=AValue; end;
+begin
+  Items.Objects[AIndex]:=AValue;
+end;
 
 procedure TCheckComboBox.PopupDeactivated(Sender:TObject);
-begin FPopup.Hide; end;
+begin
+  FPopup.Hide;
+end;
 
 procedure TCheckComboBox.PopupKeyDown(Sender:TObject; var Key:Word; Shift:TShiftState);
 begin

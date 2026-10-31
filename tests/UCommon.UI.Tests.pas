@@ -533,7 +533,10 @@ begin
       wtaNotify: Notify;
       wtaCancel: FEvent.Cancel;
       wtaChangeMode: FEvent.Mode := temNone;
-      wtaDispose: begin DisposeEvent; Exit; end;
+      wtaDispose: begin
+        DisposeEvent;
+        Exit;
+      end;
     end;
   end;
   if LWaiting then ThrowOnce(FThrowWaitingTrue) else ThrowOnce(FThrowWaitingFalse);
@@ -579,7 +582,10 @@ begin
     FPostponeFinish := False;
     FEvent.Postpone;
   end;
-  if FDisposeOnFinishing then begin DisposeEvent; Exit; end;
+  if FDisposeOnFinishing then begin
+    DisposeEvent;
+    Exit;
+  end;
   ThrowOnce(FThrowFinishing);
 end;
 

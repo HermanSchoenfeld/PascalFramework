@@ -40,13 +40,25 @@ begin
  try F.Position:=F.Size;B:=TEncoding.UTF8.GetBytes(UIntToStr(GetTickCount64)+' '+S+#13#10);F.WriteBuffer(B[0],Length(B));finally F.Free;end;
 end;
 constructor TSource.Create(AOwner:TComponent);
-begin inherited;Entered:=TEvent.Create(nil,True,False,'');ReleaseRead:=TEvent.Create(nil,True,False,'');end;
+begin
+  inherited;
+  Entered:=TEvent.Create(nil,True,False,'');
+  ReleaseRead:=TEvent.Create(nil,True,False,'');
+end;
 destructor TSource.Destroy;
-begin Entered.Free;ReleaseRead.Free;inherited;end;
+begin
+  Entered.Free;
+  ReleaseRead.Free;
+  inherited;
+end;
 function TSource.GetColumns:TDataColumns;
-begin Result:=TDataColumns.Create(TDataColumn.From('Id',True));end;
+begin
+  Result:=TDataColumns.Create(TDataColumn.From('Id',True));
+end;
 function TSource.GetItemField(const AItem:Integer;const AName:String):Variant;
-begin Result:=AItem;end;
+begin
+  Result:=AItem;
+end;
 procedure TSource.FetchAll(const AContainer:TList<Integer>);
 var I:Integer;
 begin
@@ -56,7 +68,9 @@ begin
  for I:=0 to 99 do AContainer.Add(I);
 end;
 function TGridAccess.RegionsEnabled:Boolean;
-begin Result:=FTopPanel.Enabled and FTopPanelMultiSearch.Enabled and FBottomPanel.Enabled;end;
+begin
+  Result:=FTopPanel.Enabled and FTopPanelMultiSearch.Enabled and FBottomPanel.Enabled;
+end;
 constructor TProbe.Create(AForm:TForm);
 begin
  inherited Create(AForm);FForm:=AForm;FDeadline:=GetTickCount64+12000;
@@ -74,13 +88,21 @@ begin
  inherited;
 end;
 procedure TProbe.Require(C:Boolean;const S:String);
-begin if not C then raise Exception.Create(S);end;
+begin
+  if not C then raise Exception.Create(S);
+end;
 function TProbe.Card:TPanel;
-begin Result:=FGrid.FindComponent('LoadingOverlay')as TPanel;end;
+begin
+  Result:=FGrid.FindComponent('LoadingOverlay')as TPanel;
+end;
 function TProbe.Title:TLabel;
-begin Result:=FGrid.FindComponent('LoadingStatus')as TLabel;end;
+begin
+  Result:=FGrid.FindComponent('LoadingStatus')as TLabel;
+end;
 function TProbe.Subtitle:TLabel;
-begin Result:=FGrid.FindComponent('LoadingSubtitle')as TLabel;end;
+begin
+  Result:=FGrid.FindComponent('LoadingSubtitle')as TLabel;
+end;
 procedure TProbe.CheckGraphic;
 var B:TBitmap;I:TImage;
 begin
@@ -165,12 +187,25 @@ begin
      Passed:=True;Log('PASS manual/automatic/error layering; sourcefetches='+IntToStr(FSource.FetchCount));FTimer.Enabled:=False;Application.Terminate;
     end;
    end;
-  except on E:Exception do begin Log('FAIL '+E.ClassName+': '+E.Message);Passed:=False;FTimer.Enabled:=False;FSource.ReleaseRead.SetEvent;Application.Terminate;end;end;
+  except on E:Exception do begin
+    Log('FAIL '+E.ClassName+': '+E.Message);
+    Passed:=False;
+    FTimer.Enabled:=False;
+    FSource.ReleaseRead.SetEvent;
+    Application.Terminate;
+  end;end;
  finally FInTick:=False;end;
 end;
 procedure InitializeGridLoadingProbe(AForm:TForm;const ALog:String);
 var F:TFileStream;
-begin LogPath:=ALog;F:=TFileStream.Create(LogPath,fmCreate);F.Free;TProbe.Create(AForm);end;
+begin
+  LogPath:=ALog;
+  F:=TFileStream.Create(LogPath,fmCreate);
+  F.Free;
+  TProbe.Create(AForm);
+end;
 function GridLoadingProbePassed:Boolean;
-begin Result:=Passed;end;
+begin
+  Result:=Passed;
+end;
 end.

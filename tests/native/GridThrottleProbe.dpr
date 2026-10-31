@@ -334,7 +334,10 @@ begin
   Pump(50);
   Capacity := FGrids[1].PageSize;
   Last1 := GetTickCount64;
-  for I := 0 to 9 do begin Pump(100); FGrids[0].RefreshGrid; end;
+  for I := 0 to 9 do begin
+    Pump(100);
+    FGrids[0].RefreshGrid;
+  end;
   Last0 := GetTickCount64;
   Require((Calls(0) = Before0 + 1) and (Calls(1) = Before1 + 1),
     'Mixed refresh/page/filter/sort/resize inputs bypassed the owned quiet timer');

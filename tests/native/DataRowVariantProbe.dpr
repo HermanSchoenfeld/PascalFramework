@@ -36,7 +36,9 @@ begin
 end;
 
 function UnicodePayload: String;
-begin Result := #$03A9#$0416#$6F22#$D83D#$DE80; end;
+begin
+  Result := #$03A9#$0416#$6F22#$D83D#$DE80;
+end;
 
 function TUnicodeRows.GetColumns: TDataColumns;
 begin

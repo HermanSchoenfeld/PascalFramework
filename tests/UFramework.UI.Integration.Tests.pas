@@ -316,7 +316,10 @@ begin
     PumpUntil(1);
     AssertEquals(73, Integer(grid.Rows[0].Value));
   finally
-    if Assigned(release) then begin release.WaitFor; release.Free; end;
+    if Assigned(release) then begin
+      release.WaitFor;
+      release.Free;
+    end;
     grid.Free;
     second.Free;
     first.Free;
@@ -370,7 +373,10 @@ begin
   finally
     gate.SetEvent;
     for i := Low(threads) to High(threads) do
-      if Assigned(threads[i]) then begin threads[i].WaitFor; threads[i].Free; end;
+      if Assigned(threads[i]) then begin
+        threads[i].WaitFor;
+        threads[i].Free;
+      end;
     gate.Free;
   end;
 end;

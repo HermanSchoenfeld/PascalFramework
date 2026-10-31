@@ -171,7 +171,11 @@ begin
     ExpectedBursts:=2;ExpectedFinished:=2;
   end;
   if(FName='cancel-recovery')or(FName='mode-change-recovery')then ExpectedBursts:=2;
-  if FPeriodic then begin ExpectedCalls:=5;ExpectedBursts:=0;ExpectedFinished:=0;end;
+  if FPeriodic then begin
+    ExpectedCalls:=5;
+    ExpectedBursts:=0;
+    ExpectedFinished:=0;
+  end;
   DeliveryPass:=(FCalls=ExpectedCalls)and(FNotifications=Length(FTimes));
   if FPeriodic then DeliveryPass:=DeliveryPass and(FLeading=1)
   else DeliveryPass:=DeliveryPass and(FEarlyCalls=0);
@@ -266,6 +270,9 @@ begin
     Application.Initialize;
     Probe:=TProbe.Create(ParamStr(1));
     try if Probe.Run then Code:=0 else Code:=1;finally Probe.Free;end;
-  except on E:Exception do begin WriteLn(E.ClassName+': '+E.Message);Code:=2;end;end;
+  except on E:Exception do begin
+    WriteLn(E.ClassName+': '+E.Message);
+    Code:=2;
+  end;end;
   ExitCode:=Code;
 end.

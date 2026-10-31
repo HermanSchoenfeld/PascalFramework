@@ -645,7 +645,9 @@ begin
 end;
 
 function KeepFilterItem(constref AItem: TFilterOwnedItem): Boolean;
-begin Result := AItem.Value>1; end;
+begin
+  Result := AItem.Value>1;
+end;
 
 procedure CheckFilterOwnership(ATest: TTestCase; APolicy: TDisposePolicy);
 var LItems: TList<TFilterOwnedItem>; LValues: array[0..2] of TFilterOwnedItem;
@@ -679,10 +681,14 @@ begin
 end;
 
 procedure TPublicCollectionContractTests.FilterByDisposesOnlyRejectedObjects;
-begin CheckFilterOwnership(Self,idpFreeAndNil); end;
+begin
+  CheckFilterOwnership(Self,idpFreeAndNil);
+end;
 
 procedure TPublicCollectionContractTests.FilterByPreservesBorrowedObjects;
-begin CheckFilterOwnership(Self,idpNone); end;
+begin
+  CheckFilterOwnership(Self,idpNone);
+end;
 
 initialization
   RegisterTest(TFilterTests);
