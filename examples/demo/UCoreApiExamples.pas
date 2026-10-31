@@ -302,52 +302,52 @@ begin
   LPolicy := lrpSupportsRecursion;
   LLock := LScope.AddObject(TReadWriteLock.Create(LPolicy)) as TReadWriteLock;
   LValue := 10;
-  LLock.EnterUpgradeableReadLock;
+  LLock.AcquireUpgradeableReadLock;
   try
     Require(LLock.IsUpgradeableReadLockHeld, 'upgradeable read ownership');
     if LValue = 10 then begin
-      Require(LLock.TryEnterWriteLock(0), 'upgrade without another reader');
+      Require(LLock.TryAcquireWriteLock(0), 'upgrade without another reader');
       try
-        LLock.EnterWriteLock;
+        LLock.AcquireWriteLock;
         try
           LValue := 20;
           Require(LLock.RecursiveWriteCount = 2, 'recursive write ownership');
         finally
-          LLock.ExitWriteLock;
+          LLock.ReleaseWriteLock;
         end;
       finally
-        LLock.ExitWriteLock;
+        LLock.ReleaseWriteLock;
       end;
     end;
     Require(not LLock.IsWriteLockHeld and LLock.IsUpgradeableReadLockHeld,
       'leaving write scope retains the outer upgradeable scope');
   finally
-    LLock.ExitUpgradeableReadLock;
+    LLock.ReleaseUpgradeableReadLock;
   end;
-  Require(LLock.TryEnterReadLock(0), 'timed read acquisition');
+  Require(LLock.TryAcquireReadLock(0), 'timed read acquisition');
   try
     Require((LValue = 20) and (LLock.CurrentReadCount = 1), 'shared read scope');
   finally
-    LLock.ExitReadLock;
+    LLock.ReleaseReadLock;
   end;
 
   LNonRecursive := LScope.AddObject(TReadWriteLock.Create(lrpNoRecursion))
     as TReadWriteLock;
-  LNonRecursive.EnterReadLock;
+  LNonRecursive.AcquireReadLock;
   try
     LCaught := False;
     try
-      LNonRecursive.EnterReadLock;
+      LNonRecursive.AcquireReadLock;
     except
       on E: ELockRecursionException do LCaught := True;
     end;
     Require(LCaught, 'no-recursion policy rejects nested reads');
   finally
-    LNonRecursive.ExitReadLock;
+    LNonRecursive.ReleaseReadLock;
   end;
   LCaught := False;
   try
-    LNonRecursive.ExitWriteLock;
+    LNonRecursive.ReleaseWriteLock;
   except
     on E: ESynchronizationLockException do LCaught := True;
   end;
@@ -355,7 +355,7 @@ begin
   LNonRecursive.Dispose;
   LCaught := False;
   try
-    LNonRecursive.EnterReadLock;
+    LNonRecursive.AcquireReadLock;
   except
     on E: ELockDisposedException do LCaught := True;
   end;

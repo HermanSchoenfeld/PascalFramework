@@ -52,13 +52,13 @@ type
     FReaders, FWaitingReaders, FWaitingWriters, FWaitingUpgraders: Integer;
     FDisposed: Boolean;
     function ThreadCounts(AThreadID: TThreadID): TThreadCounts;
-    procedure CheckEntry(AKind: TLockKind; const ACounts: TThreadCounts);
-    function CanEnter(AKind: TLockKind; AThreadID: TThreadID;
+    procedure CheckAcquisition(AKind: TLockKind; const ACounts: TThreadCounts);
+    function CanAcquire(AKind: TLockKind; AThreadID: TThreadID;
       const ACounts: TThreadCounts): Boolean;
     procedure Grant(AKind: TLockKind; AThreadID: TThreadID;
       var ACounts: TThreadCounts);
-    function TryEnter(AKind: TLockKind; AMillisecondsTimeout: Integer): Boolean;
-    procedure ExitLock(AKind: TLockKind);
+    function TryAcquire(AKind: TLockKind; AMillisecondsTimeout: Integer): Boolean;
+    procedure ReleaseLock(AKind: TLockKind);
     procedure ChangeWaitCount(AKind: TLockKind; ADelta: Integer);
     procedure WakeWaiters;
     function GetHeld(AKind: TLockKind): Boolean;
@@ -78,15 +78,15 @@ type
     constructor Create(ARecursionPolicy: TLockRecursionPolicy = lrpNoRecursion);
     destructor Destroy; override;
     procedure Dispose;
-    procedure EnterReadLock;
-    function TryEnterReadLock(AMillisecondsTimeout: Integer): Boolean;
-    procedure ExitReadLock;
-    procedure EnterWriteLock;
-    function TryEnterWriteLock(AMillisecondsTimeout: Integer): Boolean;
-    procedure ExitWriteLock;
-    procedure EnterUpgradeableReadLock;
-    function TryEnterUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
-    procedure ExitUpgradeableReadLock;
+    procedure AcquireReadLock;
+    function TryAcquireReadLock(AMillisecondsTimeout: Integer): Boolean;
+    procedure ReleaseReadLock;
+    procedure AcquireWriteLock;
+    function TryAcquireWriteLock(AMillisecondsTimeout: Integer): Boolean;
+    procedure ReleaseWriteLock;
+    procedure AcquireUpgradeableReadLock;
+    function TryAcquireUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
+    procedure ReleaseUpgradeableReadLock;
     property RecursionPolicy: TLockRecursionPolicy read FPolicy;
     property IsReadLockHeld: Boolean read GetIsReadLockHeld;
     property IsWriteLockHeld: Boolean read GetIsWriteLockHeld;
@@ -137,49 +137,49 @@ begin
   end;
 end;
 
-procedure TReadWriteLock.EnterReadLock;
+procedure TReadWriteLock.AcquireReadLock;
 begin
-  TryEnterReadLock(-1);
+  TryAcquireReadLock(-1);
 end;
 
-function TReadWriteLock.TryEnterReadLock(AMillisecondsTimeout: Integer): Boolean;
+function TReadWriteLock.TryAcquireReadLock(AMillisecondsTimeout: Integer): Boolean;
 begin
-  Result := TryEnter(lkRead, AMillisecondsTimeout);
+  Result := TryAcquire(lkRead, AMillisecondsTimeout);
 end;
 
-procedure TReadWriteLock.ExitReadLock;
+procedure TReadWriteLock.ReleaseReadLock;
 begin
-  ExitLock(lkRead);
+  ReleaseLock(lkRead);
 end;
 
-procedure TReadWriteLock.EnterWriteLock;
+procedure TReadWriteLock.AcquireWriteLock;
 begin
-  TryEnterWriteLock(-1);
+  TryAcquireWriteLock(-1);
 end;
 
-function TReadWriteLock.TryEnterWriteLock(AMillisecondsTimeout: Integer): Boolean;
+function TReadWriteLock.TryAcquireWriteLock(AMillisecondsTimeout: Integer): Boolean;
 begin
-  Result := TryEnter(lkWrite, AMillisecondsTimeout);
+  Result := TryAcquire(lkWrite, AMillisecondsTimeout);
 end;
 
-procedure TReadWriteLock.ExitWriteLock;
+procedure TReadWriteLock.ReleaseWriteLock;
 begin
-  ExitLock(lkWrite);
+  ReleaseLock(lkWrite);
 end;
 
-procedure TReadWriteLock.EnterUpgradeableReadLock;
+procedure TReadWriteLock.AcquireUpgradeableReadLock;
 begin
-  TryEnterUpgradeableReadLock(-1);
+  TryAcquireUpgradeableReadLock(-1);
 end;
 
-function TReadWriteLock.TryEnterUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
+function TReadWriteLock.TryAcquireUpgradeableReadLock(AMillisecondsTimeout: Integer): Boolean;
 begin
-  Result := TryEnter(lkUpgradeable, AMillisecondsTimeout);
+  Result := TryAcquire(lkUpgradeable, AMillisecondsTimeout);
 end;
 
-procedure TReadWriteLock.ExitUpgradeableReadLock;
+procedure TReadWriteLock.ReleaseUpgradeableReadLock;
 begin
-  ExitLock(lkUpgradeable);
+  ReleaseLock(lkUpgradeable);
 end;
 
 function MonotonicMilliseconds: UInt64;
@@ -206,7 +206,7 @@ begin
     Result := Default(TThreadCounts);
 end;
 
-procedure TReadWriteLock.CheckEntry(AKind: TLockKind;
+procedure TReadWriteLock.CheckAcquisition(AKind: TLockKind;
   const ACounts: TThreadCounts);
 var LInvalid: Boolean;
 begin
@@ -227,7 +227,7 @@ begin
     raise ELockRecursionException.Create('This acquisition violates the lock recursion policy.');
 end;
 
-function TReadWriteLock.CanEnter(AKind: TLockKind; AThreadID: TThreadID;
+function TReadWriteLock.CanAcquire(AKind: TLockKind; AThreadID: TThreadID;
   const ACounts: TThreadCounts): Boolean;
 begin
   // Existing owners can recurse without queuing behind a writer that needs
@@ -289,7 +289,7 @@ begin
   for LWaiter in FWaiters do LWaiter.Signal.SetEvent;
 end;
 
-function TReadWriteLock.TryEnter(AKind: TLockKind;
+function TReadWriteLock.TryAcquire(AKind: TLockKind;
   AMillisecondsTimeout: Integer): Boolean;
 var
   LThreadID: TThreadID;
@@ -309,9 +309,9 @@ begin
   FGate.Acquire;
   try
     LCounts := ThreadCounts(LThreadID);
-    CheckEntry(AKind, LCounts);
+    CheckAcquisition(AKind, LCounts);
     while True do begin
-      if CanEnter(AKind, LThreadID, LCounts) then begin
+      if CanAcquire(AKind, LThreadID, LCounts) then begin
         Grant(AKind, LThreadID, LCounts);
         Exit(True);
       end;
@@ -351,11 +351,11 @@ begin
   end;
 end;
 
-procedure TReadWriteLock.ExitLock(AKind: TLockKind);
+procedure TReadWriteLock.ReleaseLock(AKind: TLockKind);
 var LThreadID: TThreadID; LCounts: TThreadCounts; LCount: Integer;
 begin
   // Every typed Exit balances ONE same-thread acquisition of that mode. In
-  // particular, ExitWriteLock after promotion retains the surrounding upgrader.
+  // particular, ReleaseWriteLock after promotion retains the surrounding upgrader.
   LThreadID := TThread.CurrentThread.ThreadID;
   FGate.Acquire;
   try

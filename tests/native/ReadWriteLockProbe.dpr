@@ -9,7 +9,7 @@ uses Winapi.Windows, System.SysUtils, System.Classes, System.SyncObjs,
   System.Generics.Collections, UConcurrency;
 
 type
-  TAction = (acRead, acWrite, acUpgrade, acPromote, acExitRead, acExitWrite, acExitUpgrade);
+  TAction = (acRead, acWrite, acUpgrade, acPromote, acReleaseRead, acReleaseWrite, acReleaseUpgrade);
   TActor = class(TThread)
   private FLock:TReadWriteLock; FAction:TAction; FTimeout:Integer;
   protected procedure Execute; override;
@@ -60,12 +60,12 @@ begin
   try
     try
       case FAction of
-        acRead: Acquired:=FLock.TryEnterReadLock(FTimeout);
-        acWrite: Acquired:=FLock.TryEnterWriteLock(FTimeout);
-        acUpgrade,acPromote: Acquired:=FLock.TryEnterUpgradeableReadLock(FTimeout);
-        acExitRead: FLock.ExitReadLock;
-        acExitWrite: FLock.ExitWriteLock;
-        acExitUpgrade: FLock.ExitUpgradeableReadLock;
+        acRead: Acquired:=FLock.TryAcquireReadLock(FTimeout);
+        acWrite: Acquired:=FLock.TryAcquireWriteLock(FTimeout);
+        acUpgrade,acPromote: Acquired:=FLock.TryAcquireUpgradeableReadLock(FTimeout);
+        acReleaseRead: FLock.ReleaseReadLock;
+        acReleaseWrite: FLock.ReleaseWriteLock;
+        acReleaseUpgrade: FLock.ReleaseUpgradeableReadLock;
       end;
       Elapsed:=GetTickCount64-T;
       if Acquired then begin
@@ -74,18 +74,18 @@ begin
           Entered.SetEvent;
           if FAction=acPromote then begin
             if Promote.WaitFor(1500)<>wrSignaled then raise Exception.Create('Promotion request gate timed out');
-            FLock.EnterWriteLock;
+            FLock.AcquireWriteLock;
             try
               Promoted.SetEvent;
               while not Terminated do if ReleaseGate.WaitFor(10)=wrSignaled then Break;
-            finally FLock.ExitWriteLock; end;
+            finally FLock.ReleaseWriteLock; end;
           end else
             while not Terminated do if ReleaseGate.WaitFor(10)=wrSignaled then Break;
         finally
           case FAction of
-            acRead: FLock.ExitReadLock;
-            acWrite: FLock.ExitWriteLock;
-            acUpgrade,acPromote: FLock.ExitUpgradeableReadLock;
+            acRead: FLock.ReleaseReadLock;
+            acWrite: FLock.ReleaseWriteLock;
+            acUpgrade,acPromote: FLock.ReleaseUpgradeableReadLock;
           end;
         end;
       end;
@@ -143,9 +143,9 @@ procedure TProbe.Clean;
 var A:TActor; Err:String;
 begin
   if Assigned(L) then begin
-    while L.RecursiveWriteCount>0 do L.ExitWriteLock;
-    while L.RecursiveReadCount>0 do L.ExitReadLock;
-    while L.RecursiveUpgradeCount>0 do L.ExitUpgradeableReadLock;
+    while L.RecursiveWriteCount>0 do L.ReleaseWriteLock;
+    while L.RecursiveReadCount>0 do L.ReleaseReadLock;
+    while L.RecursiveUpgradeCount>0 do L.ReleaseUpgradeableReadLock;
   end;
   for A in Actors do begin
     A.Terminate;
@@ -174,9 +174,9 @@ begin
   Failed:=False;
   try
     case AAction of
-      acRead: L.TryEnterReadLock(0);
-      acWrite: L.TryEnterWriteLock(0);
-      acUpgrade: L.TryEnterUpgradeableReadLock(0);
+      acRead: L.TryAcquireReadLock(0);
+      acWrite: L.TryAcquireWriteLock(0);
+      acUpgrade: L.TryAcquireUpgradeableReadLock(0);
     end;
   except on E:ELockRecursionException do Failed:=True;end;
   Require(Failed,'Forbidden recursion/promotion did not raise ELockRecursionException');
@@ -204,43 +204,43 @@ end;
 procedure TProbe.RecursionPolicies;
 begin
   Reset;
-  L.EnterReadLock;ExpectRecursion(acRead);ExpectRecursion(acWrite);ExpectRecursion(acUpgrade);L.ExitReadLock;
-  L.EnterWriteLock;ExpectRecursion(acWrite);ExpectRecursion(acRead);ExpectRecursion(acUpgrade);L.ExitWriteLock;
-  L.EnterUpgradeableReadLock;L.EnterReadLock;ExpectRecursion(acWrite);L.ExitReadLock;
-  Require(L.TryEnterWriteLock(0),'Default upgrader could not promote without an explicit reader');L.ExitWriteLock;L.ExitUpgradeableReadLock;
+  L.AcquireReadLock;ExpectRecursion(acRead);ExpectRecursion(acWrite);ExpectRecursion(acUpgrade);L.ReleaseReadLock;
+  L.AcquireWriteLock;ExpectRecursion(acWrite);ExpectRecursion(acRead);ExpectRecursion(acUpgrade);L.ReleaseWriteLock;
+  L.AcquireUpgradeableReadLock;L.AcquireReadLock;ExpectRecursion(acWrite);L.ReleaseReadLock;
+  Require(L.TryAcquireWriteLock(0),'Default upgrader could not promote without an explicit reader');L.ReleaseWriteLock;L.ReleaseUpgradeableReadLock;
   Reset(lrpSupportsRecursion);
-  L.EnterWriteLock;L.EnterWriteLock;L.EnterReadLock;L.EnterUpgradeableReadLock;
+  L.AcquireWriteLock;L.AcquireWriteLock;L.AcquireReadLock;L.AcquireUpgradeableReadLock;
   Require((L.RecursiveWriteCount=2) and (L.RecursiveReadCount=1) and (L.RecursiveUpgradeCount=1),'Supported recursion counts differ');
-  L.ExitUpgradeableReadLock;L.ExitReadLock;L.ExitWriteLock;L.ExitWriteLock;
-  L.EnterReadLock;L.EnterReadLock;Require(L.CurrentReadCount=1,'Recursive read counted as multiple owners');
-  ExpectRecursion(acWrite);ExpectRecursion(acUpgrade);L.ExitReadLock;L.ExitReadLock;
+  L.ReleaseUpgradeableReadLock;L.ReleaseReadLock;L.ReleaseWriteLock;L.ReleaseWriteLock;
+  L.AcquireReadLock;L.AcquireReadLock;Require(L.CurrentReadCount=1,'Recursive read counted as multiple owners');
+  ExpectRecursion(acWrite);ExpectRecursion(acUpgrade);L.ReleaseReadLock;L.ReleaseReadLock;
   Log('PASS default/supported recursion and forbidden ordinary-read promotion');
 end;
 procedure TProbe.UpgradeAndDowngrade;
 var R,W:TActor;
 begin
   Reset(lrpSupportsRecursion);
-  L.EnterUpgradeableReadLock;L.EnterReadLock;
+  L.AcquireUpgradeableReadLock;L.AcquireReadLock;
   R:=Worker(acRead);Await(R.Entered,'Foreign reader shares upgradeable');
-  Require(not L.TryEnterWriteLock(60),'Promotion ignored foreign reader');
+  Require(not L.TryAcquireWriteLock(60),'Promotion ignored foreign reader');
   Require(L.IsUpgradeableReadLockHeld and not L.IsWriteLockHeld,'Timed-out promotion lost ownership');
   R.ReleaseGate.SetEvent;Await(R.Done,'Foreign reader release');
-  Require(L.TryEnterWriteLock(500),'Promotion failed after last foreign reader left');
-  L.ExitUpgradeableReadLock;L.ExitWriteLock;
+  Require(L.TryAcquireWriteLock(500),'Promotion failed after last foreign reader left');
+  L.ReleaseUpgradeableReadLock;L.ReleaseWriteLock;
   Require(L.IsReadLockHeld and not L.IsWriteLockHeld,'Write-to-read downgrade lost reader');
   W:=Worker(acWrite,0);Await(W.Done,'Downgrade writer test');Require(not W.Acquired,'Downgrade lost reader exclusion');
-  L.ExitReadLock;
+  L.ReleaseReadLock;
   Log('PASS upgrade timeout/retry and write-to-read downgrade retains exclusion');
 end;
 procedure TProbe.PromotionQueue;
 var U,R:TActor;
 begin
   Reset;
-  L.EnterReadLock;U:=Worker(acPromote);Await(U.Entered,'Upgradeable reader');
+  L.AcquireReadLock;U:=Worker(acPromote);Await(U.Entered,'Upgradeable reader');
   U.Promote.SetEvent;WaitCount(1,1);
   R:=Worker(acRead);WaitCount(0,1);
   Require(U.Promoted.WaitFor(0)=wrTimeout,'Promotion overlapped foreign reader');
-  L.ExitReadLock;Await(U.Promoted,'Queued upgrade promotion');
+  L.ReleaseReadLock;Await(U.Promoted,'Queued upgrade promotion');
   Require(R.Entered.WaitFor(0)=wrTimeout,'New reader bypassed queued promoted writer');
   U.ReleaseGate.SetEvent;Await(U.Done,'Promoted writer release');Await(R.Entered,'Queued reader recovery');
   Log('PASS queued promotion and reader recovery without ownership loss');
@@ -248,40 +248,40 @@ end;
 procedure TProbe.TimeoutsAndDispose;
 var R:TActor; Rejected:Boolean;
 begin
-  Reset;L.EnterWriteLock;
+  Reset;L.AcquireWriteLock;
   R:=Worker(acRead,90);Await(R.Done,'Timed reader');
   Require(not R.Acquired and (R.Elapsed>=75) and (R.Elapsed<1000),'Finite reader timeout was not bounded');
   Require(L.WaitingReadCount=0,'Timed waiter remained registered');
   R:=Worker(acRead,-1);WaitCount(0,1);
   Rejected:=False;try L.Dispose;except on E:ESynchronizationLockException do Rejected:=True;end;
   Require(Rejected and L.IsWriteLockHeld and (L.WaitingReadCount=1),'Rejected Dispose changed owners/waiters');
-  L.ExitWriteLock;Await(R.Entered,'Waiter recovery after rejected Dispose');
+  L.ReleaseWriteLock;Await(R.Entered,'Waiter recovery after rejected Dispose');
   R.ReleaseGate.SetEvent;Await(R.Done,'Infinite reader release');
   L.Dispose;Rejected:=False;
-  try L.TryEnterReadLock(0);except on E:ELockDisposedException do Rejected:=True;end;
+  try L.TryAcquireReadLock(0);except on E:ELockDisposedException do Rejected:=True;end;
   Require(Rejected,'Disposed lock accepted an acquisition');
   Log('PASS finite/infinite timeout, rejected Dispose, waiter recovery and disposed rejection');
 end;
 procedure TProbe.WrongThreadAndInvalidTimeout;
 var A:TAction; W:TActor; Rejected:Boolean;
 begin
-  for A:=acExitRead to acExitUpgrade do begin
+  for A:=acReleaseRead to acReleaseUpgrade do begin
     Reset;
     case A of
-      acExitRead: L.EnterReadLock;
-      acExitWrite: L.EnterWriteLock;
-      acExitUpgrade: L.EnterUpgradeableReadLock;
+      acReleaseRead: L.AcquireReadLock;
+      acReleaseWrite: L.AcquireWriteLock;
+      acReleaseUpgrade: L.AcquireUpgradeableReadLock;
     end;
     W:=Worker(A,0,'ESynchronizationLockException');Await(W.Done,'Wrong-thread release');
     Require(W.ErrorClass='ESynchronizationLockException','Wrong-thread release was accepted');
     case A of
-      acExitRead: Require(L.IsReadLockHeld,'Wrong-thread lost read');
-      acExitWrite: Require(L.IsWriteLockHeld,'Wrong-thread lost write');
-      acExitUpgrade: Require(L.IsUpgradeableReadLockHeld,'Wrong-thread lost upgrade');
+      acReleaseRead: Require(L.IsReadLockHeld,'Wrong-thread lost read');
+      acReleaseWrite: Require(L.IsWriteLockHeld,'Wrong-thread lost write');
+      acReleaseUpgrade: Require(L.IsUpgradeableReadLockHeld,'Wrong-thread lost upgrade');
     end;
   end;
   Reset;
-  Rejected:=False;try L.TryEnterReadLock(-2);except on E:EArgumentOutOfRangeException do Rejected:=True;end;
+  Rejected:=False;try L.TryAcquireReadLock(-2);except on E:EArgumentOutOfRangeException do Rejected:=True;end;
   Require(Rejected and (L.CurrentReadCount=0),'Invalid timeout altered ownership');
   Log('PASS wrong-thread release protection and invalid timeout rejection');
 end;
