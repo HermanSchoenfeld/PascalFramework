@@ -10,7 +10,7 @@ uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Variants,
   System.SyncObjs, System.Generics.Collections, Vcl.Forms, Vcl.Controls,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics,
-  UCommon, UCommon.UI, UCommon.Data, UVisualGrid;
+  UCommon, UCommon.UI, UCommon.Data, UVisualGrid, UVisualGrid.Worker.Checks;
 
 type
   TProbeSource = class(TCustomDataSource<Integer>)
@@ -725,6 +725,11 @@ end;
 
 procedure TGridProbe.Run;
 begin
+  if SameText(GetEnvironmentVariable('PASCAL_GRID_EARLY_CANCEL_ONLY'), '1') then begin
+    CheckVisualGridEarlyWorkerCancellation;
+    Log('PASS cancelled-before-execution worker retires and preserves other grid receivers');
+    Exit;
+  end;
   if SameText(GetEnvironmentVariable('PASCAL_GRID_LOADING_ONLY'), '1') then begin
     CheckQueuedLoading;
     Exit;
@@ -737,6 +742,8 @@ begin
     CheckWorkerNotificationWithoutTimers;
     Exit;
   end;
+  CheckVisualGridEarlyWorkerCancellation;
+  Log('PASS cancelled-before-execution worker retires and preserves other grid receivers');
   CheckRefreshSuspension;
   CheckWorkerNotificationWithoutTimers;
   CheckParentlessAndHiddenRequests;

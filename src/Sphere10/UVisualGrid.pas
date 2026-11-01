@@ -13,24 +13,37 @@ unit UVisualGrid;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-{ Types in this unit
+{ Public types in this unit
 
   Type                                   | Purpose
   ---------------------------------------+-----------------------------------------------------------------------
-  TVisualGridSelection                   | Describes selected cells, rows and their associated data.
-  TVisualColumn                          | Configures a column's binding, layout, filters and appearance.
   EVisualGridError                       | Reports invalid grid configuration or operations.
-  TVisualGridCaption                     | Exposes the grid caption's text, font, visibility and alignment.
-  TCustomVisualGrid                      | Coordinates rendering, paging, filtering, loading and refreshes.
-  TCustomVisualGrid.TLastFetchDataResult | Stores completion metadata for the latest page fetch.
-  TCustomVisualGrid.TSearchEdit          | Owns the search controls associated with a grid column.
-  TVisualGrid                            | Publishes the reusable grid's design-time properties and events.
-  TVisualCellRenderers                   | Supplies reusable cell-drawing callbacks.
-  TVisualGridSearchExpressionService     | Provides the grid search-service extension point.
-  TDrawGridAccess                        | Exposes protected native grid members to implementation code.
-  TFetchDataThread                       | Fetches page data on the grid's owned background worker.
-  TDrawGrid                              | Adapts VCL grid drawing and geometry to the shared grid implementation.
   TCheckComboBox                         | Supplies the VCL column-picker control used by the grid.
+  TCheckComboItemChange                  | Notifies a VCL column-picker checkbox change.
+  TColumnInitializeEvent                 | Configures a column when its native counterpart is created.
+  TCustomVisualGrid                      | Coordinates rendering, paging, filtering, loading and refreshes.
+  TDeselectionType                       | Selects how existing grid selections may be cleared.
+  TDrawGrid                              | Adapts VCL drawing and geometry for the exposed native grid.
+  TDrawVisualCellEvent                   | Customizes cell painting using its value and row data.
+  TGridColumn                            | Aliases the VCL header-section column metadata.
+  TGridZone                              | Identifies fixed, ordinary or invalid VCL grid cells.
+  TPreparePopupMenuEvent                 | Supplies a context menu for the current selection.
+  TSearchMode                            | Selects a single expression or per-column search.
+  TSelectionEvent                        | Notifies changes to selected cells or rows.
+  TSelectionType                         | Selects cell, row or multiple-row selection.
+  TSortMode                              | Selects no sorting, one column or multiple columns.
+  TVisualCellRenderers                   | Supplies reusable cell-drawing callbacks.
+  TVisualColumn                          | Configures a column's binding, layout, filters and appearance.
+  TVisualColumnDataSanitizer             | Converts source values before rendering a cell.
+  TVisualColumnRenderer                  | Renders a cell using its value, row and draw state.
+  TVisualGrid                            | Publishes the reusable grid's design-time properties and events.
+  TVisualGridCaption                     | Exposes the grid caption's text, font, visibility and alignment.
+  TVisualGridCellSelected                | Notifies native VCL cell selection.
+  TVisualGridHeaderClick                 | Notifies native VCL column or row-header clicks.
+  TVisualGridOptions                     | Configures column sizing, searching and paging presentation.
+  TVisualGridPageMode                    | Selects all rows, a viewport-sized page or a manual page size.
+  TVisualGridSearchExpressionService     | Provides the grid search-service extension point.
+  TVisualGridSelection                   | Describes selected cells, rows and their associated data.
 }
 
 
@@ -199,6 +212,10 @@ uses
 
   TSearchMode = (smSingle, smMulti);
 
+  { TVisualGridPageMode }
+
+  TVisualGridPageMode = (vpmSingle, vpmAuto, vpmManual);
+
   { TVisualGridCaption }
 
   TVisualGridCaption = class(TPersistent)
@@ -298,6 +315,8 @@ uses
     FPageSizeEdit: TEdit;
     FPageSizeLabel: TLabel;
     FAllRecordsCountLabel: TLabel;
+    FPageModeButton: TBitBtn;
+    FPageModeMenu: TPopupMenu;
 
     FDrawGrid: TDrawGrid;
     FDelayedBoundsChangeTimer: TTimer;
@@ -318,8 +337,12 @@ uses
     procedure GridHeaderClick(Sender: TObject; IsColumn: Boolean; Index: Integer);
     procedure PageIndexEditingDone(Sender: TObject);
     procedure PageSizeEditingDone(Sender: TObject);
+    procedure PageModeChanged(Sender: TObject);
+    procedure PageModeButtonClick(Sender: TObject);
     procedure PageNavigationClick(Sender: TObject);
     procedure MultiSearchCheckComboBoxChange(Sender: TObject; AIndex: Integer);
+    procedure GridGeometryChanged(Sender: TObject);
+    procedure ScheduleBoundsChange;
     procedure DelayedBoundsChange(Sender: TObject);
     procedure FetchDataThreadCompleted(Sender: TObject);
     procedure ShowDelayedLoading(Sender: TObject);
@@ -352,6 +375,9 @@ uses
     FSearchMode : TSearchMode;
     FShowAllData: boolean;
     FAutoPageSize: boolean;
+    FPageMode: TVisualGridPageMode;
+    FModeScrollResetPending: Boolean;
+    FManualPageSize: Integer;
     FCanPage: boolean;
     FCanSearch: boolean;
     FSelectionType: TSelectionType;
@@ -381,6 +407,10 @@ uses
     procedure RefreshThrottleWaitingChanged(Sender: TObject);
     procedure RefreshThrottleFinished(Sender: TObject);
     procedure ChangePageSize(Value: Integer; AClientInput, ANotify: Boolean);
+    procedure UpdatePagingControls;
+    procedure ResetModeScrollPosition(AClearPending: Boolean);
+    procedure UpdatePageModeGlyph;
+    function CanChangePageMode: Boolean;
     procedure ApplyControlsState;
     procedure RefreshLoadingPresentation;
     function GetCanvas: TCanvas;
@@ -393,6 +423,8 @@ uses
     procedure SetRows(ARow: Integer; AValue: Variant);
     procedure SetShowAllData(AValue: boolean);
     procedure SetAutoPageSize(AValue: boolean);
+    procedure SetPageMode(AValue: TVisualGridPageMode);
+    procedure SetManualPageSize(AValue: Integer);
     procedure SetCanPage(AValue: boolean);
     procedure SetCanSearch(AValue: boolean);
 {$IFDEF VISUALGRID_DEBUG}
@@ -463,6 +495,10 @@ uses
     destructor Destroy; override;
     property DataSource: IDataSource read FDataSource write SetDataSource;
     property PageSize: Integer read FPageSize write SetPageSize default 100;
+    // Single returns all matching rows; Auto fits the viewport; Manual uses
+    // ManualPageSize. Mode changes start at page zero and preserve manual size.
+    property PageMode: TVisualGridPageMode read FPageMode write SetPageMode default vpmManual;
+    property ManualPageSize: Integer read FManualPageSize write SetManualPageSize default 100;
     property PageIndex: Integer read FPageIndex write SetPageIndex default -1;
     property AutoPageSize: boolean read FAutoPageSize write SetAutoPageSize default false;
     property ShowAllData: boolean read FShowAllData write SetShowAllData default false;
@@ -479,6 +515,10 @@ uses
     // Cancel RefreshThrottle while suspended to resume immediately, otherwise
     // the retained request still respects its current quiet interval.
     property RefreshSuspended: Boolean read FRefreshSuspended write SetRefreshSuspended;
+    // UI-thread cooperative cancellation of the active asynchronous fetch only.
+    // Never joins, queues input or changes throttle, suspension or manual cards.
+    // Existing rows remain; the provider must outlive its normal retirement.
+    procedure CancelActiveFetch;
     // UI-thread presentation only. The graphic is copied; its owner may free it
     // immediately. A nil/empty graphic uses the existing loading circle.
     // Repeated calls replace this manual state without fetching any data.
@@ -533,6 +573,8 @@ uses
 
     property Align;
     property PageSize;
+    property PageMode;
+    property ManualPageSize;
     property AutoPageSize;
     property ShowAllData;
     property CanPage;
@@ -561,6 +603,12 @@ uses
 
   TVisualGridSearchExpressionService = class
   end;
+
+{$IFDEF VISUALGRID_TEST_WORKER_START}
+var
+  // Dedicated test builds can force cancellation before the RTL schedules Execute.
+  VisualGridBeforeWorkerStart: TNotifyEvent;
+{$ENDIF}
 
 procedure Register;
 
@@ -616,6 +664,7 @@ type
     FError: String;
     FResultReady: LongInt;
     procedure Execute; override;
+    procedure DoTerminate; override;
   public
     constructor Create(AGrid: TCustomVisualGrid; ARefreshColumns: boolean);
   end;
@@ -829,6 +878,7 @@ begin
   if FAutoWidth and Assigned(FGrid.Parent) then FColumn.Width:=FGrid.Canvas.TextWidth(string(FName))+16;
   FGrid.FDrawGrid.FitColumns;
   {$ENDIF}
+  FGrid.GridGeometryChanged(FGrid.FDrawGrid);
 end;
 
 { TVisualGridSelection }
@@ -889,19 +939,22 @@ end;
 
 procedure TFetchDataThread.Execute;
 begin
+  if Terminated then Exit;
   try
-    if Terminated then Exit;
-    try
-      FGrid.FetchPage(FLastFetchDataResult.FetchResult);
-    except
-      on E: Exception do FError := E.Message;
-    end;
-  finally
-    // Publish result readiness before waking the UI. A stale queued wake must
-    // never join a different worker whose provider is still running.
-    InterlockedExchange(FResultReady, 1);
-    FGrid.FFetchCompletion.Invoke(FGrid, FGrid.FetchDataThreadCompleted);
+    FGrid.FetchPage(FLastFetchDataResult.FetchResult);
+  except
+    on E: Exception do FError := E.Message;
   end;
+end;
+
+procedure TFetchDataThread.DoTerminate;
+begin
+  // FPC skips Execute if cancellation wins before scheduling, but still calls
+  // DoTerminate. Always retire that request through the owned async dispatcher;
+  // inherited OnTerminate would synchronously wait for the UI during shutdown.
+  // Publish readiness first so an old queued wake cannot join a newer worker.
+  InterlockedExchange(FResultReady, 1);
+  FGrid.FFetchCompletion.Invoke(FGrid, FGrid.FetchDataThreadCompleted);
 end;
 
 constructor TFetchDataThread.Create(AGrid: TCustomVisualGrid;
@@ -927,6 +980,9 @@ begin
   Move(FGrid.FDataTable, FGrid.FCachedDataTable^, SizeOf(TDataTable));
   FillChar(FGrid.FDataTable, SizeOf(TDataTable), #0);
   LTransferred:=True;
+  {$IFDEF VISUALGRID_TEST_WORKER_START}
+  if Assigned(VisualGridBeforeWorkerStart) then VisualGridBeforeWorkerStart(Self);
+  {$ENDIF}
   {$IFDEF FPC}Start;{$ENDIF}
   except
     // Failed native control preparation must not leave a pointer to the thread
@@ -993,7 +1049,7 @@ end;
 
 procedure TCustomVisualGrid.TSearchEdit.Clear;
 begin
-  FEdit.Clear;
+  FEdit.Text := '';
 end;
 
 { TCustomVisualGrid }
@@ -1006,10 +1062,13 @@ end;
 {$ENDIF}
 
 constructor TCustomVisualGrid.Create(Owner: TComponent);
+var LMode: Integer; LItem: TMenuItem;
 begin
   inherited;
 
   FFetchControlsEnabled := True;
+  FPageMode := vpmManual;
+  FManualPageSize := 100;
 
   FMultiSearchEdits := TObjectList<TSearchEdit>.Create;
   FColumns := TObjectList<TVisualColumn>.Create;
@@ -1055,7 +1114,8 @@ begin
     begin
       Width := 217;
       Height := 40;
-      Align := alRight;
+      Align := alNone;
+      Anchors := [akTop, akRight];
       BevelOuter := bvNone;
       FPageCountLabel := TLabel.Create(Self);
       FPageCountLabel.Parent := FBottomRightPanel;
@@ -1133,7 +1193,7 @@ begin
         AnchorSideBottom.Control := FBottomRightPanel;
         AnchorSideBottom.Side := asrBottom;
       {$ENDIF}
-        Anchors := [akLeft, akTop, akRight, akBottom];
+        Anchors := [akLeft, akTop];
       {$IFDEF FPC}
         BorderSpacing.Top := 10;
         BorderSpacing.Right := 2;
@@ -1185,10 +1245,8 @@ begin
         AnchorSideLeft.Control := FPageSizeLabel;
         AnchorSideLeft.Side := asrBottom;
         AnchorSideTop.Control := FBottomCenterPanel;
-        AnchorSideBottom.Control := FBottomCenterPanel;
-        AnchorSideBottom.Side := asrBottom;
       {$ENDIF}
-        Anchors := [akLeft, akTop, akBottom];
+        Anchors := [akLeft, akTop];
       {$IFDEF FPC}
         BorderSpacing.Top := 10;
         BorderSpacing.Left := 2;
@@ -1197,7 +1255,51 @@ begin
 
         {$IFDEF FPC}OnEditingDone{$ELSE}OnExit{$ENDIF}:=PageSizeEditingDone;
       end;
+      FPageModeMenu := TPopupMenu.Create(Self);
+      FPageModeMenu.Name := 'PageModeMenu';
+      FPageModeMenu.AutoPopup := False;
+      {$IFNDEF FPC}FPageModeMenu.AutoHotkeys := maManual;{$ENDIF}
+      for LMode := 0 to 2 do begin
+        LItem := TMenuItem.Create(FPageModeMenu);
+        case LMode of
+          0: LItem.Caption := 'Single';
+          1: LItem.Caption := 'Auto';
+          2: LItem.Caption := 'Manual';
+        end;
+        LItem.Name := 'PageMode'+LItem.Caption;
+        LItem.Tag := LMode;
+        LItem.RadioItem := True;
+        LItem.GroupIndex := 1;
+        LItem.OnClick := PageModeChanged;
+        FPageModeMenu.Items.Add(LItem);
+      end;
+      FPageModeButton := TBitBtn.Create(Self);
+      FPageModeButton.Name := 'PageModeButton';
+      FPageModeButton.Parent := FBottomRightPanel;
+      FPageModeButton.Caption := '';
+      FPageModeButton.Spacing := 0;
+      FPageModeButton.Margin := -1;
+      FPageModeButton.ShowHint := True;
+      FPageModeButton.OnClick := PageModeButtonClick;
+      FPageModeButton.PopupMenu := FPageModeMenu;
+      {$IFDEF FPC}FPageModeButton.AutoSize := False;{$ENDIF}
+      FPageModeButton.TabOrder := 0;
+      FButtonFirst.TabOrder := 1;
+      FButtonPrevious.TabOrder := 2;
+      FPageIndexEdit.TabOrder := 3;
+      FButtonNext.TabOrder := 4;
+      FButtonLast.TabOrder := 5;
+      {$IFDEF FPC}
+      // The shared footer layout positions these controls on both widgetsets.
+      FPageSizeEdit.AnchorSideLeft.Control := nil;
+      FPageSizeEdit.AnchorSideTop.Control := nil;
+      FPageIndexEdit.AnchorSideLeft.Control := nil;
+      FPageIndexEdit.AnchorSideRight.Control := nil;
+      FPageIndexEdit.AnchorSideTop.Control := nil;
+      FPageIndexEdit.AnchorSideBottom.Control := nil;
+      {$ENDIF}
     end;
+    FBottomRightPanel.BringToFront;
   end;
 
   FTopPanel := TPanel.Create(Self);
@@ -1366,6 +1468,7 @@ begin
       OnMouseUp := GridMouseUp;
       OnSelection := GridSelection;
       OnHeaderClick := GridHeaderClick;
+      OnResize := GridGeometryChanged;
       Options := (Options - [goRangeSelect]);
       FixedCols := 0;
       {$IFDEF FPC}ColCount:=0;{$ELSE}ColCount:=1;{$ENDIF}
@@ -1455,6 +1558,7 @@ begin
   FCanPage := true;
   FCanSearch := true;
   FTotalDataCount := -1;
+  UpdatePagingControls;
 
   {$IFDEF VISUALGRID_DEBUG}
   with TButton.Create(Self) do
@@ -1594,6 +1698,20 @@ end;
 {$IFDEF FPC}procedure TCustomVisualGrid.BoundsChanged;{$ELSE}procedure TCustomVisualGrid.Resize;{$ENDIF}
 begin
   {$IFDEF FPC}inherited BoundsChanged;{$ELSE}inherited Resize;{$ENDIF}
+  ScheduleBoundsChange;
+end;
+
+procedure TCustomVisualGrid.GridGeometryChanged(Sender: TObject);
+begin
+  if not FAutoPageSize or not FCanPage or not Assigned(Parent) then Exit;
+  // Horizontal scrollbars alter the native viewport without changing this
+  // composite's bounds. Refit through the same deferred layout admission.
+  ScheduleBoundsChange;
+end;
+
+procedure TCustomVisualGrid.ScheduleBoundsChange;
+begin
+  if FShuttingDown then Exit;
   if Assigned(FRefreshThrottle) and (FInternalLayoutDepth = 0) then begin
     FBoundsClientPending := True;
     // A real resize is input now, even when page-capacity layout is deferred.
@@ -1669,15 +1787,17 @@ end;
 {$ENDIF}
 
 procedure TCustomVisualGrid.SetParent(AParent:TWinControl);
-{$IFNDEF FPC}var i:Integer;{$ENDIF}
+var i:Integer;
 begin
   inherited;
   if Assigned(AParent) and Assigned(FFetchCompletion) and not FShuttingDown then begin
     {$IFNDEF FPC}
     // Apply column metrics deferred while the composite control had no parent.
     for i:=0 to FColumns.Count-1 do FColumns[i].AttachGridColumn(FColumns[i].FColumn);
-    RefreshPageIndexAndGridInterface;
     {$ENDIF}
+    RefreshPageIndexAndGridInterface;
+    ResetModeScrollPosition(not FRefreshPending and not FFetchInProgress);
+    for i:=0 to FMultiSearchEdits.Count-1 do ResizeSearchEdit(i);
     LayoutLoadingPanel(Self);
     RefreshLoadingPresentation;
   end;
@@ -1775,8 +1895,10 @@ end;
 procedure TCustomVisualGrid.EndLoading;
 begin
   FLoadingDelayTimer.Enabled := False;
-  FAutomaticLoading := FRefreshPending and not FRefreshSuspended and
-    not FRefreshCancelled and not FShuttingDown;
+  // Accepted rows end their automatic card. Only newer client input retains
+  // it; a deferred internal capacity refit already has usable published data.
+  FAutomaticLoading := FRefreshPending and FRefreshClientPending and
+    not FRefreshSuspended and not FRefreshCancelled and not FShuttingDown;
   if FAutomaticLoading and (GetTickCount64-FLoadingStartedAt < 200) then
     FLoadingDelayTimer.Enabled := True;
   FLoadingError := '';
@@ -1867,7 +1989,13 @@ begin
   LAlreadyNotified := FBoundsAlreadyNotified;
   FBoundsClientPending := False;
   FBoundsAlreadyNotified := False;
-  if AutoPageSize then
+  Inc(FInternalLayoutDepth);
+  try
+    UpdatePagingControls;
+  finally
+    Dec(FInternalLayoutDepth);
+  end;
+  if AutoPageSize and FCanPage then
   begin
     // for vgoAutoHidePaging and AutoPageSize more space may be available
     // and paging panel may be hidden
@@ -1891,7 +2019,7 @@ begin
   if FShuttingDown or FJoiningFetch or not Assigned(FActiveThread) then Exit;
   worker := TFetchDataThread(FActiveThread);
   if InterlockedCompareExchange(worker.FResultReady, 0, 0) = 0 then Exit;
-  // Execute has finished provider work before queueing this wake. There is no
+  // Provider work has ended or was skipped before scheduling. There is no
   // OnTerminate/Synchronize callback for WaitFor to wait on. Guard other queued
   // wakes while WaitFor services the main-thread queue during a source change.
   FJoiningFetch := True;
@@ -2098,6 +2226,7 @@ end;
 procedure TCustomVisualGrid.ApplyControlsState;
 var
   e: TSearchEdit;
+  I: Integer;
   LReadOnly, LManualInputAllowed, LInputAllowed: boolean;
 begin
   LManualInputAllowed := not (FManualLoading and FManualLoadingDisablesInput);
@@ -2114,6 +2243,8 @@ begin
   FPageIndexEdit.ReadOnly:=LReadOnly;
   FDrawGrid.Enabled:=LInputAllowed;
   FBottomRightPanel.Enabled:=LInputAllowed;
+  FPageModeButton.Enabled:=LInputAllowed;
+  for I := 0 to FPageModeMenu.Items.Count-1 do FPageModeMenu.Items[I].Enabled := LInputAllowed;
   for e in FMultiSearchEdits do
     e.FEdit.ReadOnly:=LReadOnly;
 end;
@@ -2225,6 +2356,76 @@ begin
   FIgnoreRecalcPageCount := false;
 end;
 
+function TCustomVisualGrid.CanChangePageMode: Boolean;
+var LControl: TControl;
+begin
+  Result := False;
+  if not FCanPage or not Assigned(Parent) then Exit;
+  LControl := FPageModeButton;
+  while Assigned(LControl) do begin
+    if not LControl.Enabled then Exit;
+    LControl := LControl.Parent;
+  end;
+  Result := True;
+end;
+
+procedure TCustomVisualGrid.PageModeButtonClick(Sender: TObject);
+var LPoint: TPoint;
+begin
+  if not CanChangePageMode then Exit;
+  LPoint := FPageModeButton.ClientToScreen(Point(0,FPageModeButton.Height));
+  FPageModeMenu.PopupComponent := FPageModeButton;
+  FPageModeMenu.PopUp(LPoint.X,LPoint.Y);
+end;
+
+procedure TCustomVisualGrid.PageModeChanged(Sender: TObject);
+begin
+  // A menu can outlive the input state in which it opened (fetch/manual hold).
+  // Keep its command subject to the same enabled parent chain as the button.
+  if not CanChangePageMode or not (Sender is TMenuItem) then Exit;
+  if TMenuItem(Sender).Tag in [Ord(Low(TVisualGridPageMode))..Ord(High(TVisualGridPageMode))] then
+    PageMode := TVisualGridPageMode(TMenuItem(Sender).Tag);
+end;
+
+procedure TCustomVisualGrid.UpdatePageModeGlyph;
+var LBitmap: {$IFDEF FPC}Graphics.TBitmap{$ELSE}Vcl.Graphics.TBitmap{$ENDIF}; LSize: Integer;
+
+  function P(AValue: Integer): Integer;
+  begin
+    Result := (AValue*LSize+8) div 16;
+  end;
+
+begin
+  LSize := Max(12,Min(FPageModeButton.Width,FPageModeButton.Height)-Scale96ToFont(8));
+  if (FPageModeButton.Glyph.Width = LSize) and (FPageModeButton.Glyph.Height = LSize) then Exit;
+  LBitmap := {$IFDEF FPC}Graphics.TBitmap{$ELSE}Vcl.Graphics.TBitmap{$ENDIF}.Create;
+  try
+    LBitmap.PixelFormat := pf24bit;
+    LBitmap.Width := LSize;
+    LBitmap.Height := LSize;
+    LBitmap.Canvas.Brush.Color := clFuchsia;
+    LBitmap.Canvas.FillRect(Types.Rect(0,0,LSize,LSize));
+    LBitmap.Canvas.Brush.Style := bsClear;
+    LBitmap.Canvas.Pen.Color := clBtnText;
+    LBitmap.Canvas.Rectangle(P(1),P(1),P(12),P(12));
+    LBitmap.Canvas.MoveTo(P(1),P(5));
+    LBitmap.Canvas.LineTo(P(12),P(5));
+    LBitmap.Canvas.MoveTo(P(1),P(8));
+    LBitmap.Canvas.LineTo(P(12),P(8));
+    LBitmap.Canvas.MoveTo(P(5),P(1));
+    LBitmap.Canvas.LineTo(P(5),P(12));
+    LBitmap.Canvas.Brush.Style := bsSolid;
+    LBitmap.Canvas.Brush.Color := clBtnText;
+    LBitmap.Canvas.Polygon([Point(P(9),P(12)),Point(P(15),P(12)),Point(P(12),P(15))]);
+    LBitmap.TransparentColor := clFuchsia;
+    LBitmap.Transparent := True;
+    FPageModeButton.Glyph.Assign(LBitmap);
+    FPageModeButton.NumGlyphs := 1;
+  finally
+    LBitmap.Free;
+  end;
+end;
+
 procedure TCustomVisualGrid.PageNavigationClick(Sender: TObject);
 begin
   if FPageCount = 0 then
@@ -2321,7 +2522,9 @@ begin
   // Clear all filters
   for i := 0 to FMultiSearchEdits.Count - 1 do
     FMultiSearchEdits[i].Clear;
-  FSearchEdit.Clear;
+  // VCL Clear forces a HWND; Text also retains the intended empty value while
+  // a composite grid is configured before its native parent is assigned.
+  FSearchEdit.Text := '';
 
   FSearchMode := AValue;
 
@@ -2367,40 +2570,67 @@ end;
 
 procedure TCustomVisualGrid.SetShowAllData(AValue: boolean);
 begin
-  if FShowAllData=AValue then
-    Exit;
-
-  FShowAllData:=AValue;
-  if FShowAllData then
-    AutoPageSize:=false;
-
-  HidePageSizeControls(not AValue);
-  HidePageNavigationControls(not AValue);
-  PageSize:=FTotalDataCount;
+  if AValue then PageMode := vpmSingle
+  else if FPageMode = vpmSingle then PageMode := vpmManual;
 end;
 
 procedure TCustomVisualGrid.SetAutoPageSize(AValue: boolean);
-
 begin
-  if FAutoPageSize=AValue then
+  if AValue then PageMode := vpmAuto
+  else if FPageMode = vpmAuto then PageMode := vpmManual;
+end;
+
+procedure TCustomVisualGrid.ResetModeScrollPosition(AClearPending: Boolean);
+begin
+  if not FModeScrollResetPending or not Assigned(Parent) then
     Exit;
+  // A paging mode starts at a new viewport origin. Reapply after publication:
+  // native row clamping and retained selection can move the scrollbars again.
+  if FDrawGrid.RowCount > FDrawGrid.FixedRows then
+    FDrawGrid.TopRow := FDrawGrid.FixedRows;
+  if FDrawGrid.ColCount > FDrawGrid.FixedCols then
+    FDrawGrid.LeftCol := FDrawGrid.FixedCols;
+  if AClearPending and not FRefreshPending then
+    FModeScrollResetPending := False;
+end;
 
-  FAutoPageSize:=AValue;
-  if FAutoPageSize then
-    ShowAllData:=false;
+procedure TCustomVisualGrid.SetPageMode(AValue: TVisualGridPageMode);
+begin
+  if FPageMode = AValue then Exit;
+  FModeScrollResetPending := True;
+  FPageMode := AValue;
+  FShowAllData := AValue = vpmSingle;
+  FAutoPageSize := AValue = vpmAuto;
+  // A mode change supersedes an in-flight slice without joining the provider
+  // on the UI thread. Completion restores the previous rows until the latest
+  // retained request is admitted by this grid's existing refresh policy.
+  CancelActiveFetch;
+  FPageIndex := 0;
+  if not FAutoPageSize then FPageSize := FManualPageSize;
+  Inc(FInternalLayoutDepth);
+  try
+    UpdatePagingControls;
+    if FAutoPageSize and FCanPage and Assigned(Parent) then
+      FPageSize := ClientRowCount;
+  finally
+    Dec(FInternalLayoutDepth);
+  end;
+  SetPageSizeEditText(IntToStr(FPageSize));
+  ResetModeScrollPosition(False);
+  RefreshPageIndexData(False);
+end;
 
-  HidePageSizeControls(not FAutoPageSize);
-
-  if FAutoPageSize then
-    FDrawGrid.ScrollBars:=ssNone
-  else
-    FDrawGrid.ScrollBars:={$IFDEF FPC}ssAutoBoth{$ELSE}ssBoth{$ENDIF};
-
-  {$IFNDEF FPC}if not Assigned(Parent) then Exit;{$ENDIF}
-  PageSize := ClientRowCount;
-
-  // for proper handling of vgoAutoHidePaging we need to refresh
-  RefreshPageIndexAndGridInterface;
+procedure TCustomVisualGrid.SetManualPageSize(AValue: Integer);
+begin
+  if AValue <= 0 then Exit;
+  AValue := Min(AValue,1000000);
+  if FManualPageSize = AValue then Exit;
+  FManualPageSize := AValue;
+  if FPageMode = vpmManual then ChangePageSize(AValue,True,True)
+  else if FPageMode = vpmSingle then begin
+    FPageSize := AValue;
+    SetPageSizeEditText(IntToStr(AValue));
+  end;
 end;
 
 procedure TCustomVisualGrid.SetCanPage(AValue: boolean);
@@ -2409,6 +2639,16 @@ begin
     Exit;
 
   FCanPage:=AValue;
+  CancelActiveFetch;
+  FPageIndex := 0;
+  Inc(FInternalLayoutDepth);
+  try
+    UpdatePagingControls;
+    if FAutoPageSize and FCanPage and Assigned(Parent) then
+      FPageSize := ClientRowCount;
+  finally
+    Dec(FInternalLayoutDepth);
+  end;
   FBottomPanel.Visible:=FCanPage;
   if csDesigning in ComponentState then
     if FBottomPanel.Visible then
@@ -2417,6 +2657,7 @@ begin
       FBottomPanel.ControlStyle := FBottomPanel.ControlStyle + [csNoDesignVisible];
 
   LayoutChanged;
+  RefreshPageIndexData(False);
 end;
 
 procedure TCustomVisualGrid.SetCanSearch(AValue: boolean);
@@ -2440,6 +2681,16 @@ begin
   RefreshPageIndexData( False );
 end;
 
+procedure TCustomVisualGrid.CancelActiveFetch;
+begin
+  if not Assigned(FActiveThread) then
+    Exit;
+  // Terminate is a cooperative request. Completion owns joining and restoring
+  // the retained page, including when a provider ignores cancellation briefly.
+  FActiveRefreshCancelled := True;
+  FActiveThread.Terminate;
+end;
+
 procedure TCustomVisualGrid.SetRefreshSuspended(AValue: Boolean);
 begin
   if FRefreshSuspended = AValue then Exit;
@@ -2461,8 +2712,7 @@ begin
         TFetchDataThread(FActiveThread).FLastFetchDataResult.RefreshColumns;
       // This flag belongs to the active request, not to the pause state: an
       // intervening resume must never make its cancelled result valid again.
-      FActiveRefreshCancelled := True;
-      FActiveThread.Terminate;
+      CancelActiveFetch;
     end;
   end else begin
     // Apply a queued real resize before admitting the one latest page. Layout
@@ -2541,7 +2791,9 @@ begin
 end;
 
 procedure TCustomVisualGrid.ExecutePendingRefresh(AOrdinaryAdmission: Boolean);
-var LRefreshColumns: Boolean;
+var
+  LRefreshColumns: Boolean;
+  LPreviousDataTable: TDataTable;
 begin
   if FShuttingDown or FRefreshSuspended or FExecutingRefresh or (FInternalLayoutDepth > 0) or
     Assigned(FActiveThread) or not FRefreshPending or not FRefreshReady then Exit;
@@ -2560,15 +2812,28 @@ begin
     FRefreshReady := False;
     FPendingRefreshSource := nil;
     FPageIndex := FActiveRefreshParams.PageIndex;
-    FPageSize := FActiveRefreshParams.PageSize;
+    if FActiveRefreshParams.PageSize > 0 then
+      FPageSize := FActiveRefreshParams.PageSize;
     SetPageSizeEditText(IntToStr(FPageSize));
     if Assigned(FActiveRefreshSource) and FetchDataInThread then
       TFetchDataThread.Create(Self, LRefreshColumns)
     else begin
-      BeforeFetchPage;
-      FLastFetchDataResult.FromThread := False;
-      FLastFetchDataResult.RefreshColumns := LRefreshColumns;
-      FetchPage(FLastFetchDataResult.FetchResult);
+      LPreviousDataTable := FDataTable;
+      try
+        BeforeFetchPage;
+        FDataTable := Default(TDataTable);
+        FLastFetchDataResult.FromThread := False;
+        FLastFetchDataResult.RefreshColumns := LRefreshColumns;
+        FetchPage(FLastFetchDataResult.FetchResult);
+      except
+        on E: Exception do begin
+          // A synchronous provider can fail after replacing its output table.
+          // Retain the accepted page and end loading before preserving the error.
+          FDataTable := LPreviousDataTable;
+          ShowLoadingError(E.Message);
+          raise;
+        end;
+      end;
       AfterFetchPage;
     end;
   finally
@@ -2585,6 +2850,9 @@ var
   //LFixedRect: TRect;
   LRect: TRect;
 begin
+  // Data may be assigned before a native parent exists. CellRect creates VCL
+  // handles, so replay this geometry from SetParent instead of forcing them.
+  if not Assigned(Parent) then Exit;
   if ACol > FMultiSearchEdits.Count - 1 then
     exit;
   LEdit := FMultiSearchEdits[ACol];
@@ -2622,8 +2890,7 @@ end;
 
 procedure TCustomVisualGrid.RefreshPageIndexAndGridInterface;
 var
-  LCountOnPage2: Integer;
-  LGridUnusedHeight, LPotentialHeight: integer;
+  LPreviousFooterHeight: Integer;
   LWasVisible: boolean;
   LHasFilter: boolean;
 
@@ -2631,7 +2898,7 @@ var
   var
     LCount: Integer;
   begin
-    if FIgnoreRecalcPageCount then
+    if FIgnoreRecalcPageCount or not FAutoPageSize or not FCanPage then
       Exit(false);
     LCount := ClientRowCount;
     Result := LCount <> PageSize;
@@ -2658,54 +2925,11 @@ begin
   SetPageIndexEditText(IntToStr(Succ(FPageIndex)));
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
 
-  if not FFetchInProgress then
-  if (vgoAutoHidePaging in FOptions) and (FPageCount in [0,1,2]) and (FPageIndex = 0) then
-    case FPageCount of
-      // simple situation - just hide bottom panel
-      0,1: FBottomPanel.Visible := False;
-      // for PageCount = 2 may be also possible but more complicated especially for AutoPageSize
-      2:
-        if AutoPageSize then
-        begin
-          LCountOnPage2 := FTotalDataCount - ClientRowCount;
-          LGridUnusedHeight := FDrawGrid.ClientHeight - FDrawGrid.GridHeight;
-          LPotentialHeight := FBottomPanel.Height + LGridUnusedHeight;
-          if (vgoAutoHideSearchPanel in FOptions) and not LHasFilter then
-          begin
-            // vgoAutoHideSearchPanel + AutoPageSize + vgoAutoHidePaging is killer combo :P
-            if FTopPanel.Visible and not Assigned(FWidgetControl) then
-              LPotentialHeight := LPotentialHeight + FTopPanel.Height;
-            // the above killer combo is not all :D - there is also FTopPanelMultiSearch
-            if FTopPanelMultiSearch.Visible then
-              LPotentialHeight := LPotentialHeight + FTopPanelMultiSearch.Height;
-          end;
-
-          if FBottomPanel.Visible
-           and (FDrawGrid.DefaultRowHeight * LCountOnPage2 <= LPotentialHeight) then
-          begin
-            FBottomPanel.Visible := False;
-            ChangePageSize(PageSize + LCountOnPage2,
-              FInternalLayoutDepth = 0, FInternalLayoutDepth = 0);
-            Exit;
-          end else
-          begin
-            if FCanPage then
-            begin
-              FBottomPanel.Visible := true;
-              if RecalcPageCount then
-                Exit;
-            end;
-          end;
-        end else
-          FBottomPanel.Visible := FCanPage
-    end
-  else
-  begin
-    LWasVisible := FBottomPanel.Visible;
-    FBottomPanel.Visible := FCanPage;
-    if (FBottomPanel.Visible <> LWasVisible) and RecalcPageCount then
-      Exit;
-  end;
+  LWasVisible := FBottomPanel.Visible;
+  LPreviousFooterHeight := FBottomPanel.Height;
+  UpdatePagingControls;
+  if ((FBottomPanel.Visible <> LWasVisible) or
+    (FBottomPanel.Height <> LPreviousFooterHeight)) and RecalcPageCount then Exit;
 
   // show or hide Search Panel (related to option vgoAutoHideSearchPanel)
   if (vgoAutoHideSearchPanel in FOptions) and (FPageCount in [0,1]) and not LHasFilter then
@@ -2801,8 +3025,8 @@ procedure TCustomVisualGrid.LayoutChanged;
 begin
   {$IFNDEF FPC}if not Assigned(Parent) then Exit;{$ENDIF}
   // layout has changed, maybe more space is available
-  if AutoPageSize then
-    PageSize := ClientRowCount;
+  if AutoPageSize and FCanPage then
+    ChangePageSize(ClientRowCount,True,True);
 end;
 
 function TCustomVisualGrid.ClientRowCount: Integer;
@@ -2855,7 +3079,166 @@ end;
 
 procedure TCustomVisualGrid.HidePageNavigationControls(AVisible: boolean);
 begin
-  FBottomRightPanel.Visible:=AVisible;
+  FButtonFirst.Visible := AVisible;
+  FButtonPrevious.Visible := AVisible;
+  FPageIndexEdit.Visible := AVisible;
+  FPageCountLabel.Visible := AVisible;
+  FButtonNext.Visible := AVisible;
+  FButtonLast.Visible := AVisible;
+end;
+
+procedure TCustomVisualGrid.UpdatePagingControls;
+var
+  LNavigation, LManual, LInline, LManualBelow: Boolean;
+  LWidth, LAvailable, LMargin, LGap, LModeGap, LModeWidth,
+    LTotalWidth, LManualWidth, LLabelWidth, LEditWidth, LEditHeight,
+    LButtonWidth, LButtonMinimum, LButtonHeight, LPageWidth,
+    LRequiredPageWidth, LCountWidth, LRowHeight,
+    LGroupWidth, LGroupHeight, LGroupRowHeight, LGroupLeft, LGroupTop,
+    LLeftWidth, LTopHeight, LHeight, LManualLeft, LManualTop, LX, LY, I: Integer;
+
+  function ControlTextWidth(AControl: TControl; AFont: TFont;
+    const AText: String): Integer;
+  var LCanvas: TControlCanvas;
+  begin
+    // Native child fonts can differ from the composite canvas after scaling
+    // or custom painting; measure the control which will display this text.
+    LCanvas := TControlCanvas.Create;
+    try
+      LCanvas.Control := AControl;
+      LCanvas.Font.Assign(AFont);
+      Result := LCanvas.TextWidth(AText);
+    finally
+      LCanvas.Free;
+    end;
+  end;
+
+  procedure PlaceNavigation(AControl: TControl; AWidth, AHeight: Integer);
+  begin
+    // Only extreme widths wrap the tail. The selector and first-page button
+    // are placed together before this flow and always remain adjacent.
+    if LX+AWidth > LGroupWidth then begin
+      LX := 0;
+      Inc(LY,LGroupRowHeight+LGap);
+    end;
+    AControl.SetBounds(LX,LY+(LGroupRowHeight-AHeight) div 2,AWidth,AHeight);
+    Inc(LX,AWidth+LGap);
+  end;
+begin
+  if not Assigned(FPageModeButton) then Exit;
+  for I := 0 to FPageModeMenu.Items.Count-1 do
+    FPageModeMenu.Items[I].Checked := I = Ord(FPageMode);
+  FPageModeButton.Hint := 'Paging mode: '+FPageModeMenu.Items[Ord(FPageMode)].Caption+
+    '. Choose Single, Auto or Manual.';
+  if not Assigned(Parent) then Exit;
+  FBottomPanel.Visible := FCanPage;
+  FBottomRightPanel.Visible := FCanPage;
+  FPageModeButton.Visible := FCanPage;
+  LManual := FCanPage and (FPageMode = vpmManual);
+  LNavigation := FCanPage and (FPageMode <> vpmSingle);
+  if (vgoAutoHidePaging in FOptions) and (FTotalDataCount >= 0) and
+    (FTotalDataCount <= FPageSize) then LNavigation := False;
+  HidePageSizeControls(LManual);
+  HidePageNavigationControls(LNavigation);
+  if FAutoPageSize and FCanPage then
+    FDrawGrid.ScrollBars := {$IFDEF FPC}ssAutoHorizontal{$ELSE}ssHorizontal{$ENDIF}
+  else FDrawGrid.ScrollBars := {$IFDEF FPC}ssAutoBoth{$ELSE}ssBoth{$ENDIF};
+
+  LMargin := Scale96ToFont(7);
+  LGap := Scale96ToFont(4);
+  LModeGap := Scale96ToFont(4);
+  LWidth := FBottomPanel.ClientWidth;
+  LAvailable := Max(1,LWidth-2*LMargin);
+  LTotalWidth := 0;
+  if FAllRecordsCountLabel.Visible then LTotalWidth := FAllRecordsCountLabel.Width;
+  LLabelWidth := Max(FPageSizeLabel.Width,Scale96ToFont(60));
+  LEditWidth := Max(Scale96ToFont(52),4*Abs(Font.Height)+Scale96ToFont(8));
+  LManualWidth := LLabelWidth+LMargin+LEditWidth;
+  LEditHeight := Max(Scale96ToFont(21),Abs(Font.Height)+Scale96ToFont(8));
+  // LCL edits can auto-size taller than the requested height. Reserve their
+  // actual native height before placing the separate manual-size band.
+  FPageSizeEdit.Height := LEditHeight;
+  FPageIndexEdit.Height := LEditHeight;
+  LEditHeight := Max(LEditHeight,Max(FPageSizeEdit.Height,FPageIndexEdit.Height));
+  LButtonMinimum := ControlTextWidth(FButtonFirst,FButtonFirst.Font,'|<')+Scale96ToFont(6);
+  LButtonWidth := Max(Scale96ToFont(25),LButtonMinimum);
+  LButtonHeight := Max(Scale96ToFont(25),LEditHeight);
+  LModeWidth := LButtonHeight;
+  // Required text space applies in both the normal and compact layout. LCL
+  // can scale a child font independently of these nominal control widths.
+  LRequiredPageWidth :=
+    ControlTextWidth(FPageIndexEdit,FPageIndexEdit.Font,IntToStr(Max(1,FPageCount)))+
+    Max(0,FPageIndexEdit.Width-FPageIndexEdit.ClientWidth)+Scale96ToFont(8);
+  LPageWidth := Max(Scale96ToFont(56),LRequiredPageWidth);
+  LCountWidth := Max(FPageCountLabel.Width,Scale96ToFont(18));
+  LGroupWidth := LModeWidth;
+  if LNavigation then
+    Inc(LGroupWidth,LModeGap+4*LButtonWidth+LPageWidth+LCountWidth+5*LGap);
+  if LNavigation and (LGroupWidth > LAvailable) then begin
+    // Compact the navigation before moving other footer content to another
+    // row. The icon button belongs to this right-anchored native control group.
+    LGap := Scale96ToFont(2);
+    LButtonWidth := Max(Scale96ToFont(21),LButtonMinimum);
+    // Compact spacing must still display the largest valid page number,
+    // including the native edit border and room for its text margins/caret.
+    LPageWidth := Max(Scale96ToFont(36),LRequiredPageWidth);
+    LGroupWidth := LModeWidth+LModeGap+4*LButtonWidth+LPageWidth+LCountWidth+5*LGap;
+  end;
+  LGroupWidth := Min(LGroupWidth,LAvailable);
+  if LNavigation then LGroupWidth := Max(LGroupWidth,LModeWidth+LModeGap+LButtonWidth)
+  else LGroupWidth := Max(LGroupWidth,LModeWidth);
+  LGroupRowHeight := Max(LButtonHeight,LEditHeight);
+  FPageModeButton.SetBounds(0,(LGroupRowHeight-LButtonHeight) div 2,LModeWidth,LButtonHeight);
+  LGroupRowHeight := Max(LGroupRowHeight,FPageModeButton.Height);
+  FPageModeButton.Top := (LGroupRowHeight-FPageModeButton.Height) div 2;
+  UpdatePageModeGlyph;
+  LX := LModeWidth+LModeGap;
+  LY := 0;
+  if LNavigation then begin
+    FButtonFirst.SetBounds(LX,(LGroupRowHeight-LButtonHeight) div 2,LButtonWidth,LButtonHeight);
+    Inc(LX,LButtonWidth+LGap);
+    PlaceNavigation(FButtonPrevious,LButtonWidth,LButtonHeight);
+    PlaceNavigation(FPageIndexEdit,LPageWidth,LEditHeight);
+    PlaceNavigation(FPageCountLabel,LCountWidth,FPageCountLabel.Height);
+    PlaceNavigation(FButtonNext,LButtonWidth,LButtonHeight);
+    PlaceNavigation(FButtonLast,LButtonWidth,LButtonHeight);
+  end;
+  LGroupHeight := LY+LGroupRowHeight;
+  LRowHeight := Max(Scale96ToFont(40),LGroupRowHeight+Scale96ToFont(14));
+  LLeftWidth := LTotalWidth;
+  if LManual then begin
+    if LLeftWidth > 0 then Inc(LLeftWidth,2*LMargin);
+    Inc(LLeftWidth,LManualWidth);
+  end;
+  LInline := LLeftWidth+LGroupWidth+3*LMargin <= LWidth;
+  LManualBelow := LManual and (LLeftWidth > LAvailable);
+  LTopHeight := FAllRecordsCountLabel.Height;
+  if LManual then LTopHeight := Max(LTopHeight,LEditHeight);
+  if LManualBelow then LTopHeight := FAllRecordsCountLabel.Height+LGap+LEditHeight;
+  if LInline then begin
+    LHeight := Max(LRowHeight,LGroupHeight+Scale96ToFont(4));
+    LGroupTop := (LHeight-LGroupHeight) div 2;
+    LManualTop := (LHeight-LEditHeight) div 2;
+    FAllRecordsCountLabel.Top := (LHeight-FAllRecordsCountLabel.Height) div 2;
+  end else begin
+    LHeight := Max(LRowHeight,LTopHeight+LGroupHeight+Scale96ToFont(2));
+    LGroupTop := LHeight-LGroupHeight-Scale96ToFont(2);
+    LManualTop := (LTopHeight-LEditHeight) div 2;
+    FAllRecordsCountLabel.Top := (LTopHeight-FAllRecordsCountLabel.Height) div 2;
+    if LManualBelow then begin
+      FAllRecordsCountLabel.Top := 0;
+      LManualTop := FAllRecordsCountLabel.Height+LGap;
+    end;
+  end;
+  LManualLeft := LMargin;
+  if (LTotalWidth > 0) and not LManualBelow then Inc(LManualLeft,LTotalWidth+2*LMargin);
+  FAllRecordsCountLabel.Left := LMargin;
+  FPageSizeLabel.SetBounds(LManualLeft,LManualTop+
+    (LEditHeight-FPageSizeLabel.Height) div 2,LLabelWidth,FPageSizeLabel.Height);
+  FPageSizeEdit.SetBounds(LManualLeft+LLabelWidth+LMargin,LManualTop,LEditWidth,LEditHeight);
+  FBottomPanel.Height := LHeight;
+  LGroupLeft := Max(0,LWidth-LMargin-LGroupWidth);
+  FBottomRightPanel.SetBounds(LGroupLeft,LGroupTop,LGroupWidth,LGroupHeight);
 end;
 
 function TCustomVisualGrid.CheckRangeForPageSize(var APageSize: Integer
@@ -2918,6 +3301,7 @@ end;
 
 procedure TCustomVisualGrid.SetPageIndex(Value: Integer);
 begin
+  if (FPageMode = vpmSingle) or not FCanPage then Value := 0;
   if Value >= FPageCount then
     Value := FPageCount - 1;
   if Value < 0 then
@@ -2946,7 +3330,8 @@ end;
 
 procedure TCustomVisualGrid.BeforeFetchPage;
 begin
-  if Assigned(FActiveRefreshSource) then
+  if FActiveRefreshParams.PageSize <= 0 then FPageIndex := 0
+  else if Assigned(FActiveRefreshSource) then
     if FPageIndex >= FPageCount then
       FPageIndex := FPageCount - 1;
   FActiveRefreshParams.PageIndex := FPageIndex;
@@ -3031,6 +3416,12 @@ begin
   FillFilter;
   Result := TPageFetchParams.Create(FPageIndex, FPageSize, FFilters.ToArray,
     IIF(FSearchMode = smMulti, foAnd, foOr));
+  // The source's existing nonpositive-size contract means all matching rows,
+  // including rows added after an earlier result or an initially unknown total.
+  if (FPageMode = vpmSingle) or not FCanPage then begin
+    Result.PageIndex := 0;
+    Result.PageSize := -1;
+  end;
 end;
 
 procedure TCustomVisualGrid.AfterFetchPage;
@@ -3133,13 +3524,15 @@ begin
   end
   else
     UpdateSelection(stNone, false);
+  ResetModeScrollPosition(not FRefreshClientPending);
   finally
     Dec(FInternalLayoutDepth);
   end;
   // Publishing an older page must not overwrite a newer queued client intent.
   if FRefreshClientPending then begin
     FPageIndex := FPendingRefreshParams.PageIndex;
-    FPageSize := FPendingRefreshParams.PageSize;
+    if FPendingRefreshParams.PageSize > 0 then
+      FPageSize := FPendingRefreshParams.PageSize;
     SetPageSizeEditText(IntToStr(FPageSize));
     FFilters.Clear;
     FFilters.AddRange(FPendingRefreshParams.Filter);
@@ -3193,6 +3586,14 @@ end;
 
 procedure TCustomVisualGrid.SetPageSize(Value: Integer);
 begin
+  if Value <= 0 then Exit;
+  CheckRangeForPageSize(Value);
+  FManualPageSize := Value;
+  if FPageMode = vpmSingle then begin
+    FPageSize := Value;
+    SetPageSizeEditText(IntToStr(Value));
+    Exit;
+  end;
   ChangePageSize(Value, True, True);
 end;
 
@@ -3497,7 +3898,7 @@ end;
 
 procedure TCustomVisualGrid.GridSelection(Sender: TObject; aCol, aRow: Integer);
 var
-  LSelection: TVisualGridSelection;
+  LSelection, LAfterSelection: TVisualGridSelection;
 begin
   if Assigned(FOnSelection) and (not FIgnoreSelectionEvent) then
   begin
@@ -3508,16 +3909,24 @@ begin
 
     if not SelectionsEquals(FLastSelectionEvent, LSelection) then
     begin
-      FIgnoreSelectionEvent := true;
-      FLastSelectionEvent := LSelection;
-      FOnSelection(Self, LSelection);
-      // maybe inside FOnSelection was called ClearSelection, we can handle this
-      if not SelectionsEquals(FLastSelection, LSelection) then
-      begin
-        FLastSelectionEvent := FLastSelection;
-        FOnSelection(Self, FLastSelection);
+      FIgnoreSelectionEvent := True;
+      try
+        FLastSelectionEvent := LSelection;
+        FOnSelection(Self, LSelection);
+        // Only an actual callback change, such as ClearSelection, is another
+        // event. FLastSelection remembers mouse-up state and can be older.
+        if FCurrentSelectionType = stNone then
+          ResetSelection(LAfterSelection)
+        else
+          LAfterSelection := Selection;
+        if not SelectionsEquals(LAfterSelection, LSelection) then
+        begin
+          FLastSelectionEvent := LAfterSelection;
+          FOnSelection(Self, LAfterSelection);
+        end;
+      finally
+        FIgnoreSelectionEvent := False;
       end;
-      FIgnoreSelectionEvent := false;
     end;
   end;
 end;

@@ -10,9 +10,43 @@ interface
 
 uses Classes, SysUtils, Types, Forms, Controls, StdCtrls, ExtCtrls, Graphics, SyncObjs, Variants, Generics.Collections,
   fpcunit, testregistry, UCommon, UCommon.UI, UCommon.Data, UVisualGrid,
-  UVisualGrid.Viewport.Checks;
+  UVisualGrid.Viewport.Checks, UVisualGrid.Paging.Checks, UVisualGrid.Worker.Checks,
+  UVisualGrid.Loading.Checks, UVisualGrid.Selection.Checks;
 
 type
+  TVisualGridSelectionEventTests = class(TTestCase)
+  published
+    procedure OneNativeClickPublishesOneSelectedEvent;
+    procedure RepeatedNativeClickPreservesToggleDeselection;
+    procedure ConsumerClearPublishesOneActualEmptyFollowUp;
+    procedure ProgrammaticAndNoHandlerSelectionRemainCoherent;
+  end;
+
+  TVisualGridLoadingLifecycleTests = class(TTestCase)
+  published
+    procedure InternalCapacityRefitDoesNotRetainUpdating;
+    procedure GenuineQueuedClientRetainsItsLoadingCard;
+    procedure ManualImageSurvivesInternalPublication;
+    procedure ManualAndErrorLayersRemainIndependent;
+    procedure SynchronousFailureRetainsRowsAndCanRetry;
+  end;
+
+  TVisualGridPagingTests = class(TTestCase)
+  published
+    procedure LegacyShowAllDoesNotDependOnCachedTotal;
+    procedure SynchronousSourceCanBeAssignedBeforeParenting;
+    procedure SingleLoadsTheWholeUnknownAndGrowingResult;
+    procedure DropdownModesRememberManualSizeAndFitAutomaticRows;
+    procedure SingleSearchAndSortUseTheWholeResult;
+    procedure SelectorRemainsReachableForEmptyAndOnePageResults;
+    procedure SuspendedModesResumeOnlyTheLatestIntent;
+    procedure SwitchingModesRejectsAnOldFiniteWorker;
+    procedure DisablingPagingQueriesTheWholeResultInEveryMode;
+    procedure EveryModeChangeRestoresNativeScrollOrigin;
+    procedure SuspendedModeChangesRestoreScrollAfterPublication;
+    procedure HeldWorkersCannotRestoreAnOldModeScrollPosition;
+  end;
+
   TVisualGridViewportTests = class(TTestCase)
   published
     procedure UniformRowsFitAtNativePixelBoundaries;
@@ -67,6 +101,13 @@ type
     procedure AwaitCompletionOnly;
     procedure CompleteAndRequestNext(Sender: TObject);
   published
+    {$IF defined(MSWINDOWS) and defined(VISUALGRID_TEST_WORKER_START)}
+    procedure WorkerCancelledBeforeExecutionRetiresAndPreservesOtherReceivers;
+    procedure PublicCancellationBeforeStartKeepsTheLatestRequest;
+    {$ENDIF}
+    procedure CancelActiveFetchNeverJoinsOrPublishesAHeldQuery;
+    procedure CancelledFetchRetainsTheLatestFiveSecondAdmission;
+    procedure CancelledProviderExceptionCannotPublishAnErrorCard;
     procedure FinishedWorkerPublishesWithAllTimersDisabled;
     procedure FailedWorkerPublishesAndRetriesWithoutTimers;
     procedure DisposingQueuedReceiverPreservesOtherGridCompletion;
@@ -116,6 +157,111 @@ type
   end;
 
 implementation
+
+procedure TVisualGridSelectionEventTests.OneNativeClickPublishesOneSelectedEvent;
+begin
+  CheckVisualGridSelection(ssNativeClickEvents);
+end;
+
+procedure TVisualGridSelectionEventTests.RepeatedNativeClickPreservesToggleDeselection;
+begin
+  CheckVisualGridSelection(ssRepeatedClickToggle);
+end;
+
+procedure TVisualGridSelectionEventTests.ConsumerClearPublishesOneActualEmptyFollowUp;
+begin
+  CheckVisualGridSelection(ssConsumerClearSelection);
+end;
+
+procedure TVisualGridSelectionEventTests.ProgrammaticAndNoHandlerSelectionRemainCoherent;
+begin
+  CheckVisualGridSelection(ssProgrammaticAndNoHandler);
+end;
+
+procedure TVisualGridLoadingLifecycleTests.InternalCapacityRefitDoesNotRetainUpdating;
+begin
+  CheckVisualGridLoading(lsInternalLayoutFinishesLoading);
+end;
+
+procedure TVisualGridLoadingLifecycleTests.GenuineQueuedClientRetainsItsLoadingCard;
+begin
+  CheckVisualGridLoading(lsNewClientKeepsLoading);
+end;
+
+procedure TVisualGridLoadingLifecycleTests.ManualImageSurvivesInternalPublication;
+begin
+  CheckVisualGridLoading(lsManualCardSurvivesInternalLayout);
+end;
+
+procedure TVisualGridLoadingLifecycleTests.ManualAndErrorLayersRemainIndependent;
+begin
+  CheckVisualGridLoading(lsErrorAndManualLayers);
+end;
+
+procedure TVisualGridLoadingLifecycleTests.SynchronousFailureRetainsRowsAndCanRetry;
+begin
+  CheckVisualGridLoading(lsSynchronousErrorAndRecovery);
+end;
+
+procedure TVisualGridPagingTests.LegacyShowAllDoesNotDependOnCachedTotal;
+begin
+  CheckVisualGridShowAllCompatibility;
+end;
+
+procedure TVisualGridPagingTests.SynchronousSourceCanBeAssignedBeforeParenting;
+begin
+  CheckVisualGridDeferredParenting;
+end;
+
+procedure TVisualGridPagingTests.SingleLoadsTheWholeUnknownAndGrowingResult;
+begin
+  CheckVisualGridPaging(psSingleFromUnknownTotal);
+end;
+
+procedure TVisualGridPagingTests.DropdownModesRememberManualSizeAndFitAutomaticRows;
+begin
+  CheckVisualGridPaging(psModeTransitions);
+end;
+
+procedure TVisualGridPagingTests.SingleSearchAndSortUseTheWholeResult;
+begin
+  CheckVisualGridPaging(psCompleteSearchAndSort);
+end;
+
+procedure TVisualGridPagingTests.SelectorRemainsReachableForEmptyAndOnePageResults;
+begin
+  CheckVisualGridPaging(psEmptyAndOnePage);
+end;
+
+procedure TVisualGridPagingTests.SuspendedModesResumeOnlyTheLatestIntent;
+begin
+  CheckVisualGridPaging(psSuspendedLatestMode);
+end;
+
+procedure TVisualGridPagingTests.SwitchingModesRejectsAnOldFiniteWorker;
+begin
+  CheckVisualGridPaging(psDiscardOldWorker);
+end;
+
+procedure TVisualGridPagingTests.EveryModeChangeRestoresNativeScrollOrigin;
+begin
+  CheckVisualGridPaging(psModeChangeScrollOrigin);
+end;
+
+procedure TVisualGridPagingTests.SuspendedModeChangesRestoreScrollAfterPublication;
+begin
+  CheckVisualGridPaging(psSuspendedModeScrollOrigin);
+end;
+
+procedure TVisualGridPagingTests.HeldWorkersCannotRestoreAnOldModeScrollPosition;
+begin
+  CheckVisualGridPaging(psHeldModeScrollOrigin);
+end;
+
+procedure TVisualGridPagingTests.DisablingPagingQueriesTheWholeResultInEveryMode;
+begin
+  CheckVisualGridPaging(psDisabledPaging);
+end;
 
 procedure TVisualGridViewportTests.UniformRowsFitAtNativePixelBoundaries;
 begin
@@ -725,6 +871,35 @@ begin
     FGrid.IsUpdating);
 end;
 
+{$IF defined(MSWINDOWS) and defined(VISUALGRID_TEST_WORKER_START)}
+procedure TVisualGridQueuedCompletionTests.WorkerCancelledBeforeExecutionRetiresAndPreservesOtherReceivers;
+begin
+  CheckVisualGridEarlyWorkerCancellation;
+end;
+{$ENDIF}
+
+procedure TVisualGridQueuedCompletionTests.CancelActiveFetchNeverJoinsOrPublishesAHeldQuery;
+begin
+  CheckVisualGridActiveCancellation(acsHeldProvider);
+end;
+
+procedure TVisualGridQueuedCompletionTests.CancelledFetchRetainsTheLatestFiveSecondAdmission;
+begin
+  CheckVisualGridActiveCancellation(acsQuietAdmission);
+end;
+
+procedure TVisualGridQueuedCompletionTests.CancelledProviderExceptionCannotPublishAnErrorCard;
+begin
+  CheckVisualGridActiveCancellation(acsCancelledError);
+end;
+
+{$IF defined(MSWINDOWS) and defined(VISUALGRID_TEST_WORKER_START)}
+procedure TVisualGridQueuedCompletionTests.PublicCancellationBeforeStartKeepsTheLatestRequest;
+begin
+  CheckVisualGridEarlyActiveCancellation;
+end;
+{$ENDIF}
+
 procedure TVisualGridQueuedCompletionTests.FinishedWorkerPublishesWithAllTimersDisabled;
 var LBefore: Integer;
 begin
@@ -1192,11 +1367,16 @@ begin
 end;
 
 procedure TVisualGridRequestThrottleTests.PartialResultLayoutRetainsLatestAdmittedCapacity;
-var LBefore,LCount: Integer;
+var LBefore,LCount,LInitialCapacity,LNativeCapacity,LPitch: Integer;
+  LFirst,LSecond: TRect;
 begin
   FGrid.AutoPageSize := True;
   Settle;
-  LCount := FGrid.PageSize+1;
+  LInitialCapacity := FGrid.PageSize;
+  AssertTrue('The geometry fixture needs at least three initial data rows',LInitialCapacity > 2);
+  // The mode selector retains its footer. A one-page result instead hides
+  // search chrome, exposing actual extra rows before the final admission.
+  LCount := LInitialCapacity-1;
   TGridRefreshSource(FSource).ItemCount := LCount;
   FGrid.FetchDataInThread := True;
   TGridRefreshSource(FSource).BlockRead := True;
@@ -1212,8 +1392,19 @@ begin
   AssertTrue(FGrid.RefreshThrottle.Waiting);
   AssertEquals('Applying partial-page chrome cannot query during Waiting',LBefore+1,PageCalls);
   AssertEquals(0,FWaitEnds);
+  // Derive capacity from native cell geometry rather than the grid's sizing
+  // implementation or an assumption that the entire footer disappears.
+  LFirst := FGrid.InternalDrawGrid.CellRect(0,FGrid.InternalDrawGrid.FixedRows);
+  LSecond := FGrid.InternalDrawGrid.CellRect(0,FGrid.InternalDrawGrid.FixedRows+1);
+  LPitch := LSecond.Top-LFirst.Top;
+  AssertTrue('Native rows need a positive pitch',LPitch > 0);
+  AssertTrue('The first native data row must fit',LFirst.Bottom <= FGrid.InternalDrawGrid.ClientHeight);
+  LNativeCapacity := 1+(FGrid.InternalDrawGrid.ClientHeight-LFirst.Bottom) div LPitch;
+  AssertTrue('Internal search layout must expose additional complete rows',LNativeCapacity > LInitialCapacity);
   AwaitQuiet;
-  AssertEquals('The final admitted page uses the latest available capacity',LCount,FGrid.RowCount);
+  AssertEquals('The final admitted page contains every matching row',LCount,FGrid.RowCount);
+  AssertEquals('The final query uses independently measured settled capacity',
+    LNativeCapacity,TGridRefreshSource(FSource).LastParams.PageSize);
   AssertEquals('Own layout must not turn into another request/burst',1,FWaitStarts);
   AssertEquals(1,FWaitEnds);
   AssertEquals('The one latest final query must already include settled capacity',LBefore+2,PageCalls);
@@ -1546,6 +1737,9 @@ begin
 end;
 
 initialization
+  RegisterTest(TVisualGridSelectionEventTests);
+  RegisterTest(TVisualGridLoadingLifecycleTests);
+  RegisterTest(TVisualGridPagingTests);
   RegisterTest(TVisualGridViewportTests);
   RegisterTest(TVisualGridRefreshTests);
   RegisterTest(TVisualGridRequestThrottleTests);

@@ -47,7 +47,8 @@ function TForm1.FetchPage(constref AParams: TPageFetchParams;
 var
   LColumnFilter: TColumnFilter;
   LOrderBy: utf8string;
-  LModulo: integer;
+  LModulo, LLimit, LRowCount: Integer;
+  LOffset: Int64;
   i: integer;
 begin
   if Length(AParams.Filter) > 0 then
@@ -69,34 +70,36 @@ begin
   // rather bad approach, but for demo purposes is ok
   // https://stackoverflow.com/questions/14468586/efficient-paging-in-sqlite-with-millions-of-records
   Result.TotalDataCount := FServer.TableRowCount(TSampleData);
-  Result.PageCount := Result.TotalDataCount div AParams.PageSize;
-  LModulo := Result.TotalDataCount mod AParams.PageSize;
-  if LModulo > 0 then
-    Inc(Result.PageCount);
-
   // APageIndex = -1 is acceptable as initial value
   if AParams.PageIndex < -1 then
     raise Exception.CreateFmt('Wrong value for APageNumber (%d)', [AParams.PageIndex]);
 
-  // page index parametr may be wrong for new value of page size
-  Result.PageIndex := ifthen(AParams.PageIndex=-1,0,AParams.PageIndex);
-  if AParams.PageIndex > Result.PageCount-1 then
-    Result.PageIndex := Result.PageCount-1;
-
-
+  // Single mode uses the shared nonpositive-size contract. SQLite's LIMIT -1
+  // returns the complete ordered result without dividing by a page size.
+  if AParams.PageSize <= 0 then begin
+    Result.PageCount := Ord(Result.TotalDataCount > 0);
+    Result.PageIndex := Result.PageCount - 1;
+    LLimit := -1;
+    LOffset := 0;
+    LRowCount := Result.TotalDataCount;
+  end else begin
+    Result.PageCount := Result.TotalDataCount div AParams.PageSize;
+    LModulo := Result.TotalDataCount mod AParams.PageSize;
+    if LModulo > 0 then Inc(Result.PageCount);
+    Result.PageIndex := Min(Max(0,AParams.PageIndex),Result.PageCount-1);
+    LLimit := AParams.PageSize;
+    LOffset := Int64(Max(0,Result.PageIndex)) * AParams.PageSize;
+    LRowCount := Min(AParams.PageSize,Result.TotalDataCount-Integer(LOffset));
+  end;
 
   with FProp.Execute('select * from SampleData' + LOrderBy +
-    ' LIMIT ? OFFSET ?', [AParams.PageSize, AParams.PageSize*AParams.PageIndex]) do
+    ' LIMIT ? OFFSET ?', [LLimit, LOffset]) do
   begin
     SetLength(ADataTable.Columns, ColumnCount);
     for i := 0 to ColumnCount - 1 do
       ADataTable.Columns[i] := ColumnName(i);
 
-    // for last page
-    if (Succ(Result.PageIndex)=Result.PageCount) and (LModulo<>0) then
-      SetLength(ADataTable.Rows, LModulo)
-    else
-      SetLength(ADataTable.Rows, AParams.PageSize);
+    SetLength(ADataTable.Rows, LRowCount);
     i := 0;
     while Step do
     begin

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory = $true)]
     [string] $FpcPath,
     [Parameter(Mandatory = $true)]
@@ -24,7 +24,7 @@ $outputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $buildLog = Join-Path $outputDirectory 'build.log'
 $testExecutable = Join-Path $outputDirectory 'FrameworkTestsConsole.exe'
 $compilerArguments = @(
-    '-B', '-MDelphi', '-gl', '-dUNITTEST',
+    '-B', '-MDelphi', '-gl', '-dUNITTEST', '-dVISUALGRID_TEST_WORKER_START',
     "-Fu$PSScriptRoot\..\src\Sphere10",
     "-Fu$PSScriptRoot\..\src\Generics.Collections",
     "-Fu$PSScriptRoot\..\examples\demo",
