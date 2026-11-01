@@ -14,31 +14,26 @@ unit UCommon.Collections;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-{ Types in this unit
+{ Public types in this unit
 
-  Type                       | Purpose
-  ---------------------------+-----------------------------------------------------------------------
-  TComparerTool<T>           | Creates and combines comparison functions and comparer objects.
-  IPredicate<T>              | Tests whether a value satisfies a condition.
-  ITransformer<T1, T2>       | Converts a value from one generic type to another.
-  TPredicateTool<T>          | Creates and combines reusable value predicates.
-  TListTool<T>               | Copies, slices, filters and removes list contents.
-  TListTool<T1, T2>          | Transforms list or array values into another element type.
-  TSortedHashSetTool<T>      | Removes and returns one value from a Free Pascal sorted hash set.
-  TNestedComparer<T>         | Adapts a nested comparison function to IComparer<T>.
-  TObjectComparer<T>         | Adapts an object comparison method to IComparer<T>.
-  TGlobalComparer<T>         | Adapts a global comparison function to IComparer<T>.
-  TManyComparer<T>           | Applies ordered comparers until one distinguishes the values.
-  TInvertedComparer<T>       | Reverses another comparer's ordering.
-  TNestedPredicate<T>        | Adapts a nested function to IPredicate<T>.
-  TObjectPredicate<T>        | Adapts an object method to IPredicate<T>.
-  TGlobalPredicate<T>        | Adapts a global function to IPredicate<T>.
-  TNotPredicate<T>           | Negates another predicate.
-  TAndManyPredicate<T>       | Requires every supplied predicate to match.
-  TOrManyPredicate<T>        | Matches when any supplied predicate succeeds.
-  TNestedTransformer<T1, T2> | Adapts a nested conversion function to ITransformer<T1, T2>.
-  TObjectTransformer<T1, T2> | Adapts an object conversion method to ITransformer<T1, T2>.
-  TGlobalTransformer<T1, T2> | Adapts a global conversion function to ITransformer<T1, T2>.
+  Type                         | Purpose
+  -----------------------------+-------------------------------------------------------------------------
+  IPredicate<T>                | Tests whether a value satisfies a condition.
+  ITransformer<T1, T2>         | Converts a value from one generic type to another.
+  TComparerTool<T>             | Creates and combines comparison functions and comparer objects.
+  TGlobalComparerFunc<T>       | Defines a global comparison callback.
+  TGlobalPredicateFunc<T>      | Defines a global value-testing callback.
+  TGlobalTransformFunc<T1, T2> | Defines a global value-conversion callback.
+  TListTool<T1, T2>            | Transforms list or array values into another element type.
+  TListTool<T>                 | Copies, slices, filters and removes list contents.
+  TNestedComparerFunc<T>       | Defines a captured comparison callback.
+  TNestedPredicateFunc<T>      | Defines a captured value-testing callback.
+  TNestedTransformFunc<T1, T2> | Defines a captured value-conversion callback.
+  TObjectComparerFunc<T>       | Defines an object-method comparison callback.
+  TObjectPredicateFunc<T>      | Defines an object-method value-testing callback.
+  TObjectTransformFunc<T1, T2> | Defines an object-method value-conversion callback.
+  TPredicateTool<T>            | Creates and combines reusable value predicates.
+  TSortedHashSetTool<T>        | Removes and returns one value from a Free Pascal sorted hash set.
 }
 
 {$IFDEF FPC}

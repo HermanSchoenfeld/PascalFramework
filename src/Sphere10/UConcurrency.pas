@@ -9,16 +9,15 @@ unit UConcurrency;
   Ownership semantics follow System.Threading.ReaderWriterLockSlim.
 }
 
-{ Types in this unit
+{ Public types in this unit
 
   Type                          | Purpose
-  ------------------------------+-----------------------------------------------------------------------
+  ------------------------------+-------------------------------------------------------------------------
+  ELockDisposedException        | Reports access to a disposed lock.
   ELockRecursionException       | Reports prohibited recursive acquisition or promotion.
   ESynchronizationLockException | Reports release without the required thread ownership.
-  ELockDisposedException        | Reports access to a disposed lock.
+  TLockRecursionPolicy          | Allows or rejects recursive lock acquisition.
   TReadWriteLock                | Grants concurrent reads or one write, with upgrades and timeouts.
-  TReadWriteLock.TThreadCounts  | Tracks a thread's read, write and upgradeable acquisitions.
-  TReadWriteLock.TLockWaiter    | Owns the event used to wake one pending lock acquisition.
 }
 
 {$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
