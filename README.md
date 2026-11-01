@@ -41,7 +41,7 @@ GitHub results separately from local Delphi and Lazarus checks.
 
 | Unit | Description |
 | --- | --- |
-| [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with paging and automatic page sizes, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
+| [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with Single/Auto/Manual paging, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
 | [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, bulk-fetch and preloaded caches, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
 | [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
 | [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, reverse-order disposal, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
@@ -51,7 +51,8 @@ GitHub results separately from local Delphi and Lazarus checks.
 | [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
 | [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Shared-memory synchronization with concurrent readers, one exclusive writer, upgradeable reads, optional recursion, timed acquisition and thread ownership checks. |
 
-Each framework unit starts with a type table and short descriptions.
+Each framework unit starts with an alphabetical **Public types in this unit**
+table, with a one-line description of each supported type.
 
 The bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
 library supplies the Free Pascal lists, dictionaries, queues, stacks and sets;
@@ -62,19 +63,45 @@ VCL through compiler conditionals. The supplied projects configure those paths.
 
 ## Visual grid
 
-[TVisualGrid](src/Sphere10/UVisualGrid.pas) combines [paging and automatic page sizes](src/Sphere10/UVisualGrid.pas),
+[TVisualGrid](src/Sphere10/UVisualGrid.pas) combines [Single/Auto/Manual paging](src/Sphere10/UVisualGrid.pas),
 [single-expression or per-column search](src/Sphere10/UVisualGrid.pas),
 [single/multi-column sorting](src/Sphere10/UVisualGrid.pas) and
 [cell, row or multiple-row selection](src/Sphere10/UVisualGrid.pas). Configure column
 widths/stretching, fonts/alignment, custom cell renderers, selection callbacks,
 popup menus and extra toolbar controls through the same [grid unit](src/Sphere10/UVisualGrid.pas).
 
-![Unified Lazarus demo with eight columns and an automatically fitted 28-row page](resources/demo/unified-grid.png)
+![Unified demo with eight columns and an automatically fitted page](resources/demo/unified-grid.png)
 
-The native Lazarus capture shows eight columns, a generated 10,000-record source,
-a live property editor and an automatic page size of 28 complete rows. The Real
-column uses the [DollarValue renderer](src/Sphere10/UVisualGrid.pas). The same
+The shared Delphi/Lazarus demo has eight columns, a generated 10,000-record source
+and a live property editor. The Real column uses the
+[DollarValue renderer](src/Sphere10/UVisualGrid.pas). The same
 application contains the wizard, cache, throttle and utility demonstrations.
+
+Use the square paging button in the footer to choose **Single**, **Auto** or
+**Manual**. Its menu checks the current mode; its tooltip names that mode.
+You can also set `PageMode` in code:
+
+| Mode | Displays | Paging controls |
+| --- | --- | --- |
+| Single (`vpmSingle`) | Every matching row in one page, with native scrolling. | Paging button. |
+| Auto (`vpmAuto`) | The complete rows that fit the viewport; horizontal scrolling remains available. | Paging button and navigation. |
+| [Manual](resources/demo/unified-grid-manual.png) (`vpmManual`) | A positive `ManualPageSize`, retained independently of Auto sizing. | Paging button, page size and navigation. |
+
+Changing mode starts at page zero and resets scrolling to the top-left.
+Assigning the current mode preserves the viewport and does not fetch again. Single applies filtering and sorting to the complete result. Returning to
+Manual restores its remembered size. The selector remains available for empty
+or single-page results; `vgoAutoHidePaging` hides unnecessary navigation.
+The compact icon button sits immediately before the first-page button in a
+right-anchored group. Narrow footers move totals and the manual size editor above that group.
+
+![Unified demo showing all matching records in Single mode](resources/demo/unified-grid-single.png)
+
+Before reconfiguring a provider for a new selection, call
+`grid.CancelActiveFetch`, update the provider settings, then call `RefreshGrid`.
+Cancellation requests cooperative worker exit and rejects its result without
+waiting. It retains the accepted rows and leaves pending input, the throttle
+and manual loading cards unchanged. Keep the provider alive until its worker
+has retired; cancellation does not dispose it.
 
 Implement three methods in [TCustomDataSource<T>](src/Sphere10/UCommon.Data.pas);
 it supplies filtering, sorting, paging and conversion to named Variant rows.
@@ -123,7 +150,8 @@ begin
   source.SnapshotCacheEnabled := true;
   grid := TVisualGrid.Create(AForm);
   grid.FetchDataInThread := false;
-  grid.PageSize := 25;
+  grid.ManualPageSize := 25; // Remember this size when Manual is selected.
+  grid.PageMode := vpmAuto;
   with grid.AddColumn('Name') do begin
     Binding := 'Name';
     Filters := SORTABLE_TEXT_FILTER;
@@ -132,6 +160,12 @@ begin
   grid.DataSource := source; // Fetch the first page.
 end;
 ```
+
+Set `grid.PageMode := vpmSingle` to display the full result, or `vpmManual` to
+use the remembered 25-row page. New grids default to Manual with 100 rows.
+The existing `AutoPageSize` and `ShowAllData` properties select Auto and Single.
+Custom data sources must treat a nonpositive requested page size as unbounded;
+the grid's public `PageSize` remains its positive finite capacity.
 
 ```mermaid
 flowchart LR
@@ -178,6 +212,11 @@ handler that calls `RefreshGrid` does create a new input. Each grid is independe
 node/network state and another grid's worker cannot extend its `Waiting` state.
 Call this configuration and state handler on the UI thread; remove the listener
 before destroying a listener that has a shorter lifetime than the grid.
+
+Throttling is optional. The default `RefreshThrottle.Mode = temNone` admits
+requests immediately without arming a quiet timer, while still coalescing requests
+behind an active worker. Applications with an explicit busy lifecycle can keep
+that mode and use `RefreshSuspended` to hold queries until their work finishes.
 
 Use `RefreshSuspended` when application policy must temporarily prevent provider
 queries independently of the throttle. Visual layout and refresh requests still
@@ -244,9 +283,16 @@ complete selected query before choosing its page.
 
 Outstanding grid refreshes retain the previous rows and show a compact bordered
 loading card after 200 ms, including requests waiting for the refresh throttle.
+After a page completes, an internal capacity refit does not keep Updating
+visible over accepted rows. A newer client request keeps its waiting feedback.
 The card uses [TLoadingCircle](src/Sphere10/UCommon.UI.pas), stays visible
 through fetch admission and disappears after completion or cancellation; quick
 cached pages avoid flashing it.
+
+A failed provider keeps the accepted rows and replaces automatic loading with
+its error. Synchronous providers also propagate the original exception to their
+caller. A successful retry clears the error; caller-owned loading remains
+independent.
 
 Use [ShowLoading / HideLoading](src/Sphere10/UVisualGrid.pas) to hold a card while
 waiting for external work, independently of a page fetch. Supply a title,

@@ -6,6 +6,15 @@ LCL message loop where the behavior requires one. Delphi/VCL has separate native
 probes: Free Pascal's Delphi language mode does not exercise Embarcadero's compiler
 or VCL controls.
 
+## Latest verification
+
+On 2 November 2026, the complete FPC 3.2.0/Lazarus 2.1 suite passed **427 tests**
+with zero errors or failures. The native grid matrix also passed with Delphi 13
+and FPC against both the standalone and embedded library copies, including
+synchronous-provider failure and recovery. Both demo projects compiled and
+closed normally; the Lazarus runtime package compiled. These are local checks;
+the CI badge reports the separate hosted build.
+
 ## Unit coverage
 
 | Fixture | Coverage |
@@ -17,7 +26,8 @@ or VCL controls.
 | [UWizardDemo.Tests](UWizardDemo.Tests.pas) | The actual designer-backed showcase screens, command buttons, Name/Age validation, optional branches, route actions and retryable lifecycle outcomes. |
 | [UConcurrency.Tests](UConcurrency.Tests.pas) | Concurrent readers, exclusive writers, recursive ownership, upgradeable-read promotion/downgrade, finite/zero/infinite waits, rejected read promotion, wrong-thread release, writer preference, ownership/waiter counts and safe disposal. |
 | [UCommon.UI.Tests](UCommon.UI.Tests.pas) | Physical timer resets, leading/trailing/periodic modes, one-input completion, reentry, exceptions, cancellation, mode changes, stale callbacks, exact quiet deadlines and queued-listener ownership. Three boundary cases use real five-second waits. |
-| [UVisualGrid.Refresh.Tests](UVisualGrid.Refresh.Tests.pas) | Refresh admission, paging/filter/sort/source changes, visual resizing, latest-request retention, native row-fit boundaries, automatic page sizes, loading cards, cooperative suspension/cancellation, discarded obsolete results and event-driven worker completion without polling. |
+| [UVisualGrid.Refresh.Tests](UVisualGrid.Refresh.Tests.pas) | Refresh admission, paging/filter/sort/source changes, visual resizing, latest-request retention, native row-fit boundaries, automatic page sizes, loading cards, cooperative suspension/cancellation, discarded obsolete results, cancellation before execution and event-driven worker completion without polling. |
+| [TVisualGridPagingTests](UVisualGrid.Refresh.Tests.pas) | Nine shared regressions for Single/Auto/Manual, unbounded growing results, full-result filtering/sorting, empty-result controls, manual-size retention, suspension, stale workers, disabled paging and source assignment before parenting. |
 | [UVisualGrid.Tests](UVisualGrid.Tests.pas) | Unique displayed-order rows from disjoint/overlapping selections and selection clearing. |
 | [UCommon.Data.Tests](UCommon.Data.Tests.pas) | Raw/query snapshot reuse, page-only conversion, counted filtering/sorting, nonblocking invalidation, retry, empty results, page bounds, named/positional Variant dispatch and Unicode schema names/values. |
 | [UFramework.UI.Integration.Tests](UFramework.UI.Integration.Tests.pas) | Duration values, docked forms, main-thread completion, worker lifetime, source replacement, recovery and concurrent schemas. |
@@ -29,6 +39,28 @@ or VCL controls.
 specialization in a separate unit to catch compiler compatibility regressions.
 Common component tests are also mirrored into the consumer's embedded library;
 wallet/node-specific scenarios belong to that application.
+
+The paging fixture calls [UVisualGrid.Paging.Checks](UVisualGrid.Paging.Checks.pas)
+and [UVisualGrid.Viewport.Checks](UVisualGrid.Viewport.Checks.pas). It drives the
+actual mode button/menu and native scrollbars, checks exact complete-row capacity,
+and rejects obsolete finite pages after switching to Single. Requests made while
+suspended cannot fetch; resuming admits only the latest mode. Legacy ShowAll
+checks start without a cached total and then grow the result. The parenting
+check assigns a synchronous source before docking and showing the grid.
+
+The queued-completion case
+`TVisualGridQueuedCompletionTests.WorkerCancelledBeforeExecutionRetiresAndPreservesOtherReceivers`
+calls [UVisualGrid.Worker.Checks](UVisualGrid.Worker.Checks.pas). A test-only hook
+cancels the actual worker before start; it must retire without reading, publish
+one latest page and preserve another grid receiver during disposal. The fixture
+restores its hook in `finally` and uses no scheduler or CPU-affinity changes.
+
+`FrameworkTests.lpi` and `RunTests.ps1` enable `VISUALGRID_TEST_WORKER_START`.
+Other FPCUnit drivers must pass `-dVISUALGRID_TEST_WORKER_START` globally to
+include this Windows case. Keep its compiled units separate from
+normal application/package outputs, which omit this test-only define. The
+[focused native invocation](native/README.md#cancellation-before-execution) uses
+`PASCAL_GRID_EARLY_CANCEL_ONLY=1` with the supplied Delphi test project.
 
 ## Console runner on Windows
 
@@ -58,7 +90,8 @@ For a selected fixture, append:
 ```
 
 Use `TWizardTests` for wizard tests, `TReadWriteLockTests` for locking or `--list`
-to inspect the actual fixture names. Wizard unit cases create real forms but
+to inspect the actual fixture names. Use `TVisualGridPagingTests` for the nine
+paging regressions. Wizard unit cases create real forms but
 replace the modal-display hook with synchronous test actions. They need no manual
 clicks or dialog responses. Native modal-window checks below exercise the actual
 `ShowModal` loop separately.
@@ -82,7 +115,7 @@ runner. See the [native guide](native/README.md) for arguments and expected resu
 | --- | --- |
 | [ScopeProbe.dproj](native/ScopeProbe.dproj) | The same 63 scope, disposal-bag and read/write-scope checks used by FPCUnit, including cleanup failures and copy/assignment recovery. |
 | [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared bulk-fetch cache assertions and public API recipes. |
-| [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Actual cell bounds at pixel/DPI/header/scrollbar/resize boundaries. |
+| [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Native cell bounds at pixel/DPI/header/scrollbar/resize boundaries, plus the same nine paging and preparenting regressions as FPCUnit. |
 | [ReadWriteLockProbe.dproj](native/ReadWriteLockProbe.dproj) | Real concurrent read/write/upgradeable ownership, recursion and timeout/cleanup behavior. |
 | [NativeThrottleProbe.dproj](native/NativeThrottleProbe.dproj) | Real five-second VCL timer scenarios, including physical callback resets, independent bursts, cancellation and exception recovery. |
 | [GridThrottleProbe.dproj](native/GridThrottleProbe.dproj) | Actual grid/provider admission, hidden/parentless controls, retained requests, selection bounds, queued completion and cooperative refresh suspension. |
@@ -93,6 +126,12 @@ Build the root [Sphere10PascalFramework.dproj](../Sphere10PascalFramework.dproj)
 the real cache, grid and wizard examples in one executable. A native probe or
 source build does not establish runtime-package compatibility; build the optional
 [Sphere10Framework.dproj](../Sphere10Framework.dproj) separately.
+
+[FrameworkDemoPagingCapture.dpr](native/FrameworkDemoPagingCapture.dpr) runs that
+same unified demo through Auto, Manual 25 and Single with 10,000 generated rows,
+then saves native PNGs and a result log. Build it separately with Delphi and FPC;
+the [native guide](native/README.md#unified-demo-paging-captures) describes its
+fresh output path and assertions.
 
 ## Real modal wizard and loading checks
 
@@ -149,3 +188,10 @@ Generic snapshot caching still loads its initial full dataset. Source-native
 paging overrides need their own record-read/count/page-bound checks. Likewise,
 passing component timers or an empty demo does not establish a consumer's
 large-dataset or networking performance.
+
+`TVisualGridLoadingLifecycleTests.SynchronousFailureRetainsRowsAndCanRetry`
+also covers synchronous providers which fail before or after replacing output.
+The grid keeps its accepted page, stops loading, exposes the provider error
+and preserves the original exception for its caller; a successful retry clears
+that error. The same assertions run through `UVisualGrid.Loading.Checks` in
+native Delphi and FPC checks.

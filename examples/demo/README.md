@@ -13,15 +13,46 @@ network connection is involved. Automated unit tests remain [separate](../../tes
 
 ![Native demo with the visual grid and property editor](../../resources/demo/unified-grid.png)
 
-[fMain.pas](fMain.pas) binds 10,000 generated records to eight columns. Use the
-property editor to try paging, automatic page sizes, search/sort, selection,
+[fMain.pas](fMain.pas) binds 10,000 generated records to eight columns. Choose
+**Single**, **Auto** or **Manual** from the square paging button in the footer:
+
+| Mode | Behavior |
+| --- | --- |
+| Single | Show the complete filtered/sorted result in one page, with native scrolling. |
+| Auto | Fit complete rows to the viewport, with horizontal scrolling when needed. |
+| [Manual](../../resources/demo/unified-grid-manual.png) | Use an editable positive page size, remembered while another mode is active. |
+
+Each mode change starts at page zero and resets scrolling to the top-left.
+Assigning the current mode keeps its scroll position. The mode selector stays available for
+empty and single-page results; unnecessary navigation can hide automatically.
+The icon button stays beside the first-page button as the grid resizes; its
+menu checks the current mode and its tooltip names it. Narrow
+footers put totals and the manual size editor on a separate row.
+The same API works in Delphi and Lazarus:
+
+```pascal
+grid.ManualPageSize := 25;
+grid.PageMode := vpmAuto; // vpmSingle shows all rows; vpmManual restores 25.
+```
+
+![Single mode showing all generated records](../../resources/demo/unified-grid-single.png)
+
+The images above use Delphi/VCL. The same page in Lazarus/LCL:
+[Auto](../../resources/demo/unified-grid-auto-fpc.png),
+[Manual](../../resources/demo/unified-grid-manual-fpc.png),
+[Single](../../resources/demo/unified-grid-single-fpc.png).
+
+Use the property editor to try search/sort, selection,
 column sizing/stretching, captions, fonts and toolbar widgets. The Lazarus editor
 uses RTTI; Delphi uses its native value-list editor.
 
 The example also demonstrates custom cell rendering, the dollar renderer,
 selection callbacks and popup menus. **Add fetch delay** simulates slow work.
 The source captures data away from controls; completion publishes the page on
-the main thread. Scoped disposal owns helper objects.
+the main thread. Scoped disposal owns helper objects. For a new selection that
+reconfigures the same provider, call `CancelActiveFetch` first, update its
+settings, then `RefreshGrid`. Cancellation is cooperative and nonblocking;
+accepted rows remain until the latest admitted query completes.
 
 ## Wizard and events
 
