@@ -16,10 +16,13 @@ type
 
 procedure CheckVisualGridViewport(AScenario: TGridViewportScenario;
   ALog: TStrings = nil);
+procedure CheckVisualGridShowAllCompatibility(ALog: TStrings = nil);
+procedure CheckVisualGridDeferredParenting(ALog: TStrings = nil);
 
 implementation
 
-uses SysUtils, Types, Math, Forms, Controls, StdCtrls, Grids, UVisualGrid;
+uses SysUtils, Types, Math, Variants, Forms, Controls, StdCtrls, Grids,
+  Generics.Collections, UCommon.Data, UVisualGrid;
 
 type
   TViewportGrid = class(TVisualGrid)
@@ -28,6 +31,33 @@ type
     function Capacity: Integer;
     procedure ApplyLayout;
   end;
+
+  TShowAllSource = class(TCustomDataSource<Integer>)
+  protected
+    function GetColumns: TDataColumns; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
+      const ABindingName: String): Variant; override;
+    procedure FetchAll(const AContainer: TList<Integer>); override;
+  public
+    Count: Integer;
+  end;
+
+function TShowAllSource.GetColumns: TDataColumns;
+begin
+  Result := TDataColumns.Create(TDataColumn.From('Id', True));
+end;
+
+function TShowAllSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
+  const ABindingName: String): Variant;
+begin
+  Result := AItem;
+end;
+
+procedure TShowAllSource.FetchAll(const AContainer: TList<Integer>);
+var I: Integer;
+begin
+  for I := 0 to Count - 1 do AContainer.Add(I);
+end;
 
 function TViewportGrid.NativeGrid: {$IFDEF FPC}Grids.{$ELSE}UVisualGrid.{$ENDIF}TDrawGrid;
 begin
@@ -47,6 +77,75 @@ end;
 procedure Require(ACondition: Boolean; const AMessage: String);
 begin
   if not ACondition then raise Exception.Create(AMessage);
+end;
+
+procedure CheckVisualGridShowAllCompatibility(ALog: TStrings);
+var LForm: TForm; LGrid: TVisualGrid; LSource: TShowAllSource;
+begin
+  LForm := TForm.CreateNew(nil);
+  try
+    LForm.SetBounds(80, 90, 640, 480);
+    LSource := TShowAllSource.Create(LForm);
+    LSource.Count := 240;
+    LGrid := TVisualGrid.Create(LForm);
+    LGrid.Parent := LForm;
+    LGrid.Align := alClient;
+    LGrid.FetchDataInThread := False;
+    LGrid.AddColumn('Id').Binding := 'Id';
+    LForm.Show;
+    Application.ProcessMessages;
+    // This existing API must not turn an unknown total into a finite page.
+    LGrid.ShowAllData := True;
+    LGrid.DataSource := LSource;
+    Application.ProcessMessages;
+    Require(LGrid.RowCount = 240, 'ShowAllData before source assignment did not load all 240 records');
+    LSource.Count := 370;
+    LGrid.RefreshGrid;
+    Application.ProcessMessages;
+    Require(LGrid.RowCount = 370, 'ShowAllData truncated growth to the previous known total');
+    if Assigned(ALog) then ALog.Add('PASS legacy ShowAllData unknown total and growing complete result');
+  finally
+    LForm.Free;
+  end;
+end;
+
+procedure CheckVisualGridDeferredParenting(ALog: TStrings);
+var LForm: TForm; LGrid: TViewportGrid; LSource: TShowAllSource;
+begin
+  LForm := TForm.CreateNew(nil);
+  try
+    LForm.SetBounds(80, 90, 640, 480);
+    LSource := TShowAllSource.Create(LForm);
+    LSource.Count := 3;
+    LGrid := TViewportGrid.Create(LForm);
+    LGrid.FetchDataInThread := False;
+    LGrid.CanSearch := True;
+    LGrid.SearchMode := smMulti;
+    with LGrid.AddColumn('Id') do begin
+      Binding := 'Id';
+      Width := 180;
+      Filters := SORTABLE_NUMERIC_FILTER;
+    end;
+    // Component ownership is deliberately not window parenting. The public
+    // data API must retain data/column intent without asking VCL for a HWND.
+    LGrid.DataSource := LSource;
+    Require(not Assigned(LGrid.Parent), 'Deferred-parent fixture acquired a parent before source assignment');
+    LGrid.Parent := LForm;
+    LGrid.Align := alClient;
+    LForm.Show;
+    Application.ProcessMessages;
+    LGrid.ApplyLayout;
+    Application.ProcessMessages;
+    Require((LGrid.RowCount = 3) and (LGrid.ColCount = 1),
+      'Docking did not retain the source data and columns assigned before parenting');
+    Require(LGrid.NativeGrid.HandleAllocated and
+      (LGrid.NativeGrid.RowCount = 4) and (LGrid.NativeGrid.ClientWidth > 0),
+      'Docking did not replay native row/column geometry after its parent existed');
+    Require(LGrid.Columns[0].Width > 0, 'Deferred column geometry was lost');
+    if Assigned(ALog) then ALog.Add('PASS synchronous data assignment before window parenting and deferred native layout');
+  finally
+    LForm.Free;
+  end;
 end;
 
 procedure CheckVisualGridViewport(AScenario: TGridViewportScenario;

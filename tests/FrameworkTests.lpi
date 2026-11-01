@@ -157,7 +157,7 @@
       </Options>
     </Linking>
     <Other>
-      <CustomOptions Value="-dUNITTEST"/>
+      <CustomOptions Value="-dUNITTEST -dVISUALGRID_TEST_WORKER_START"/>
     </Other>
   </CompilerOptions>
   <Debugging>
