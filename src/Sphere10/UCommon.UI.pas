@@ -13,17 +13,17 @@ unit UCommon.UI;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-{ Types in this unit
+{ Public types in this unit
 
-  Type                        | Purpose
-  ----------------------------+-----------------------------------------------------------------------
-  TApplicationForm            | Adds first-activation events and owned-object cleanup to forms.
-  TThrottledEvent             | Coalesces notifications using interval or quiet-burst timers.
-  TThrottledEvent.TInvocation | Detects sender destruction while a callback is executing.
-  TWinControlHelper           | Removes child controls and docks a control at the center.
-  TFormHelper                 | Provides the form-helper extension point.
-  TImageHelper                | Copies an image-list entry into an image control.
-  TLoadingCircle              | Draws and animates a component-owned loading indicator.
+  Type                                | Purpose
+  ------------------------------------+-------------------------------------------------------------------------
+  TApplicationForm                    | Adds first-activation events and owned-object cleanup to forms.
+  TFormHelper                         | Provides the form-helper extension point.
+  TImageHelper                        | Copies an image-list entry into an image control.
+  TLoadingCircle                      | Draws and animates a component-owned loading indicator.
+  TThrottledEvent                     | Coalesces notifications using interval or quiet-burst timers.
+  TThrottledEvent.TThrottledEventMode | Selects immediate, periodic or quiet-burst event delivery.
+  TWinControlHelper                   | Removes child controls and docks a control at the center.
 }
 
 

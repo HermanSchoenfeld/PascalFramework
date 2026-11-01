@@ -14,15 +14,25 @@ unit UWizard;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-{ Types in this unit
+{ Public types in this unit
 
-  Type             | Purpose
-  -----------------+-----------------------------------------------------------------------
-  TWizardHostForm  | Hosts one wizard screen and its navigation buttons in one window.
-  TWizardFormBase  | Identifies a hosted wizard screen's model type.
-  TWizardForm<T>   | Provides typed model access and screen validation lifecycle hooks.
-  TWizard<T>       | Coordinates navigation, dynamic routes, finish and cancellation.
-  TActionWizard<T> | Runs a typed wizard with supplied finish and cancel callbacks.
+  Type                                              | Purpose
+  --------------------------------------------------+-------------------------------------------------------------------------
+  TActionWizard<T>                                  | Runs a typed wizard with supplied finish and cancel callbacks.
+  TActionWizard<T>.TActionWizardCancelFunc          | Validates cancellation using the current screen and model.
+  TActionWizard<T>.TActionWizardFinishFunc          | Executes and validates wizard completion.
+  TGenericWizardBag                                 | Stores named Variant values as a shared wizard model.
+  TPathUpdateType                                   | Selects insertion, replacement or removal of wizard steps.
+  TWizard<T>                                        | Coordinates navigation, dynamic routes, finish and cancellation.
+  TWizardForm<T>                                    | Provides typed model access and screen validation lifecycle hooks.
+  TWizardFormBase                                   | Identifies a hosted wizard screen's model type.
+  TWizardFormClass                                  | Identifies a wizard screen class for dynamic creation.
+  TWizardHostForm                                   | Hosts one wizard screen and its navigation buttons in one window.
+  TWizardHostForm.TWizardHostFormCloseQueryDelegate | Approves or rejects closing the wizard host.
+  TWizardScreenPath                                 | Holds an ordered array of wizard screen classes.
+  TWizardState                                      | Reports active, finishing, cancelling or completed wizard state.
+  TWizardStepTrait                                  | Declares a screen navigation capability.
+  TWizardStepTraits                                 | Combines a screen's navigation capabilities.
 }
 
 
