@@ -22,7 +22,7 @@ unit UCommon.UI;
   TImageHelper                        | Copies an image-list entry into an image control.
   TLoadingCircle                      | Draws and animates a component-owned loading indicator.
   TThrottledEvent                     | Coalesces notifications using interval or quiet-burst timers.
-  TThrottledEvent.TThrottledEventMode | Selects immediate, periodic or quiet-burst event delivery.
+  TThrottledEventMode                 | Selects immediate, periodic or quiet-burst event delivery.
   TWinControlHelper                   | Removes child controls and docks a control at the center.
 }
 
@@ -73,13 +73,14 @@ type
       property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
   end;
 
+  // Shared delivery policy for throttled UI notifications.
+  TThrottledEventMode = (temNone, temNotifyEveryInterval, temNotifyOnEventBurstFinished, temNotifyOnEventBurstStartAndFinished);
+
   { TThrottledEvent }
 
   TThrottledEvent = class(TComponent)
     public const
       CT_DEFAULT_DELAYEDREFRESH_MS = 1000;
-    public type
-      TThrottledEventMode = (temNone, temNotifyEveryInterval, temNotifyOnEventBurstFinished, temNotifyOnEventBurstStartAndFinished);
     private type
       // A callback may dispose its sender. Reuse component free notification
       // to keep the current invocation from touching that released component.

@@ -53,7 +53,7 @@ type
     procedure OnBurstFinished(Sender: TObject);
     procedure WaitForFinishes(ACount: Integer);
     procedure OnNativeTimer(Sender : TObject);
-    procedure CheckPhysicalTimerReset(AMode : TThrottledEvent.TThrottledEventMode);
+    procedure CheckPhysicalTimerReset(AMode : TThrottledEventMode);
     procedure OnNotified(Sender : TObject);
     procedure Notify;
     procedure PumpFor(AMilliseconds : Cardinal);
@@ -1093,7 +1093,7 @@ begin
 end;
 
 procedure TThrottledEventTests.CheckPhysicalTimerReset(
-  AMode : TThrottledEvent.TThrottledEventMode);
+  AMode : TThrottledEventMode);
 var LExpected : Integer;
 begin
   FEvent.Mode := AMode;

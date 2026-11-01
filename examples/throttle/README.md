@@ -21,7 +21,7 @@ It never requests a refresh or changes throttle admission.
 ```pascal
 Grid.RefreshThrottle.Interval := TTimeSpan.FromSeconds(5);
 Grid.RefreshThrottle.Mode :=
-    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
+    TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
 
 // Each request records the latest page and notifies the owned throttle once.
 Grid.RefreshGrid;

@@ -186,7 +186,7 @@ procedure TMyForm.ConfigureGridRefresh;
 begin
   FGrid.RefreshThrottle.Interval := TTimeSpan.FromSeconds(5);
   FGrid.RefreshThrottle.Mode :=
-    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
+    TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
   FGrid.RefreshThrottle.OnWaitingChanged.Add(GridWaitingChanged);
 end;
 
@@ -1348,7 +1348,7 @@ begin
   Result := TThrottledEvent.Create(AOwner);
   Result.Interval := TTimeSpan.FromMilliseconds(250);
   Result.Mode :=
-    TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstFinished;
+    TThrottledEventMode.temNotifyOnEventBurstFinished;
   Result.Add(AHandler);
 end;
 ```
