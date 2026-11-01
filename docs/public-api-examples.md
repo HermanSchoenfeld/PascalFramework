@@ -143,7 +143,7 @@ third-party generics and compiler-exported implementation adapters are excluded.
 | `TImageHelper` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) |  |
 | `TLoadingCircle` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) | Animated control in UCommon.UI. |
 | `TThrottledEvent` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) |  |
-| `TThrottledEvent.TThrottledEventMode` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) |  |
+| `TThrottledEventMode` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) |  |
 | `TWinControlHelper` | [CommonVisuals](../examples/demo/UCoreApiExamples.pas) |  |
 
 ## UConcurrency

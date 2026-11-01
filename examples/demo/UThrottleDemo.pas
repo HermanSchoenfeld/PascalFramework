@@ -160,7 +160,7 @@ begin
     FInitialized := True;
     FGrid.RefreshThrottle.Interval := TTimeSpan.FromMilliseconds(5000);
     FGrid.RefreshThrottle.Mode :=
-      TThrottledEvent.TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
+      TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
     FGrid.RefreshThrottle.Add(Delivered);
     FGrid.RefreshThrottle.OnWaitingChanged.Add(WaitingChanged);
     FSource.OnFetched := SourceFetched;

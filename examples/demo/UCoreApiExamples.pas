@@ -24,7 +24,6 @@ type
   TIntegerArrays = TArrayTool<Integer>;
   TNotificationArrays = TArrayTool<TNotifyEvent>;
   TIntegerDataTools = TDataSourceTool<Integer>;
-  TThrottleMode = TThrottledEvent.TThrottledEventMode;
 
   TExampleListener = class
   public
@@ -639,7 +638,7 @@ var
   LImage: TImage;
   LCircle: TLoadingCircle;
   LThrottle: TThrottledEvent;
-  LMode: TThrottleMode;
+  LMode: TThrottledEventMode;
 begin
   LListener := LScope.AddObject(TExampleListener.Create) as TExampleListener;
   LHost := LScope.AddObject(TForm.CreateNew(nil)) as TForm;
@@ -684,11 +683,11 @@ begin
   LThrottle.Interval := TTimeSpan.FromSeconds(5);
   LThrottle.Add(LListener.Received);
   LThrottle.OnWaitingChanged.Add(LListener.WaitingChanged);
-  for LMode := Low(TThrottleMode) to High(TThrottleMode) do begin
+  for LMode := Low(TThrottledEventMode) to High(TThrottledEventMode) do begin
     LThrottle.Mode := LMode;
     LThrottle.Notify;
-    if LMode in [TThrottleMode.temNotifyOnEventBurstFinished,
-      TThrottleMode.temNotifyOnEventBurstStartAndFinished] then
+    if LMode in [TThrottledEventMode.temNotifyOnEventBurstFinished,
+      TThrottledEventMode.temNotifyOnEventBurstStartAndFinished] then
       Require(LThrottle.Waiting, 'quiet-burst mode owns its waiting state');
     // The interactive Throttle tab demonstrates elapsed time and repeated
     // notifications. This quick API example cancels each pending timer.
