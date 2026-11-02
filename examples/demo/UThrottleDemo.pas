@@ -19,11 +19,9 @@ type
     FOnFetched: TNotifyEvent;
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
-    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-      var ADataTable: TDataTable): TPageFetchResult; override;
+    function FetchPage({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult; override;
   public
     property Revision: Integer read FRevision write FRevision;
     property PageFetches: Integer read FPageFetches;
@@ -294,9 +292,7 @@ begin
     TDataColumn.From('Revision'), TDataColumn.From('Fetch'));
 end;
 
-function TThrottleDemoSource.GetItemField(
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const ABindingName: String): Variant;
+function TThrottleDemoSource.GetItemField( {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = 'Row' then Result := AItem
   else if ABindingName = 'Revision' then Result := FRevision
@@ -310,9 +306,7 @@ begin
   for I := 1 to 32 do AContainer.Add(I);
 end;
 
-function TThrottleDemoSource.FetchPage(
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TThrottleDemoSource.FetchPage( {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 begin
   // Count the actual IDataSource call, independently of throttle delivery logs.
   Inc(FPageFetches);

@@ -99,8 +99,7 @@ type
     {$IFNDEF FPC}
     FRefreshingProperties: Boolean;
     procedure RefreshProperties;
-    procedure PropertyValueValidate(Sender: TObject; ACol, ARow: Longint;
-      const KeyName, KeyValue: string);
+    procedure PropertyValueValidate(Sender: TObject; ACol, ARow: Longint; const KeyName, KeyValue: string);
     {$ENDIF}
     { Private declarations }
   private
@@ -268,8 +267,7 @@ var
 
   { TForm1 }
 
-  procedure TForm1.PreparePopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-    ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+  procedure TForm1.PreparePopupMenu(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   begin
     APopupMenu := PopupMenu1;
   end;
@@ -489,8 +487,7 @@ var
   LControl: TControl;
   LTypeData: PTypeData;
 
-  procedure AddCaptionProperty(const APath: string; ATarget: TObject;
-    const AName: string);
+  procedure AddCaptionProperty(const APath: string; ATarget: TObject; const AName: string);
   begin
     TIPropertyGrid1.InsertRow(APath, VarToStr(GetPropValue(ATarget, AName, True)), True);
   end;
@@ -564,8 +561,7 @@ begin
   end;
 end;
 
-procedure TForm1.PropertyValueValidate(Sender: TObject; ACol, ARow: Longint;
-  const KeyName, KeyValue: string);
+procedure TForm1.PropertyValueValidate(Sender: TObject; ACol, ARow: Longint; const KeyName, KeyValue: string);
 var
   LComponent: TComponent;
   LTarget: TObject;

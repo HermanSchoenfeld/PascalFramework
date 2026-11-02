@@ -137,8 +137,7 @@ begin
   end;
 end;
 
-function CountNativeInk(ABitmap: Graphics.TBitmap; AForm: TForm;
-  AControl: TWinControl; const ALocalRect: Types.TRect): Integer;
+function CountNativeInk(ABitmap: Graphics.TBitmap; AForm: TForm; AControl: TWinControl; const ALocalRect: Types.TRect): Integer;
 var
   LOrigin: Types.TPoint;
   LRect: Types.TRect;

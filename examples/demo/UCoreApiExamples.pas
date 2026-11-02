@@ -61,15 +61,12 @@ type
   TExampleDataSource = class(TCustomDataSource<Integer>)
   protected
     function GetColumns: TDataColumns; override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant; override;
     procedure FetchAll(const AContainer: TList<Integer>); override;
   public
     FetchCount: Integer;
-    function FilterValue({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Boolean;
-    function CompareValues({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight: Integer;
-      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Integer;
+    function FilterValue({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Boolean;
+    function CompareValues({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Integer;
     function NullOrder(const AFilter: TColumnFilter): TSortNullPolicy;
   end;
 
@@ -244,8 +241,7 @@ begin
   Inc(Destructions);
 end;
 
-constructor TNotificationProducer.Create(ADispatcher: TThreadNotify;
-  AListener: TExampleListener);
+constructor TNotificationProducer.Create(ADispatcher: TThreadNotify; AListener: TExampleListener);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
@@ -451,9 +447,7 @@ begin
   Result[1] := TDataColumn.From('Name');
 end;
 
-function TExampleDataSource.GetItemField(
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  const ABindingName: String): Variant;
+function TExampleDataSource.GetItemField( {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; const ABindingName: String): Variant;
 begin
   if ABindingName = 'Value' then Result := AItem
   else if ABindingName = 'Name' then Result := 'Item ' + IntToStr(AItem)
@@ -466,16 +460,12 @@ begin
   AContainer.AddRange(TIntegerArrays.Create(30, 10, 20));
 end;
 
-function TExampleDataSource.FilterValue(
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Boolean;
+function TExampleDataSource.FilterValue( {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Boolean;
 begin
   Result := ApplyColumnFilter(AItem, AFilter);
 end;
 
-function TExampleDataSource.CompareValues(
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight: Integer;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Integer;
+function TExampleDataSource.CompareValues( {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft, ARight: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} AFilter: TColumnFilter): Integer;
 begin
   Result := ApplyColumnSort(ALeft, ARight, AFilter);
 end;
