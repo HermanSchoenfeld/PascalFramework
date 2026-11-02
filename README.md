@@ -114,8 +114,7 @@ type
   protected
     function GetColumns : TDataColumns; override;
     procedure FetchAll(const AContainer : TList<String>); override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : String;
-      const ABindingName : String) : Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : String; const ABindingName : String) : Variant; override;
   end;
 
 function TNameSource.GetColumns : TDataColumns;
@@ -129,8 +128,7 @@ begin
   AContainer.Add('Grace');
 end;
 
-function TNameSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : String;
-  const ABindingName : String) : Variant;
+function TNameSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem : String; const ABindingName : String) : Variant;
 begin
   Result := AItem;
 end;
@@ -937,8 +935,7 @@ begin
 end;
 
 type
-  TCallbacks = class
-    function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+  TCallbacks = class function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
     function Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
     function Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
   end;
@@ -1342,8 +1339,7 @@ then call its [Notify](src/Sphere10/UCommon.UI.pas) from UI handlers.
 ```pascal
 uses Classes, UCommon, UCommon.UI;
 
-function CreateRefreshEvent(AOwner : TComponent;
-  AHandler : TNotifyEvent) : TThrottledEvent;
+function CreateRefreshEvent(AOwner : TComponent; AHandler : TNotifyEvent) : TThrottledEvent;
 begin
   Result := TThrottledEvent.Create(AOwner);
   Result.Interval := TTimeSpan.FromMilliseconds(250);
@@ -1368,8 +1364,7 @@ The two quiet-burst modes expose [Waiting and OnWaitingChanged](src/Sphere10/UCo
 for driving a busy UI independently of data-fetch completion:
 
 ```pascal
-procedure BindBusyState(AEvent : TThrottledEvent;
-  AStateChanged : TNotifyEvent);
+procedure BindBusyState(AEvent : TThrottledEvent; AStateChanged : TNotifyEvent);
 begin
   AEvent.OnWaitingChanged.Add(AStateChanged);
   AStateChanged(AEvent); // Also apply the initial state.
