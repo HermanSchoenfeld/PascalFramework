@@ -42,8 +42,7 @@ implementation
 
 {$R *.lfm}
 
-function TForm1.FetchPage(constref AParams: TPageFetchParams;
-  var ADataTable: TDataTable): TPageFetchResult;
+function TForm1.FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 var
   LColumnFilter: TColumnFilter;
   LOrderBy: utf8string;

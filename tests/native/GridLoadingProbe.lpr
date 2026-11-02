@@ -25,8 +25,7 @@ type
   protected
     function GetColumns : TDataColumns; override;
     procedure FetchAll(const AContainer : TList<TItem>); override;
-    function GetItemField(constref AItem : TItem;
-      const AColumnName : String) : Variant; override;
+    function GetItemField(constref AItem : TItem; const AColumnName : String) : Variant; override;
   end;
 
   TGrid = class(TVisualGrid)
@@ -81,8 +80,7 @@ begin
   end;
 end;
 
-function TSource.GetItemField(constref AItem : TItem;
-  const AColumnName : String) : Variant;
+function TSource.GetItemField(constref AItem : TItem; const AColumnName : String) : Variant;
 begin
   if AColumnName = 'Account' then Result := AItem.Account
   else if AColumnName = 'Name' then Result := AItem.Name

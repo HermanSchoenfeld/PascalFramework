@@ -27,8 +27,7 @@ type
   protected
     function GetColumns: TDataColumns; override;
     procedure FetchAll(const AContainer: TList<String>); override;
-    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: String;
-      const ABindingName: String): Variant; override;
+    function GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: String; const ABindingName: String): Variant; override;
   end;
 
   TGridRecipe = class(TComponent)
@@ -37,16 +36,10 @@ type
     FPopup: TPopupMenu;
     procedure InitializeColumn(Sender: TObject; AColumn: TVisualColumn);
     function DisplayName(const CellData, RowData: Variant): Variant;
-    procedure DrawName(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas;
-      Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant;
-      var Handled: Boolean);
-    procedure DrawCell(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas;
-      Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant;
-      var Handled: Boolean);
-    procedure Selected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-      ASelection: TVisualGridSelection);
-    procedure PreparePopup(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-      ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure DrawName(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: Boolean);
+    procedure DrawCell(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: Boolean);
+    procedure Selected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+    procedure PreparePopup(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
     {$IFNDEF FPC}
     procedure HeaderClicked(Sender: TObject; IsColumn: Boolean; Index: Integer);
     procedure CellSelected(Sender: TObject; ACol, ARow: Integer);
@@ -78,11 +71,8 @@ type
     FOutput: TStrings;
   public
     constructor Create(AOutput: TStrings);
-    function CanCancel(screenIndex: Integer;
-      {$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag;
-      out message: String): Boolean;
-    function CanFinish({$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-      model: TGenericWizardBag; out message: String): Boolean;
+    function CanCancel(screenIndex: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag; out message: String): Boolean;
+    function CanFinish({$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag; out message: String): Boolean;
     function CanClose(out message: String): Boolean;
   end;
 
@@ -107,8 +97,7 @@ begin
   AContainer.Add('Grace');
 end;
 
-function TNameSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-  AItem: String; const ABindingName: String): Variant;
+function TNameSource.GetItemField({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AItem: String; const ABindingName: String): Variant;
 begin
   Result := AItem;
 end;
@@ -132,33 +121,26 @@ begin
   Result := UpperCase(VarToStr(CellData));
 end;
 
-procedure TGridRecipe.DrawName(Sender: TObject; ACol, ARow: Longint;
-  Canvas: TCanvas; Rect: TRect; State: TGridDrawState;
-  const CellData, RowData: Variant; var Handled: Boolean);
+procedure TGridRecipe.DrawName(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: Boolean);
 begin
   Canvas.Font.Style := [fsBold];
   Canvas.TextRect(Rect, Rect.Left + 2, Rect.Top + 2, VarToStr(CellData));
   Handled := True;
 end;
 
-procedure TGridRecipe.DrawCell(Sender: TObject; ACol, ARow: Longint;
-  Canvas: TCanvas; Rect: TRect; State: TGridDrawState;
-  const CellData, RowData: Variant; var Handled: Boolean);
+procedure TGridRecipe.DrawCell(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: Boolean);
 begin
   // Leave handling to the configured column renderer.
   Handled := False;
 end;
 
-procedure TGridRecipe.Selected(Sender: TObject;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
+procedure TGridRecipe.Selected(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection);
 begin
   FOutput.Add(Format('Selection: page %d, %d row(s), %d column(s)',
     [ASelection.Page, ASelection.RowCount, ASelection.ColCount]));
 end;
 
-procedure TGridRecipe.PreparePopup(Sender: TObject;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection;
-  out APopupMenu: TPopupMenu);
+procedure TGridRecipe.PreparePopup(Sender: TObject; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
 begin
   APopupMenu := FPopup;
 end;
@@ -359,16 +341,13 @@ begin
   FOutput := AOutput;
 end;
 
-function TWizardCallbacks.CanCancel(screenIndex: Integer;
-  {$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag;
-  out message: String): Boolean;
+function TWizardCallbacks.CanCancel(screenIndex: Integer; {$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag; out message: String): Boolean;
 begin
   message := '';
   Result := True;
 end;
 
-function TWizardCallbacks.CanFinish({$IFDEF FPC}constref{$ELSE}const{$ENDIF}
-  model: TGenericWizardBag; out message: String): Boolean;
+function TWizardCallbacks.CanFinish({$IFDEF FPC}constref{$ELSE}const{$ENDIF} model: TGenericWizardBag; out message: String): Boolean;
 begin
   message := '';
   Result := True;

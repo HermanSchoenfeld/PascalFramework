@@ -112,8 +112,7 @@ begin
 end;
 
 type
-  TCallbacks = class
-    function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+  TCallbacks = class function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
     function Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
     function Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
   end;
