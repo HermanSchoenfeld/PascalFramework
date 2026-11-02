@@ -98,6 +98,11 @@ jobs:
           & .\tests\RunTests.ps1 -FpcPath $env:FPC_EXE -LazarusDirectory $env:LAZARUS_DIR
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Check Release-optimized native grid layout
+        run: |
+          & .\tests\RunGridViewportNativeTests.ps1 -FpcPath $env:FPC_EXE -LazarusDirectory $env:LAZARUS_DIR -OutputDirectory (Join-Path $env:RUNNER_TEMP 'grid-viewport-release')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -109,5 +114,6 @@ jobs:
             tests/lib/console-*/build.log
             ${{ runner.temp }}/lazarus-download.log
             ${{ runner.temp }}/lazarus-install.log
+            ${{ runner.temp }}/grid-viewport-release/*.log
           if-no-files-found: ignore
           retention-days: 14

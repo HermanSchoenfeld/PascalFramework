@@ -17,6 +17,7 @@ var
   LSelection: TGridSelectionScenario;
   LCancellation: TGridActiveCancellationScenario;
 begin
+  // Preserve completed scenario receipts if the bounded native watchdog fires.
   Application.Initialize;
   LLog := TStringList.Create;
   try
@@ -37,23 +38,41 @@ begin
       else if GetEnvironmentVariable('PASCAL_GRID_SELECTION_ONLY') = '1' then
       begin
         for LSelection := Low(TGridSelectionScenario) to High(TGridSelectionScenario) do
+        begin
           CheckVisualGridSelection(LSelection,LLog);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         LLog.Add('PASS complete native grid selection checks');
       end
       else
       begin
         for LScenario := Low(TGridViewportScenario) to High(TGridViewportScenario) do
+        begin
           CheckVisualGridViewport(LScenario,LLog);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         CheckVisualGridShowAllCompatibility(LLog);
         CheckVisualGridDeferredParenting(LLog);
         for LPaging := Low(TGridPagingScenario) to High(TGridPagingScenario) do
+        begin
           CheckVisualGridPaging(LPaging,LLog);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         for LLoading := Low(TGridLoadingScenario) to High(TGridLoadingScenario) do
+        begin
           CheckVisualGridLoading(LLoading,LLog);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         for LSelection := Low(TGridSelectionScenario) to High(TGridSelectionScenario) do
+        begin
           CheckVisualGridSelection(LSelection,LLog);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         for LCancellation := Low(TGridActiveCancellationScenario) to High(TGridActiveCancellationScenario) do
+        begin
           CheckVisualGridActiveCancellation(LCancellation);
+          LLog.SaveToFile(ParamStr(1));
+        end;
         {$IF defined(MSWINDOWS) and defined(VISUALGRID_TEST_WORKER_START)}
         CheckVisualGridEarlyActiveCancellation;
         {$ENDIF}

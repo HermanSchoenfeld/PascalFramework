@@ -225,7 +225,7 @@ widths, DPI scaling, scrollbars and resizing. Only fully visible rows fit a page
 the minimum remains one row when the control is too small for any complete row.
 The first probe argument selects its log; it exits nonzero on failure.
 
-The probe also runs the nine shared `TVisualGridPagingTests` regressions from
+The probe also runs the shared `TVisualGridPagingTests` regressions from
 [UVisualGrid.Paging.Checks](../UVisualGrid.Paging.Checks.pas) and
 [UVisualGrid.Viewport.Checks](../UVisualGrid.Viewport.Checks.pas):
 
