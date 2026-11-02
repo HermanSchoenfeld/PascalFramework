@@ -8,7 +8,7 @@ or VCL controls.
 
 ## Latest verification
 
-On 2 November 2026, the complete FPC 3.2.0/Lazarus 2.1 suite passed **427 tests**
+On 2 November 2026, the complete FPC 3.2.0/Lazarus 2.1 suite passed **436 tests**
 with zero errors or failures. The native grid matrix also passed with Delphi 13
 and FPC against both the standalone and embedded library copies, including
 synchronous-provider failure and recovery. Both demo projects compiled and
@@ -16,6 +16,24 @@ closed normally; the Lazarus runtime package compiled. These are local checks;
 the CI badge reports the separate hosted build.
 
 ## Unit coverage
+
+[ConcurrencyTests.lpr](ConcurrencyTests.lpr) runs the 31 shared lock cases without
+a GUI or Lazarus units, including ownership, promotion and release on Darwin's
+pointer-shaped thread IDs. From the repository root on Linux or macOS:
+
+```sh
+mkdir -p tests/lib/concurrency/units
+fpc -B -Mdelphi -Sh -gl -Cr -Co \
+  -FUtests/lib/concurrency/units -FEtests/lib/concurrency \
+  -Fusrc/Sphere10 -Fusrc/Generics.Collections -Fisrc/Generics.Collections/inc \
+  -Futests tests/ConcurrencyTests.lpr
+tests/lib/concurrency/ConcurrencyTests tests/lib/concurrency/tests.log
+```
+
+The same compiler arguments work on Windows; run `ConcurrencyTests.exe` there.
+The runner returns a nonzero code on failure and writes test and heap reports.
+Keep `heaptrc` before `cthreads` so heap tracing is installed before POSIX
+thread-local storage is relocated.
 
 | Fixture | Coverage |
 | --- | --- |
