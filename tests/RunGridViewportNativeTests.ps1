@@ -38,7 +38,8 @@ $probeLog = Join-Path $output 'grid-viewport.log'
     "$PSScriptRoot\native\PrivateDesktopBroker.lpr" *> $brokerBuild
 if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $brokerBuild -Tail 40; exit $LASTEXITCODE }
 $probeArguments = @(
-    '-B', '-MDelphi', '-O1', '-gl', '-WG',
+    # Exercise production optimization; lower levels can hide layout faults.
+    '-B', '-MDelphi', '-O2', '-gl', '-WG',
     "-Fu$library", "-Fu$PSScriptRoot", "-Fu$PSScriptRoot\..\src\Generics.Collections",
     "-Fi$PSScriptRoot\..\src\Generics.Collections\inc",
     "-Fu$lazarus\lcl\units\$target", "-Fu$lazarus\lcl\units\$target\win32",
@@ -49,7 +50,7 @@ $probeArguments = @(
 if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $probeBuild -Tail 60; exit $LASTEXITCODE }
 
 # The broker creates its own Windows desktop and never switches the input desktop.
-& $broker $probe $probeLog *> $brokerLog
+& $broker $probe $probeLog 120000 *> $brokerLog
 $nativeExit = $LASTEXITCODE
 if (Test-Path -LiteralPath $probeLog) { Get-Content -LiteralPath $probeLog }
 if ($nativeExit -ne 0) { Get-Content -LiteralPath $brokerLog -Tail 30; exit $nativeExit }

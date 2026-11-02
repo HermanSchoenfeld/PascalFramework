@@ -22,8 +22,14 @@ var
   child : TProcessInformation;
   desktopName, desktopPath, command, logPath : AnsiString;
   exitCode, waitResult : DWORD;
+  LWatchdogMilliseconds: Integer;
 begin
-  if ParamCount <> 2 then Halt(64);
+  if not (ParamCount in [2,3]) then Halt(64);
+  LWatchdogMilliseconds := 40000;
+  // Larger matrices may opt into a bounded budget; existing callers retain 40s.
+  if ParamCount = 3 then
+    if not TryStrToInt(ParamStr(3),LWatchdogMilliseconds) or
+      (LWatchdogMilliseconds < 1) or (LWatchdogMilliseconds > 300000) then Halt(64);
   desktopName := 'Sphere10WizardQA_' + IntToStr(GetCurrentProcessId);
   desktopPath := 'WinSta0\' + desktopName;
   logPath := ParamStr(2);
@@ -43,7 +49,7 @@ begin
         RaiseLastOSError;
       try
         Writeln('Started own QA child PID ', child.dwProcessId, ' on private desktop ', desktopPath, '; input desktop unchanged');
-        waitResult := WaitForSingleObject(child.hProcess, 40000);
+        waitResult := WaitForSingleObject(child.hProcess, DWORD(LWatchdogMilliseconds));
         if waitResult = WAIT_TIMEOUT then begin
           TerminateProcess(child.hProcess, 124);
           WaitForSingleObject(child.hProcess, 5000);
