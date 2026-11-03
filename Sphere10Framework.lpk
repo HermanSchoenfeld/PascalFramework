@@ -15,7 +15,7 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(LCLWidgetType)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="19">
+    <Files Count="20">
       <Item1>
         <Filename Value="src\Sphere10\UCache.pas"/>
         <UnitName Value="UCache"/>
@@ -93,6 +93,10 @@
         <Filename Value="src\Sphere10\UConcurrency.pas"/>
         <UnitName Value="UConcurrency"/>
       </Item19>
+      <Item20>
+        <Filename Value="src\Sphere10\UStreams.pas"/>
+        <UnitName Value="UStreams"/>
+      </Item20>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

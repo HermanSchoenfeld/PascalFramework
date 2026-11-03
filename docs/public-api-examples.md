@@ -167,6 +167,14 @@ third-party generics and compiler-exported implementation adapters are excluded.
 | `TDisposables` | [BuildLocalReport / TReportBuilder](../examples/demo/UDisposalReadmeExamples.pas) |  |
 | `TDisposePolicy` | [BuildLocalReport / TReportBuilder](../examples/demo/UDisposalReadmeExamples.pas) | Cleanup policies are also used by the collection and cache recipes. |
 
+## UStreams
+
+[Unit source](../src/Sphere10/UStreams.pas)
+
+| Public type | Worked example | Note |
+| --- | --- | --- |
+| `TBufferedStream` | [BufferedStreams](../examples/demo/UCoreApiExamples.pas) | Switchable read-ahead and length caching, explicit unread-data flushing, input ownership, logical seeking and synchronous writes. |
+
 ## UVisualGrid
 
 [Unit source](../src/Sphere10/UVisualGrid.pas)

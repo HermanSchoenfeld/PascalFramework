@@ -15,7 +15,7 @@
 Sphere 10 Pascal Framework is [Sphere10's](https://sphere10.com/) reusable Object Pascal
 library for **Lazarus/Free Pascal (LCL) and Delphi (VCL)**. It provides data-bound visual grids, multi-step wizards
 and configurable caches, together with the supporting utilities applications
-need: scoped resource cleanup, generic collection helpers, data sources,
+need: buffered streams, scoped resource cleanup, generic collection helpers, data sources,
 multicast events, date/time helpers and UI event throttling.
 
 The components work together: visual grids consume data sources that handle
@@ -48,6 +48,7 @@ GitHub results separately from local Delphi and Lazarus checks.
 | [UCommon.pas](src/Sphere10/UCommon.pas) | Managed cleanup through `TScope`; shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
 | [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
 | [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Named Variant rows and column schemas, text/numeric search expressions, filter/sort criteria and generic data sources with filtering, sorting, paging and opt-in invalidatable snapshots. |
+| [UStreams.pas](src/Sphere10/UStreams.pas) | A bounded read-ahead stream decorator with configurable buffer size, optional ownership and length caching, logical positioning and synchronous writes. |
 | [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
 | [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Shared-memory synchronization with concurrent readers, one exclusive writer, upgradeable reads, optional recursion, timed acquisition and thread ownership checks. |
 
@@ -1164,6 +1165,77 @@ Delphi's `TFileStreamHelper.WriteString` writes UTF-8 bytes without adding a new
 File encoding happens at the stream boundary: Delphi supplies native Unicode;
 FPC callers use Lazarus's UTF-8 `String` convention.
 
+## Buffered streams
+
+[TBufferedStream](src/Sphere10/UStreams.pas) combines small reads from a wrapped
+`TStream` into larger reads using a fixed buffer, 64 KiB by default. It accepts
+forward-only streams, supports the wrapped stream's seeking and resizing, and
+writes immediately. Buffer size must be positive.
+Each `Read` performs at most one wrapped read and can return a short result;
+the input stream determines blocking behavior.
+
+```pascal
+uses Classes, UStreams;
+
+function ReadHeader(const AFileName: String): Cardinal;
+var
+  LInput: TStream;
+begin
+  LInput := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
+  try
+    // Buffer small serialized fields; denied writes make length caching valid.
+    LInput := TBufferedStream.Create(LInput, 64 * 1024, True, True, True);
+    LInput.ReadBuffer(Result, SizeOf(Result));
+  finally
+    LInput.Free;
+  end;
+end;
+```
+
+Pass `False` for ownership to leave the input open. Access it through the decorator
+while buffering: its logical position can precede the wrapped stream's physical
+position. `FlushUnreadData` returns unread bytes to a seekable input before
+handing it back. Disposal does not rewind borrowed inputs; forward-only inputs
+cannot recover unread bytes. Writing or resizing with unread buffered data also
+requires seeking to restore the logical position first.
+
+The same [worked example](examples/demo/UCoreApiExamples.pas) runs in the Delphi
+and Lazarus demo under **Utilities → Core API**.
+
+`EnableReadBuffering` and `EnableStreamLengthCaching` both default to `True`;
+the fourth and fifth constructor arguments configure length caching and read
+buffering respectively. Length caching retains one successful `Size` query as
+an `Int64`; writes and resizing invalidate it, including failed or partial changes.
+Set `EnableStreamLengthCaching := False` for inputs that can grow independently.
+Construction never queries the input size or position.
+
+`EnableBuffering` and `DisableBuffering` switch both flags. Disabling read buffering
+frees the private `BufferedData` allocation and delegates stream operations,
+including `Size`, directly. `BufferSize` retains the configured capacity; enabling
+allocates it again. With unread bytes, disabling throws without changing either
+flag or seeking implicitly. Consume those bytes or call `FlushUnreadData` first;
+if rewinding is unsupported, it throws and preserves the unread bytes.
+
+```pascal
+procedure ReadSections(AInput: TBufferedStream);
+var
+  LHeader: Cardinal;
+  LBlock: array[0..32767] of Byte;
+begin
+  // Read-ahead combines the small fields of a serialized header.
+  AInput.EnableBuffering;
+  AInput.ReadBuffer(LHeader, SizeOf(LHeader));
+  AInput.FlushUnreadData;
+  // This section supplies its own bulk buffer, so avoid the intermediate copy.
+  AInput.DisableBuffering;
+  AInput.ReadBuffer(LBlock, SizeOf(LBlock));
+  AInput.EnableBuffering;
+end;
+```
+
+`SynchronizePosition` remains an alias for `FlushUnreadData`. The flags can also
+be set separately; length caching is bypassed whenever read buffering is disabled.
+
 ## Multicast events
 
 [TNotifyManyEvent](src/Sphere10/UCommon.pas) adds/removes several object-method
@@ -1469,7 +1541,7 @@ Recipes display their results in the memo. Array, core and UI recipes also check
 | [Arrays and collections](examples/demo/UArrayCollectionExamples.pas) | Every array operation and overload; all public comparer, predicate, list and transformation adapters. |
 | [Scoped resources](examples/demo/UDisposalReadmeExamples.pas) | Several owned objects and memory blocks; automatic cleanup in local scopes and class-owned bags; ownership transfer. |
 | [Caches](examples/demo/UCacheApiExamples.pas) | Per-key and bulk-fetch caches, preloaded dictionaries, callback families, entry metadata, notifications and subclassed stale checks. |
-| [Core utilities](examples/demo/UCoreApiExamples.pas) | Results, dates, statistics, Variants, files, queued notifications, read/write locking, data sources, search expressions and common UI helpers. |
+| [Core utilities](examples/demo/UCoreApiExamples.pas) | Results, dates, statistics, Variants, files, buffered streams, queued notifications, read/write locking, data sources, search expressions and common UI helpers. |
 | [Grid and wizard APIs](examples/demo/UUiApiExamples.pas) | Column callbacks, selection, native adapters, typed wizard models, dynamic routes, host windows and lifecycle callbacks. |
 
 The [public type index](docs/public-api-examples.md) maps each public Framework

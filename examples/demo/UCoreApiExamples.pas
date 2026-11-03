@@ -18,7 +18,7 @@ implementation
 uses SysUtils, Types, Variants, Math, Generics.Collections, Generics.Defaults,
   {$IFDEF FPC}Forms, Controls, ExtCtrls, Graphics, ImgList,
   {$ELSE}Vcl.Forms, Vcl.Controls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.ImgList,{$ENDIF}
-  UMemory, UCommon, UCommon.Collections, UCommon.Data, UCommon.UI, UConcurrency;
+  UMemory, UCommon, UCommon.Collections, UCommon.Data, UStreams, UCommon.UI, UConcurrency;
 
 type
   TIntegerArrays = TArrayTool<Integer>;
@@ -688,12 +688,58 @@ begin
   Require(LListener.WaitingChanges > 0, 'waiting-change notification');
 end;
 
+procedure BufferedStreams;
+var
+  LResources: TDisposables;
+  LSource: TMemoryStream;
+  LInput: TBufferedStream;
+  LBytes: array[0..9] of Byte;
+  LRead: array[0..2] of Byte;
+  LReplacement: Byte;
+  I: Integer;
+begin
+  for I := Low(LBytes) to High(LBytes) do
+    LBytes[I] := I;
+  LSource := LResources.AddObject(TMemoryStream.Create) as TMemoryStream;
+  LSource.WriteBuffer(LBytes, SizeOf(LBytes));
+  LSource.Position := 0;
+  // The bag owns both resources and releases the decorator before its input.
+  LInput := LResources.AddObject(TBufferedStream.Create(LSource, 4, False, True)) as TBufferedStream;
+  Require(LInput.EnableStreamLengthCaching and LInput.EnableReadBuffering and (LInput.Size = SizeOf(LBytes)), 'read-ahead and length caching');
+  LInput.ReadBuffer(LRead, 2);
+  Require((LRead[0] = 0) and (LRead[1] = 1) and (LInput.Position = 2), 'buffered read and logical position');
+  Require((LInput.WrappedStream = LSource) and (LInput.BufferSize = 4) and not LInput.OwnsStream, 'borrowed input and configured buffer');
+  LInput.Position := 1;
+  LInput.ReadBuffer(LRead[0], 1);
+  Require(LRead[0] = 1, 'seek within buffered data');
+  LReplacement := $AA;
+  LInput.WriteBuffer(LReplacement, SizeOf(LReplacement));
+  LInput.Position := 0;
+  LInput.ReadBuffer(LRead, SizeOf(LRead));
+  Require((LRead[0] = 0) and (LRead[1] = 1) and (LRead[2] = $AA), 'write-through at the logical position');
+  LInput.FlushUnreadData;
+  Require(LSource.Position = LInput.Position, 'explicit borrowed-input synchronization');
+  // A caller with its own bulk buffer can bypass the intermediate allocation.
+  LInput.DisableBuffering;
+  Require(not LInput.EnableReadBuffering and not LInput.EnableStreamLengthCaching and (LInput.BufferSize = 4), 'direct mode retains configured capacity');
+  LInput.ReadBuffer(LRead, SizeOf(LRead));
+  Require((LRead[0] = 3) and (LRead[1] = 4) and (LRead[2] = 5), 'direct reads preserve the logical cursor');
+  // Re-enable read-ahead for subsequent small fields; the buffer is reallocated.
+  LInput.EnableBuffering;
+  Require(LInput.EnableReadBuffering and LInput.EnableStreamLengthCaching, 'both flags re-enabled');
+  LInput.Position := LInput.Size;
+  LInput.WriteBuffer(LReplacement, SizeOf(LReplacement));
+  Require(LInput.Size = SizeOf(LBytes) + 1, 'length cache invalidated after append');
+end;
+
 procedure RunCoreApiExamples(AOutput: TStrings);
 begin
   CommonValuesAndResults;
   AOutput.Add('Values: boxing, numeric aliases, dates, spans, results, statistics and CPU count passed.');
   VariantAndFileTools;
   AOutput.Add('Tools: bytes, variant matching and temporary-file append passed.');
+  BufferedStreams;
+  AOutput.Add('Streams: bounded read-ahead, direct-mode toggles, explicit unread-data flushing, seeking, ownership and length caching passed.');
   Notifications;
   AOutput.Add('Events: multicast subscription and worker-to-main-thread dispatch passed.');
   ReadWriteLocking;

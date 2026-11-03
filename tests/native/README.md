@@ -1,5 +1,15 @@
 # Native component checks
 
+## Buffered streams
+
+[BufferedStreamProbe.dproj](BufferedStreamProbe.dproj) runs the same 86
+[stream contracts](../UStreams.Checks.pas) as FPCUnit, including forward-only
+inputs, ownership, failures and sparse positions above 1 TiB. Build/run in Delphi
+Win32 or Win64; pass an optional log-file path. Success exits normally with code
+zero and leak reporting enabled. It requires no wallet, network or OpenSSL.
+The same cases cover default-true read/length flags, direct mode, explicit
+`FlushUnreadData`, rejected-disable atomicity and buffer re-enabling.
+
 ## Custom loading cards
 
 Open [GridLoadingProbe.dproj](GridLoadingProbe.dproj) in Delphi and build/run
