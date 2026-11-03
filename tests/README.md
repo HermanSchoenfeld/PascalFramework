@@ -8,12 +8,12 @@ or VCL controls.
 
 ## Latest verification
 
-On 2 November 2026, the complete FPC 3.2.0/Lazarus 2.1 suite passed **436 tests**
-with zero errors or failures. The native grid matrix also passed with Delphi 13
-and FPC against both the standalone and embedded library copies, including
-synchronous-provider failure and recovery. Both demo projects compiled and
-closed normally; the Lazarus runtime package compiled. These are local checks;
-the CI badge reports the separate hosted build.
+The complete local FPC 3.2.0/Lazarus 2.1 suite passed **538 tests** on 4 November
+2026 with zero errors, failures, ignored tests or unfreed blocks. The final native
+paging matrix also passed in Delphi 13 Release and checked/unchecked FPC Release:
+large totals, narrow footers, native row capacity and Single/Auto/Manual modes.
+The 101 stream checks passed in Delphi Win32/Win64 and Free Pascal. These are
+local checks; the CI badge reports the separate hosted build.
 
 ## Unit coverage
 
@@ -75,7 +75,15 @@ actual mode button/menu and native scrollbars, checks exact complete-row capacit
 and rejects obsolete finite pages after switching to Single. Requests made while
 suspended cannot fetch; resuming admits only the latest mode. Legacy ShowAll
 checks start without a cached total and then grow the result. The parenting
-check assigns a synchronous source before docking and showing the grid.
+check assigns a synchronous source before docking and showing the grid. Native
+capacity checks wait for the existing deferred layout task as well as data
+completion, within the same five-second deadline.
+The Windows FPC fixture drains queued native messages after LCL's manual message
+pump, including timers left pending after a popup. Application code is unchanged.
+
+`LargeTotalsCompactBeforeWrapping` checks a six-digit total and five-digit page
+count at 100%, 125% and 150%. Totals stay beside compact navigation when it fits;
+narrower footers wrap without clipping across Single, Auto and Manual modes.
 
 The queued-completion case
 `TVisualGridQueuedCompletionTests.WorkerCancelledBeforeExecutionRetiresAndPreservesOtherReceivers`

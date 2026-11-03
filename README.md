@@ -93,7 +93,8 @@ Assigning the current mode preserves the viewport and does not fetch again. Sing
 Manual restores its remembered size. The selector remains available for empty
 or single-page results; `vgoAutoHidePaging` hides unnecessary navigation.
 The compact icon button sits immediately before the first-page button in a
-right-anchored group. Narrow footers move totals and the manual size editor above that group.
+right-anchored group. Navigation compacts before moving totals or the manual size
+editor onto another row; wrapping is used when the compact controls still cannot fit.
 Footer controls remain fully visible when fonts or display scaling change.
 
 ![Unified demo showing all matching records in Single mode](resources/demo/unified-grid-single.png)
