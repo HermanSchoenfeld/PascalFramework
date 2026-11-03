@@ -36,11 +36,11 @@ type
     can grow independently. Writes/resizes invalidate the retained length before
     attempting mutation. Construction never queries the input's size or position.
 
-    Disabling read buffering forwards operations, including Size, directly and
-    releases BufferedData. BufferSize retains the configured capacity for the
+    Disabling read buffering forwards reads/writes directly and releases
+    BufferedData. BufferSize retains the configured capacity for the
     next enable. Unread bytes must first be consumed or returned to the input by
     FlushUnreadData; disabling never attempts an implicit rewind. Length caching
-    can be configured separately, but is bypassed while read buffering is off. }
+    works independently of read buffering, including when read buffering is off. }
   TBufferedStream = class(TStream)
     private
       FStream: TStream;
@@ -295,9 +295,9 @@ begin
   if Count < 0 then
     raise EArgumentOutOfRangeException.Create('Count must not be negative.');
   if Count = 0 then Exit(0);
-  if not FEnableReadBuffering then Exit(FStream.Write(Buffer, Count));
   // Even a short or failed write may change the input's length.
   FSizeKnown := False;
+  if not FEnableReadBuffering then Exit(FStream.Write(Buffer, Count));
   SynchronizePosition;
   try
     Result := FStream.Write(Buffer, Count);
@@ -374,7 +374,7 @@ end;
 
 function TBufferedStream.GetSize: Int64;
 begin
-  if not FEnableReadBuffering then Exit(FStream.Size);
+  // Length metadata is independent of the byte buffer, including direct reads.
   if FEnableStreamLengthCaching and FSizeKnown then Exit(FCachedStreamLength);
   try
     Result := FStream.Size;
@@ -401,12 +401,13 @@ procedure TBufferedStream.SetSize(const NewSize: Int64);
 begin
   if NewSize < 0 then
     raise EArgumentOutOfRangeException.Create('NewSize must not be negative.');
+  // Direct-mode mutations must also invalidate independently cached length.
+  FSizeKnown := False;
   if not FEnableReadBuffering then begin
     FStream.Size := NewSize;
     Exit;
   end;
   // Query the actual length afterward: an input may ignore or partly apply it.
-  FSizeKnown := False;
   SynchronizePosition;
   try
     FStream.Size := NewSize;

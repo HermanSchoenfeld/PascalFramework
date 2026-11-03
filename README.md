@@ -1210,11 +1210,13 @@ Set `EnableStreamLengthCaching := False` for inputs that can grow independently.
 Construction never queries the input size or position.
 
 `EnableBuffering` and `DisableBuffering` switch both flags. Disabling read buffering
-frees the private `BufferedData` allocation and delegates stream operations,
-including `Size`, directly. `BufferSize` retains the configured capacity; enabling
+frees the private `BufferedData` allocation and delegates reads, writes and seeks
+directly. `Size` still follows `EnableStreamLengthCaching`, independently of read
+buffering. `BufferSize` retains the configured capacity; enabling
 allocates it again. With unread bytes, disabling throws without changing either
 flag or seeking implicitly. Consume those bytes or call `FlushUnreadData` first;
 if rewinding is unsupported, it throws and preserves the unread bytes.
+For direct reads with cached length, set only `EnableReadBuffering := False`.
 
 ```pascal
 procedure ReadSections(AInput: TBufferedStream);

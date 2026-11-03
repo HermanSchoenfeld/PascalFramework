@@ -9,7 +9,7 @@ unit UStreams.Checks;
 
 interface
 
-const BufferedStreamCheckCount = 86;
+const BufferedStreamCheckCount = 101;
 procedure RunBufferedStreamCheck(AIndex: Integer);
 function BufferedStreamCheckName(AIndex: Integer): String;
 
@@ -1431,7 +1431,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSizeExceptionIsRetried;
+procedure CheckCachedSizeExceptionIsRetried(AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
   LRaised: Boolean;
@@ -1441,7 +1441,7 @@ begin
   try
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       LSource.FailSize := True;
       LRaised := False;
@@ -1465,7 +1465,7 @@ begin
   end;
 end;
 
-procedure CheckCachedNegativeSizeIsRetried;
+procedure CheckCachedNegativeSizeIsRetried(AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
 begin
@@ -1474,7 +1474,7 @@ begin
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
     LSource.NegativeSize := True;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       Check((LBuffered.Size=-1) and (LBuffered.Size=-1),'negative size sentinel was changed');
       Check(LSource.SizeCalls=2,'negative length was cached');
@@ -1491,7 +1491,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSizeAfterOverwriteAndAppend;
+procedure CheckCachedSizeAfterOverwriteAndAppend(AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
   LBytes: array[0..3] of Byte;
@@ -1501,7 +1501,7 @@ begin
   try
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       Check(LBuffered.Size=24,'cannot seed length cache');
       CheckPattern(LBuffered,1,0);
@@ -1522,7 +1522,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSizeAfterWriteFailure(AMode: Integer);
+procedure CheckCachedSizeAfterWriteFailure(AMode: Integer; AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
   LBytes: array[0..4] of Byte;
@@ -1533,7 +1533,7 @@ begin
   try
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       Check(LBuffered.Size=24,'cannot seed failing-write length cache');
       LBuffered.Seek(Int64(0),soEnd);
@@ -1569,7 +1569,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSizeAfterResize;
+procedure CheckCachedSizeAfterResize(AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
 begin
@@ -1577,7 +1577,7 @@ begin
   try
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       Check(LBuffered.Size=24,'cannot seed resize length cache');
       CheckPattern(LBuffered,1,0);
@@ -1596,7 +1596,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSizeAfterFailedAndIgnoredResize;
+procedure CheckCachedSizeAfterFailedAndIgnoredResize(AReadBuffering: Boolean = True);
 var LSource: TSizeObservedStream;
   LBuffered: TBufferedStream;
   LRaised: Boolean;
@@ -1605,7 +1605,7 @@ begin
   try
     Seed(LSource,Pattern(24));
     LSource.ResetCounts;
-    LBuffered := TBufferedStream.Create(LSource,8,False,True);
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,AReadBuffering);
     try
       Check(LBuffered.Size=24,'cannot seed partial-resize length cache');
       LSource.FailResizeAfterMutation := True;
@@ -1673,7 +1673,7 @@ begin
   end;
 end;
 
-procedure CheckCachedSparseLengthAndZeroWrite;
+procedure CheckCachedSparseLengthAndZeroWrite(AReadBuffering: Boolean = True);
 var LSource: TCountedSparseStream;
   LBuffered: TBufferedStream;
   LExpected: Int64;
@@ -1682,7 +1682,7 @@ begin
   LSource := TCountedSparseStream.Create;
   try
     LExpected := (Int64(1) shl 40)+123;
-    LBuffered := TBufferedStream.Create(LSource,16,False,True);
+    LBuffered := TBufferedStream.Create(LSource,16,False,True,AReadBuffering);
     try
       Check((LBuffered.Size=LExpected) and (LBuffered.Size=LExpected),'cached sparse size was truncated');
       Check(LSource.SizeCalls=1,'sparse length was not cached');
@@ -1691,7 +1691,10 @@ begin
       Check(LBuffered.Write(B,0)=0,'zero write result changed');
       Check(LBuffered.Size=LExpected,'read/zero-write changed cached length');
       Check(LSource.SizeCalls=1,'read/zero-write invalidated the length cache');
-      Check((LSource.ReadCalls=1) and (LSource.LargestRead=16),'cached length caused a full-stream allocation/read');
+      Check(LSource.ReadCalls=1,'cached sparse read queried the input repeatedly');
+      if AReadBuffering then
+        Check(LSource.LargestRead=16,'buffered sparse read lost its configured capacity')
+      else Check(LSource.LargestRead=1,'length-only caching enabled byte read-ahead');
     finally
       LBuffered.Free;
     end;
@@ -2107,7 +2110,7 @@ begin
   end;
 end;
 
-procedure CheckDisabledSizeCacheBypass;
+procedure CheckDisabledReadBufferingCachesLength;
 var LSource: TSizeObservedStream; LBuffered: TBufferedStream;
 begin
   LSource := TSizeObservedStream.Create;
@@ -2119,10 +2122,14 @@ begin
       Check(LBuffered.EnableStreamLengthCaching and not LBuffered.EnableReadBuffering,'constructor flags were not independent');
       Check((LSource.SizeCalls=0) and (LSource.SeekCalls=0),'disabled cached constructor probed metadata');
       Check(LBuffered.Size=24,'disabled size query was incorrect');
+      Check(LBuffered.Size=24,'direct-mode cached length changed');
+      Check(LSource.SizeCalls=1,'disabled read buffering bypassed length caching');
       LSource.Size := 31;
-      Check(LBuffered.Size=31,'disabled size used a cached length');
-      Check(LBuffered.Size=31,'repeated disabled size changed its result');
-      Check(LSource.SizeCalls=3,'disabled size did not forward every query');
+      Check(LBuffered.Size=24,'length caching polled external growth in direct mode');
+      Check(LSource.SizeCalls=1,'direct-mode cache queried the source again');
+      LBuffered.EnableStreamLengthCaching := False;
+      Check(LBuffered.Size=31,'disabling length caching did not query the source');
+      Check(LSource.SizeCalls=2,'disabled length caching did not forward Size');
     finally
       LBuffered.Free;
     end;
@@ -2345,6 +2352,109 @@ begin
   end;
 end;
 
+procedure CheckIndependentFlagCombination(AReadBuffering, ALengthCaching: Boolean);
+var LSource: TSizeObservedStream; LBuffered: TBufferedStream;
+begin
+  LSource := TSizeObservedStream.Create;
+  try
+    Seed(LSource,Pattern(24));
+    LSource.ResetCounts;
+    LBuffered := TBufferedStream.Create(LSource,8,False,ALengthCaching,AReadBuffering);
+    try
+      Check((LSource.ReadCalls=0) and (LSource.SeekCalls=0) and (LSource.SizeCalls=0),'flag combination probed input during construction');
+      Check((LBuffered.EnableReadBuffering=AReadBuffering) and (LBuffered.EnableStreamLengthCaching=ALengthCaching),'constructor coupled independent flags');
+      CheckPattern(LBuffered,1,0);
+      if AReadBuffering then
+        Check(LSource.LargestRead=8,'read buffering did not read ahead')
+      else Check(LSource.LargestRead=1,'length caching enabled read-ahead');
+      Check((LBuffered.Size=24) and (LBuffered.Size=24),'flag combination changed Size');
+      if ALengthCaching then
+        Check(LSource.SizeCalls=1,'enabled length caching queried input twice')
+      else Check(LSource.SizeCalls=2,'disabled length caching retained a length');
+      Check(LBuffered.Position=1,'size queries changed the logical read cursor');
+    finally
+      LBuffered.Free;
+    end;
+  finally
+    LSource.Free;
+  end;
+end;
+
+procedure CheckLengthCachingTogglesWithoutReadBuffer;
+var LSource: TSizeObservedStream; LBuffered: TBufferedStream; LCalls: Integer;
+begin
+  LSource := TSizeObservedStream.Create;
+  try
+    Seed(LSource,Pattern(24));
+    LSource.ResetCounts;
+    LBuffered := TBufferedStream.Create(LSource,8,False,False,False);
+    try
+      Check((LBuffered.Size=24) and (LBuffered.Size=24) and (LSource.SizeCalls=2),'uncached direct queries did not forward');
+      LBuffered.EnableStreamLengthCaching := True;
+      Check(not LBuffered.EnableReadBuffering,'enabling length caching allocated read buffering');
+      Check((LBuffered.Size=24) and (LBuffered.Size=24) and (LSource.SizeCalls=3),'length-only enable did not cache a fresh query');
+      LBuffered.EnableStreamLengthCaching := True;
+      Check((LBuffered.Size=24) and (LSource.SizeCalls=3),'no-op enable discarded length-only cache');
+      LBuffered.EnableStreamLengthCaching := False;
+      LSource.Size := 31;
+      Check((LBuffered.Size=31) and (LSource.SizeCalls=4),'length-only disable reused an old value');
+      LBuffered.EnableStreamLengthCaching := True;
+      Check((LBuffered.Size=31) and (LSource.SizeCalls=5),'length-only reenable reused an old value');
+      LCalls := LSource.SizeCalls;
+      LBuffered.EnableReadBuffering := True;
+      Check(LSource.SizeCalls=LCalls,'read mode transition queried length eagerly');
+      Check(LBuffered.EnableStreamLengthCaching and (LBuffered.Size=31),'read mode transition disabled length caching');
+      LCalls := LSource.SizeCalls;
+      Check((LBuffered.Size=31) and (LSource.SizeCalls=LCalls),'read mode transition did not retain the new cached value');
+      LBuffered.EnableReadBuffering := False;
+      Check(LBuffered.EnableStreamLengthCaching,'read disable changed the independent length flag');
+      Check((LBuffered.Size=31) and (LSource.SizeCalls=LCalls+1),'read disable did not refresh invalidated metadata lazily');
+      LCalls := LSource.SizeCalls;
+      Check((LBuffered.Size=31) and (LSource.SizeCalls=LCalls),'read disable bypassed the new length cache');
+    finally
+      LBuffered.Free;
+    end;
+  finally
+    LSource.Free;
+  end;
+end;
+
+procedure CheckDirectCachedLengthSurvivesRejectedMutations;
+var LSource: TSizeObservedStream; LBuffered: TBufferedStream; B: Byte; LRaised: Boolean;
+begin
+  LSource := TSizeObservedStream.Create;
+  try
+    Seed(LSource,Pattern(24));
+    LSource.ResetCounts;
+    LBuffered := TBufferedStream.Create(LSource,8,False,True,False);
+    try
+      Check(LBuffered.Size=24,'cannot prime direct-mode length cache');
+      B := 99;
+      Check(LBuffered.Write(B,0)=0,'zero direct write changed its result');
+      LRaised := False;
+      try
+        LBuffered.Write(B,-1);
+      except
+        on E: EArgumentOutOfRangeException do LRaised := True;
+      end;
+      Check(LRaised,'negative direct write was accepted');
+      LRaised := False;
+      try
+        LBuffered.Size := -1;
+      except
+        on E: EArgumentOutOfRangeException do LRaised := True;
+      end;
+      Check(LRaised,'negative direct resize was accepted');
+      Check((LSource.WriteCalls=0) and (LSource.ResizeCalls=0),'rejected direct mutations reached the input');
+      Check((LBuffered.Size=24) and (LSource.SizeCalls=1),'rejected direct mutations invalidated known length');
+    finally
+      LBuffered.Free;
+    end;
+  finally
+    LSource.Free;
+  end;
+end;
+
 function BufferedStreamCheckName(AIndex: Integer): String;
 const Names: array[1..BufferedStreamCheckCount] of String = (
   'NilSourceRejected','NonpositiveBufferRejectedWithoutOwnership','BorrowedSourceRemainsAlive','OwnedSourceDisposedOnce',
@@ -2370,8 +2480,13 @@ const Names: array[1..BufferedStreamCheckCount] of String = (
   'DisableUnreadRejectedWithoutIO','FlushUnreadDataAllowsDisabling','EmptyAndRepeatedTogglesDoNoIO',
   'ReenablePreservesDirectCursor','DisabledSparseSeekOrigins','DisabledWriteAndResize','DisabledReadExceptionIdentity',
   'DisabledNegativePartialRead','FailedFlushPreservesUnread','ForwardOnlyFlushPreservesUnread','NegativeFlushPreservesUnread',
-  'DisabledSizeCacheBypass','ReenableInvalidatesSizeAndPosition','ToggledOwnership','AlternatingModesMatchMemoryStream',
-  'DisabledArgumentValidation','LengthCachingTogglesWithUnreadBytes','ConvenienceModesAreAtomic');
+  'DisabledReadBufferingCachesLength','ReenableInvalidatesSizeAndPosition','ToggledOwnership','AlternatingModesMatchMemoryStream',
+  'DisabledArgumentValidation','LengthCachingTogglesWithUnreadBytes','ConvenienceModesAreAtomic',
+  'DirectReadsUncachedLength','DirectReadsCachedLength','BufferedReadsUncachedLength','BufferedReadsCachedLength',
+  'DirectCachedLengthAfterOverwriteAndAppend','DirectCachedLengthAfterShortWrite','DirectCachedLengthAfterNegativePartialWrite',
+  'DirectCachedLengthAfterThrowingPartialWrite','DirectCachedLengthAfterTruncateAndExpand','DirectCachedLengthAfterFailedAndIgnoredResize',
+  'DirectCachedNegativeSizeIsRetried','DirectCachedSizeExceptionIsRetried','DirectCachedSparseLengthAndZeroWrite',
+  'LengthCachingTogglesWithoutReadBuffer','DirectCachedLengthSurvivesRejectedMutations');
 begin
   Check((AIndex>=Low(Names)) and (AIndex<=High(Names)),'invalid check index');
   Result := Names[AIndex];
@@ -2459,13 +2574,28 @@ begin
     77: CheckFailedFlushPreservesUnread;
     78: CheckForwardOnlyFlushPreservesUnread(False);
     79: CheckForwardOnlyFlushPreservesUnread(True);
-    80: CheckDisabledSizeCacheBypass;
+    80: CheckDisabledReadBufferingCachesLength;
     81: CheckReenableInvalidatesSizeAndPosition;
     82: CheckToggledOwnership;
     83: CheckAlternatingModesMatchMemoryStream;
     84: CheckDisabledArgumentValidation;
     85: CheckLengthCachingTogglesWithUnreadBytes;
     86: CheckConvenienceModesAreAtomic;
+    87: CheckIndependentFlagCombination(False,False);
+    88: CheckIndependentFlagCombination(False,True);
+    89: CheckIndependentFlagCombination(True,False);
+    90: CheckIndependentFlagCombination(True,True);
+    91: CheckCachedSizeAfterOverwriteAndAppend(False);
+    92: CheckCachedSizeAfterWriteFailure(0,False);
+    93: CheckCachedSizeAfterWriteFailure(1,False);
+    94: CheckCachedSizeAfterWriteFailure(2,False);
+    95: CheckCachedSizeAfterResize(False);
+    96: CheckCachedSizeAfterFailedAndIgnoredResize(False);
+    97: CheckCachedNegativeSizeIsRetried(False);
+    98: CheckCachedSizeExceptionIsRetried(False);
+    99: CheckCachedSparseLengthAndZeroWrite(False);
+    100: CheckLengthCachingTogglesWithoutReadBuffer;
+    101: CheckDirectCachedLengthSurvivesRejectedMutations;
   else
     raise EArgumentOutOfRangeException.Create('Invalid buffered stream check index');
   end;
