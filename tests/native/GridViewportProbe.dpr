@@ -53,6 +53,7 @@ begin
         end;
         CheckVisualGridShowAllCompatibility(LLog);
         CheckVisualGridDeferredParenting(LLog);
+        CheckVisualGridFooterCompaction(LLog);
         for LPaging := Low(TGridPagingScenario) to High(TGridPagingScenario) do
         begin
           CheckVisualGridPaging(LPaging,LLog);
