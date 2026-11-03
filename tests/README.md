@@ -17,6 +17,16 @@ the CI badge reports the separate hosted build.
 
 ## Unit coverage
 
+[UStreams.Tests](UStreams.Tests.pas) registers 86 shared buffered-stream
+checks. They cover bounded read-ahead, ownership, forward-only inputs, 64-bit
+positions, seeking, write-through, resizing and failure recovery. The same
+[check bodies](UStreams.Checks.pas) run in the native Delphi Win32/Win64 probe.
+Four thousand deterministic mixed operations are compared with `TMemoryStream`.
+Length-cache cases verify both enabled and dynamic sizes, lazy queries, failures
+and invalidation after writes/resizing. Toggle cases cover both default-true flags,
+direct delegation, explicit unread-data flushing, rejected-disable atomicity,
+forward-only failures and re-enabling after direct reads, writes and resizes.
+
 [ConcurrencyTests.lpr](ConcurrencyTests.lpr) runs the 31 shared lock cases without
 a GUI or Lazarus units, including ownership, promotion and release on Darwin's
 pointer-shaped thread IDs. From the repository root on Linux or macOS:

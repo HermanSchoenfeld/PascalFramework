@@ -8,7 +8,7 @@ uses
   UCommon.Collections, UCommon.Tests, UCommon.Collections.Tests, UCommon.Data.Tests, UCommon.UI.Tests, UVisualGrid.Tests,
   UVisualGrid.Refresh.Tests, UFramework.UI.Integration.Tests, UMemory.Tests,
   UCache.Tests, UWizard.Tests, UWizardDemo.Tests, UConcurrency.Tests,
-  UScope.Tests, UReadWriteScope.Tests;
+  UScope.Tests, UReadWriteScope.Tests, UStreams.Tests;
 
 {$R *.res}
 

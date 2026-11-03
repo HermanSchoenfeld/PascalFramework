@@ -21,6 +21,7 @@ contains
   UCommon.Collections in 'src\Sphere10\UCommon.Collections.pas',
   UCache in 'src\Sphere10\UCache.pas',
   UCommon.Data in 'src\Sphere10\UCommon.Data.pas',
+  UStreams in 'src\Sphere10\UStreams.pas',
   UCommon.UI in 'src\Sphere10\UCommon.UI.pas',
   UVisualGrid in 'src\Sphere10\UVisualGrid.pas',
   UWizard in 'src\Sphere10\UWizard.pas';

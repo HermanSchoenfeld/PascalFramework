@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{DA9024E1-1CC4-42D2-A27E-4C30B665A391}</ProjectGuid>
+    <MainSource>BufferedStreamProbe.dpr</MainSource>
+    <Config>Debug</Config>
+    <Platform>Win64</Platform>
+    <Base>True</Base>
+    <TargetedPlatforms>3</TargetedPlatforms>
+    <AppType>Console</AppType>
+    <FrameworkType>None</FrameworkType>
+    <ProjectVersion>20.3</ProjectVersion>
+    <DCC_Namespace>System;Winapi;Vcl;Data;Xml</DCC_Namespace>
+    <DCC_UnitSearchPath>..\..\src\Sphere10;..</DCC_UnitSearchPath>
+    <DCC_IncludePath>..\..\src\Sphere10</DCC_IncludePath>
+    <DCC_DcuOutput>..\lib\native-buffered-stream\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\lib\native-buffered-stream\$(Platform)\$(Config)\bin</DCC_ExeOutput>
+    <BRCC_OutputDir>..\lib\native-buffered-stream\$(Platform)\$(Config)\res</BRCC_OutputDir>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+  </PropertyGroup>
+  <ItemGroup><DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile></ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <BorlandProject>
+      <Delphi.Personality><Source><Source Name="MainSource">BufferedStreamProbe.dpr</Source></Source></Delphi.Personality>
+      <Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms>
+    </BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+</Project>
