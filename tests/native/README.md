@@ -2,7 +2,7 @@
 
 ## Buffered streams
 
-[BufferedStreamProbe.dproj](BufferedStreamProbe.dproj) runs the same 86
+[BufferedStreamProbe.dproj](BufferedStreamProbe.dproj) runs the same 101
 [stream contracts](../UStreams.Checks.pas) as FPCUnit, including forward-only
 inputs, ownership, failures and sparse positions above 1 TiB. Build/run in Delphi
 Win32 or Win64; pass an optional log-file path. Success exits normally with code

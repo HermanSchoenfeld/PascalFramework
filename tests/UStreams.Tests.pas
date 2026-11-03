@@ -88,13 +88,28 @@ type
     procedure FailedFlushPreservesUnread;
     procedure ForwardOnlyFlushPreservesUnread;
     procedure NegativeFlushPreservesUnread;
-    procedure DisabledSizeCacheBypass;
+    procedure DisabledReadBufferingCachesLength;
     procedure ReenableInvalidatesSizeAndPosition;
     procedure ToggledOwnership;
     procedure AlternatingModesMatchMemoryStream;
     procedure DisabledArgumentValidation;
     procedure LengthCachingTogglesWithUnreadBytes;
     procedure ConvenienceModesAreAtomic;
+    procedure DirectReadsUncachedLength;
+    procedure DirectReadsCachedLength;
+    procedure BufferedReadsUncachedLength;
+    procedure BufferedReadsCachedLength;
+    procedure DirectCachedLengthAfterOverwriteAndAppend;
+    procedure DirectCachedLengthAfterShortWrite;
+    procedure DirectCachedLengthAfterNegativePartialWrite;
+    procedure DirectCachedLengthAfterThrowingPartialWrite;
+    procedure DirectCachedLengthAfterTruncateAndExpand;
+    procedure DirectCachedLengthAfterFailedAndIgnoredResize;
+    procedure DirectCachedNegativeSizeIsRetried;
+    procedure DirectCachedSizeExceptionIsRetried;
+    procedure DirectCachedSparseLengthAndZeroWrite;
+    procedure LengthCachingTogglesWithoutReadBuffer;
+    procedure DirectCachedLengthSurvivesRejectedMutations;
   end;
 
 implementation
@@ -495,7 +510,7 @@ begin
   RunBufferedStreamCheck(79);
 end;
 
-procedure TBufferedStreamTests.DisabledSizeCacheBypass;
+procedure TBufferedStreamTests.DisabledReadBufferingCachesLength;
 begin
   RunBufferedStreamCheck(80);
 end;
@@ -528,6 +543,81 @@ end;
 procedure TBufferedStreamTests.ConvenienceModesAreAtomic;
 begin
   RunBufferedStreamCheck(86);
+end;
+
+procedure TBufferedStreamTests.DirectReadsUncachedLength;
+begin
+  RunBufferedStreamCheck(87);
+end;
+
+procedure TBufferedStreamTests.DirectReadsCachedLength;
+begin
+  RunBufferedStreamCheck(88);
+end;
+
+procedure TBufferedStreamTests.BufferedReadsUncachedLength;
+begin
+  RunBufferedStreamCheck(89);
+end;
+
+procedure TBufferedStreamTests.BufferedReadsCachedLength;
+begin
+  RunBufferedStreamCheck(90);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterOverwriteAndAppend;
+begin
+  RunBufferedStreamCheck(91);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterShortWrite;
+begin
+  RunBufferedStreamCheck(92);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterNegativePartialWrite;
+begin
+  RunBufferedStreamCheck(93);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterThrowingPartialWrite;
+begin
+  RunBufferedStreamCheck(94);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterTruncateAndExpand;
+begin
+  RunBufferedStreamCheck(95);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthAfterFailedAndIgnoredResize;
+begin
+  RunBufferedStreamCheck(96);
+end;
+
+procedure TBufferedStreamTests.DirectCachedNegativeSizeIsRetried;
+begin
+  RunBufferedStreamCheck(97);
+end;
+
+procedure TBufferedStreamTests.DirectCachedSizeExceptionIsRetried;
+begin
+  RunBufferedStreamCheck(98);
+end;
+
+procedure TBufferedStreamTests.DirectCachedSparseLengthAndZeroWrite;
+begin
+  RunBufferedStreamCheck(99);
+end;
+
+procedure TBufferedStreamTests.LengthCachingTogglesWithoutReadBuffer;
+begin
+  RunBufferedStreamCheck(100);
+end;
+
+procedure TBufferedStreamTests.DirectCachedLengthSurvivesRejectedMutations;
+begin
+  RunBufferedStreamCheck(101);
 end;
 
 initialization
