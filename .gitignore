@@ -82,3 +82,5 @@ __recovery/
 *.log
 *.compiled
 *.ppu
+*.bak
+*.fpcunit.ini
