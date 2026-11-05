@@ -506,8 +506,6 @@ begin
 end;
 
 class function TPredicateTool<T>.AndMany(const APredicates : array of IPredicate<T>) : IPredicate<T>;
-type
-  __TArrayTool_IPredicate_T = TArrayTool<__IPredicate_T>;
 var
   arr : TArray<__IPredicate_T>;
   i : Integer;

@@ -126,7 +126,7 @@ begin
         raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
       end;
       idpFreeMem: if Assigned(ADisposables.FPointers[i].Ptr) then System.FreeMem(ADisposables.FPointers[i].Ptr);
-      else raise ENotSupportedException.Create('Dispose policy not supported');;
+      else raise ENotSupportedException.Create('Dispose policy not supported');
     end;
   except
     if not Assigned(FirstException) then
