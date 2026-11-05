@@ -850,7 +850,7 @@ begin
       {$ENDIF}
       AList[index] := default(T);
     end
-    else raise ENotSupportedException(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
+    else raise ENotSupportedException.Create(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
   end;
 end;
 
