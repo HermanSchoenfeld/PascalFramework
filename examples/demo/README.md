@@ -103,10 +103,10 @@ provider calls. The card follows the throttle's waiting state.
 
 | Button | Worked examples |
 | --- | --- |
-| Arrays and collections | All array methods/overloads, list operations, comparers, predicates and transformation adapters. |
-| Scoped disposal | Several objects and memory blocks, class-owned disposal bags and explicit ownership transfer. |
-| Core API | Results, dates, statistics, files, buffered/direct stream modes and explicit unread-data flushing, Variants, notifications, TScope cleanup, automatic read/write/upgradeable scopes, explicit locking, data sources, search expressions and common visuals. |
-| UI API | Column callbacks, selection, VCL compatibility controls and a model-bound wizard lifecycle. |
+| Run arrays and collections | All array methods/overloads, list operations, comparers, predicates and transformation adapters. |
+| Run scoped disposal | Several objects and memory blocks, class-owned disposal bags and explicit ownership transfer. |
+| Run core API examples | Results, dates, statistics, files, buffered/direct stream modes and explicit unread-data flushing, Variants, notifications, TScope cleanup, automatic read/write/upgradeable scopes, explicit locking, data sources, search expressions and common visuals. |
+| Run UI API examples | Column callbacks, selection, VCL compatibility controls and a model-bound wizard lifecycle. |
 
 Each runner checks its results and appends completion to the memo. The
 [public type index](../../docs/public-api-examples.md) maps every public Framework

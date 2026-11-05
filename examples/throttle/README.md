@@ -19,7 +19,7 @@ count captured by the latest fetch. A display-only timer updates the countdown.
 It never requests a refresh or changes throttle admission.
 
 ```pascal
-Grid.RefreshThrottle.Interval := TTimeSpan.FromSeconds(5);
+Grid.RefreshThrottle.Interval := TTimeSpan.FromMilliseconds(5000);
 Grid.RefreshThrottle.Mode :=
     TThrottledEventMode.temNotifyOnEventBurstStartAndFinished;
 

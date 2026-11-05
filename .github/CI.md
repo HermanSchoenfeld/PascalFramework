@@ -18,10 +18,13 @@ and [upload-artifact v7.0.2](https://github.com/actions/upload-artifact/releases
 commits, pinned by SHA. The checkout step does not retain Git credentials.
 
 The job builds the root Lazarus package and the unified grid/wizard/cache demo,
-then runs the existing Windows [FPCUnit suite](../tests/README.md). Its Lazarus
-configuration is isolated, and installation selects no desktop icons or file
-associations. Build and installer logs are retained for 14 days. Native private
-desktop probes remain separate commands in the test guide.
+then runs the existing Windows [FPCUnit suite](../tests/README.md) and the
+Release-optimized native grid viewport check through
+[RunGridViewportNativeTests.ps1](../tests/RunGridViewportNativeTests.ps1) on an
+owned private desktop. Its Lazarus configuration is isolated, and installation
+selects no desktop icons or file associations. Build and installer logs are
+retained for 14 days. The remaining native probes are separate commands in the
+test guide.
 
 The [Actions page](https://github.com/HermanSchoenfeld/PascalFramework/actions/workflows/main.yml)
 and README status badge show the hosted result for the published revision.

@@ -1,8 +1,9 @@
 # Sphere 10 Pascal Framework packages
 
 The packages contain Sphere10 units for common utilities, collections,
-disposal scopes, caching, data sources, application forms, the loading circle,
-visual grid, wizard and shared-memory read/write locking through `UConcurrency`.
+disposal scopes, caching, data sources, buffered streams, application forms, the
+loading circle, visual grid, wizard and shared-memory read/write locking through
+`UConcurrency`.
 The `Sphere10Framework.*` files are optional reusable library packages and
 project groups. They are build targets, not runnable applications; the main
 [demo](../examples/demo/README.md) has one Delphi and one Lazarus project.
@@ -31,7 +32,7 @@ its unit search path and use the units normally:
 ```pascal
 uses
   UMemory, UCommon, UCommon.Collections, UCache, UCommon.Data,
-  UCommon.UI, UConcurrency, UVisualGrid, UWizard;
+  UCommon.UI, UConcurrency, UStreams, UVisualGrid, UWizard;
 ```
 
 When using the grid sources directly, also add
@@ -58,9 +59,9 @@ Open Package File** command. It is also a target in the root
 [Sphere10Framework.lpg](../Sphere10Framework.lpg) project group.
 
 The package lists the cache, wizard, common utilities, collections, data helpers,
-memory helpers and visual grid, together with the bundled generic collections
-and required resources. Its search paths are relative to this checkout; it
-requires Lazarus's LCLBase and FCL packages. `UVisualGrid` retains its existing
+memory helpers, buffered streams, read/write locking and visual grid, together
+with the bundled generic collections and required resources. Its search paths
+are relative to this checkout; it requires Lazarus's LCLBase and FCL packages. `UVisualGrid` retains its existing
 design-time registration procedure.
 
 Choose Compile in the package editor to build the library. This is a library
