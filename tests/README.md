@@ -8,8 +8,8 @@ or VCL controls.
 
 ## Latest verification
 
-The complete local FPC 3.2.0/Lazarus 2.1 suite passed **538 tests** on 4 November
-2026 with zero errors, failures, ignored tests or unfreed blocks. The final native
+The complete local FPC 3.2.0/Lazarus 2.1 console suite passed **538 tests** on
+6 November 2026 with zero errors, failures or ignored tests. The final native
 paging matrix also passed in Delphi 13 Release and checked/unchecked FPC Release:
 large totals, narrow footers, native row capacity and Single/Auto/Manual modes.
 The 101 stream checks passed in Delphi Win32/Win64 and Free Pascal. These are
@@ -60,7 +60,7 @@ thread-local storage is relocated.
 | [UVisualGrid.Tests](UVisualGrid.Tests.pas) | Unique displayed-order rows from disjoint/overlapping selections and selection clearing. |
 | [UCommon.Data.Tests](UCommon.Data.Tests.pas) | Raw/query snapshot reuse, page-only conversion, counted filtering/sorting, nonblocking invalidation, retry, empty results, page bounds, named/positional Variant dispatch and Unicode schema names/values. |
 | [UFramework.UI.Integration.Tests](UFramework.UI.Integration.Tests.pas) | Duration values, docked forms, main-thread completion, worker lifetime, source replacement, recovery and concurrent schemas. |
-| [UCommon.Tests](UCommon.Tests.pas) | General utilities, exact log metadata, sample/population variance, byte-exact UTF-8 appends, signed/unsigned Variants and queued-listener disposal. |
+| [UCommon.Tests](UCommon.Tests.pas) | General utilities, exact log metadata, sample/population variance, byte-exact UTF-8 appends, hex conversion, results, boxes and signed/unsigned Variants. |
 | [UCommon.Collections.Tests](UCommon.Collections.Tests.pas) | Array/list adapters, predicate inversion, exact-count copying, range boundaries, filtered object ownership, empty inputs, failures and cleanup. |
 | [UMemory.Tests](UMemory.Tests.pas) | Original disposal bags: automatic exits, object/memory transfers, allocation/reallocation, growth and reverse cleanup, class/record fields and continued cleanup after failures. |
 
@@ -157,6 +157,7 @@ runner. See the [native guide](native/README.md) for arguments and expected resu
 | Project | Native behavior |
 | --- | --- |
 | [ScopeProbe.dproj](native/ScopeProbe.dproj) | The same 63 scope, disposal-bag and read/write-scope checks used by FPCUnit, including cleanup failures and copy/assignment recovery. |
+| [BufferedStreamProbe.dproj](native/BufferedStreamProbe.dproj) | The same 101 buffered-stream checks used by FPCUnit, in Delphi Win32 and Win64. |
 | [BulkCacheProbe.dproj](native/BulkCacheProbe.dproj) | Shared bulk-fetch cache assertions and public API recipes. |
 | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) | Native cell bounds at pixel/DPI/header/scrollbar/resize boundaries, plus the same paging and preparenting regressions as FPCUnit. |
 | [ReadWriteLockProbe.dproj](native/ReadWriteLockProbe.dproj) | Real concurrent read/write/upgradeable ownership, recursion and timeout/cleanup behavior. |

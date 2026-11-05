@@ -20,8 +20,9 @@ card preserves a modeless window's activation and keyboard focus. No wallet,
 network or OpenSSL runtime is involved.
 
 The probe exits automatically: zero for success, one for an assertion failure,
-two for initialization failure. An optional first argument selects the log path;
-without it, the log is `%TEMP%\GridLoadingProbe-<PID>.log`. It also saves native
+two for initialization failure and 64 for more than one argument. An optional
+first argument selects the log path; without it, the log is
+`%TEMP%\GridLoadingProbe-<PID>.log`. It also saves native
 bitmap captures beside that log. Output stays under
 `tests/lib/Delphi/<Platform>/grid-loading/<Config>`. The project has no build events.
 
@@ -129,8 +130,8 @@ requests and allows visual layout, requests cooperative cancellation of active
 work without joining it, and ignores that worker's results and errors. Cancel
 `RefreshThrottle` while still suspended, then clear `RefreshSuspended` to admit
 one latest query immediately; an old cancelled worker retires before its
-replacement starts. The checked FPC fixture passes 47 cases against each copy,
-including eight suspension and four queued-loading regressions.
+replacement starts. The checked FPC fixture passes against each copy, including
+its eight suspension and four queued-loading regressions.
 
 On 30 October 2026, the focused suspension group passes actual Delphi Win64
 range/overflow-checked builds and private-desktop runs against both source
@@ -146,9 +147,10 @@ owned asynchronous dispatcher; the UI joins the worker before disposing it.
 The check requires zero reads from the cancelled request, exactly one latest
 query/completion, timer-free delivery and safe receiver disposal.
 
-The test projects define `VISUALGRID_TEST_WORKER_START`. This enables a one-shot
-constructor hook which the fixture restores in `finally`; normal applications
-and packages omit the define and contain no hook. Use separate compiled-unit
+`GridThrottleProbe.dproj`, `FrameworkTests.lpi` and `RunTests.ps1` define
+`VISUALGRID_TEST_WORKER_START`. This enables a one-shot constructor hook which
+the fixture restores in `finally`; normal applications, packages and the other
+native projects omit the define and contain no hook. Use separate compiled-unit
 output for hook-enabled tests and normal builds. No priority or CPU-affinity
 changes are used.
 
@@ -256,7 +258,8 @@ The mirrored `UVisualGrid.Loading.Checks` uses a real asynchronous provider and
 five-second throttle. A partial page with an unknown total forces native search
 chrome to change capacity: accepted rows clear Updating while the internal refit
 waits. New client input retains its card; manual images and error presentation
-remain independent. `GridViewportProbe` runs all four cases.
+remain independent, and a synchronous provider failure keeps the accepted rows
+until a retry succeeds. `GridViewportProbe` runs all five cases.
 
 On the owned private desktop, paging-mode selection uses `WM_COMMAND` through the popup's
 registered native owner after verifying its HWND/HMENU, item ID, caption and

@@ -43,7 +43,7 @@ GitHub results separately from local Delphi and Lazarus checks.
 | --- | --- |
 | [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with Single/Auto/Manual paging, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
 | [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, bulk-fetch and preloaded caches, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
-| [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Continue navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
+| [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Next navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
 | [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, reverse-order disposal, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
 | [UCommon.pas](src/Sphere10/UCommon.pas) | Managed cleanup through `TScope`; shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
 | [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
@@ -60,7 +60,7 @@ library supplies the Free Pascal lists, dictionaries, queues, stacks and sets;
 Delphi uses its native RTL generics. UI components select Lazarus LCL or Delphi
 VCL through compiler conditionals. The supplied projects configure those paths.
 
-# Example uses:
+# Examples
 
 ## Visual grid
 
@@ -140,9 +140,9 @@ end;
 Attach it to [TVisualGrid](src/Sphere10/UVisualGrid.pas) from your form:
 
 ```pascal
-uses Forms, UCommon.Data, UCommon.UI, UVisualGrid;
+uses Controls, Forms, UCommon.Data, UCommon.UI, UVisualGrid;
 
-procedure ShowNames(AForm : TForm);
+procedure ShowNames(AForm : TForm; AContainer : TWinControl);
 var
   source : TNameSource;
   grid : TVisualGrid;
@@ -157,7 +157,7 @@ begin
     Binding := 'Name';
     Filters := SORTABLE_TEXT_FILTER;
   end;
-  AForm.AddControlDockCenter(grid);
+  AContainer.AddControlDockCenter(grid); // A panel or page on the form.
   grid.DataSource := source; // Fetch the first page.
 end;
 ```
@@ -510,6 +510,7 @@ end; // reverse registration order frees cache before source.
 ```
 
 The [complete executable examples](examples/demo/UCacheApiExamples.pas) cover ordinary global/object/nested callbacks, interface wrappers, typed notifications, a cache subclass with stale detection, entry metadata, explicit `BulkLoad`, bulk-fetch caches and preloaded dictionaries. `BulkLoad` remains sequential explicit admission: duplicate keys use the last value, a later failure keeps earlier successful writes, and no provider is called.
+
 ## Wizards
 
 [TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens in
@@ -787,6 +788,7 @@ interface variable and let the compiler release it.
 [TArrayTool<T>](src/Sphere10/UCommon.pas) searches and edits dynamic arrays.
 [UCommon.Collections](src/Sphere10/UCommon.Collections.pas) adds list slicing,
 filtering, sorting and transformations with reusable callbacks.
+
 ### Array construction, searching, editing and copying
 
 `TArrayTool<T>` supplies all sixteen operations shown below. Arrays use zero-based
@@ -809,7 +811,7 @@ number of enumerable elements to `ToArray`.
 ### Comparers, predicates and transformations
 
 The normal entry points are `TComparerTool<T>`, `TPredicateTool<T>`,
-`TListTool<T>` and `TListTool<TSource,TResult>`. They adapt global functions,
+`TListTool<T>` and `TListTool<T1, T2>`. They adapt global functions,
 object methods and nested callbacks, compose comparisons/predicates, filter lists
 and transform either lists or arrays. Interface variables own their adapters;
 the object supplying an object-method callback must outlive every use.
@@ -938,7 +940,8 @@ begin
 end;
 
 type
-  TCallbacks = class function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
+  TCallbacks = class
+    function Compare({$IFDEF FPC}constref{$ELSE}const{$ENDIF} ALeft,ARight: Integer): Integer;
     function Positive({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): Boolean;
     function Text({$IFDEF FPC}constref{$ELSE}const{$ENDIF} AValue: Integer): String;
   end;
@@ -1237,7 +1240,7 @@ end;
 ```
 
 `SynchronizePosition` remains an alias for `FlushUnreadData`. The flags can also
-be set separately; length caching is bypassed whenever read buffering is disabled.
+be set separately; length caching keeps working while read buffering is disabled.
 
 ## Multicast events
 

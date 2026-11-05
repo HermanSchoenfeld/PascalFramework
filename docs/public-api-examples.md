@@ -15,35 +15,35 @@ third-party generics and compiler-exported implementation adapters are excluded.
 
 | Public type | Worked example | Note |
 | --- | --- | --- |
-| `ICacheBulkValueFetcher<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `ICacheBulkValueFetcher<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `ICacheSizeEstimator<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `ICacheValueFetcher<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `ICacheValueFetcher<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TActionCache<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TBulkFetchActionCache<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TBulkFetchCacheBase<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheBase<TKey, TValue>` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBulkValueFetcher<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheBulkValues<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheBulkValueFetcher<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheBulkValues<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCachedItem<TValue>` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheExpirationPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Fixed/sliding expiration or no expiration. |
-| `TCacheGlobalBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheGlobalBulkFetchProc<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheGlobalEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheGlobalFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheGlobalFetchFunc<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheItemDisposePolicy` | [ShowSubclass](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheItemFetchingEvent<TKey>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheItemRemovingEvent<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheItemValueEvent<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheNestedBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheItemRemovingEvent<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheItemValueEvent<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheNestedBulkFetchProc<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheNestedEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheNestedFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheNestedFetchFunc<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheNullValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Retain, bypass or reject null values. |
-| `TCacheObjectBulkFetchProc<TKey,TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheObjectBulkFetchProc<TKey, TValue>` | [ShowBulkFetch](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheObjectEstimateFunc<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
-| `TCacheObjectFetchFunc<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheObjectFetchFunc<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheReapPolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Capacity eviction strategy. |
 | `TCacheSizeEstimator<TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TCacheStaleValuePolicy` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) | Optional on-demand staleness checks. |
-| `TCacheValueFetcher<TKey,TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
+| `TCacheValueFetcher<TKey, TValue>` | [ShowCallbacks](../examples/demo/UCacheApiExamples.pas) |  |
 | `TPreloadedCache<TKey, TValue>` | [ShowPreloaded](../examples/demo/UCacheApiExamples.pas) |  |
 
 ## UCommon
@@ -224,8 +224,8 @@ records all three modes in the actual demo.
 | `TVisualGridCellSelected` | [TGridRecipe.Run](../examples/demo/UUiApiExamples.pas) | Delphi/VCL compatibility API; guarded in the shared recipe. |
 | `TVisualGridHeaderClick` | [TGridRecipe.Run](../examples/demo/UUiApiExamples.pas) | Delphi/VCL compatibility API; guarded in the shared recipe. |
 | `TVisualGridOptions` | [TGridRecipe.Run](../examples/demo/UUiApiExamples.pas) |  |
-| `TVisualGridPageMode` | [Visual grid tab](../examples/demo/fMain.pas) | Single loads every matching row; Auto fits complete rows; Manual uses a remembered finite size. |
-| `TVisualGridSearchExpressionService` | [No added behavior](../examples/demo/UUiApiExamples.pas) | Empty placeholder: no parser methods. Use TSearchExpressionService from UCommon.Data. |
+| `TVisualGridPageMode` | [TVisualGridPagingTests](../tests/UVisualGrid.Paging.Checks.pas) | Single loads every matching row; Auto fits complete rows; Manual uses a remembered finite size. The demo selects modes through the grid's own footer button. |
+| `TVisualGridSearchExpressionService` | [No added behavior](../src/Sphere10/UVisualGrid.pas) | Empty placeholder: no parser methods. Use TSearchExpressionService from UCommon.Data. |
 | `TVisualGridSelection` | [TGridRecipe.Run](../examples/demo/UUiApiExamples.pas) |  |
 
 ## UWizard
