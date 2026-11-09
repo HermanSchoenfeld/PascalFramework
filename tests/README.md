@@ -1,7 +1,8 @@
 # Framework tests
 
 The framework's FPCUnit fixtures run in a Lazarus GUI runner and a console
-runner. Delphi has separate [native probes](native/README.md).
+runner, both on Windows only, because the UI integration tests use the Windows
+unit. Delphi has separate [native probes](native/README.md).
 
 ## Console runner on Windows
 
@@ -36,8 +37,8 @@ fixture name.
 
 ## Lazarus GUI runner
 
-Open [FrameworkTests.lpi](FrameworkTests.lpi) and run it with the compiler and
-widgetset that match your compiled Lazarus packages. It needs the LCL, FCL and
+On Windows, open [FrameworkTests.lpi](FrameworkTests.lpi) and run it with the
+compiler that matches your compiled Lazarus packages. It needs the LCL, FCL and
 `fpcunittestrunner` packages.
 
 ## Concurrency runner
@@ -70,7 +71,7 @@ On Windows, build with the same compiler arguments and run
 | Throttling | [UCommon.UI.Tests](UCommon.UI.Tests.pas) | [NativeThrottleProbe.dproj](native/NativeThrottleProbe.dproj) |
 | Grid refresh and loading | [UVisualGrid.Refresh.Tests](UVisualGrid.Refresh.Tests.pas) | [GridThrottleProbe.dproj](native/GridThrottleProbe.dproj), [GridLoadingProbe.dproj](native/GridLoadingProbe.dproj) |
 | Grid paging and viewport | [TVisualGridPagingTests](UVisualGrid.Refresh.Tests.pas) | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) |
-| Grid selection | [UVisualGrid.Tests](UVisualGrid.Tests.pas) | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) |
+| Grid selection | [TVisualGridSelectionTests](UVisualGrid.Tests.pas), [TVisualGridSelectionEventTests](UVisualGrid.Refresh.Tests.pas) | [GridViewportProbe.dproj](native/GridViewportProbe.dproj) |
 | Data and UI integration | [UCommon.Data.Tests](UCommon.Data.Tests.pas), [UFramework.UI.Integration.Tests](UFramework.UI.Integration.Tests.pas) | [DataRowVariantProbe.dproj](native/DataRowVariantProbe.dproj) |
 | Utilities and collections | [UCommon.Tests](UCommon.Tests.pas), [UCommon.Collections.Tests](UCommon.Collections.Tests.pas) | |
 

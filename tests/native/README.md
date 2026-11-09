@@ -46,11 +46,15 @@ output. Success exits zero and an assertion failure exits one.
 
 ## Read-write locks
 
-[ReadWriteLockProbe.dproj](ReadWriteLockProbe.dproj) checks seven
-`TReadWriteLock` contract groups, covering readers, writers, recursion,
-upgrades, timeouts, disposal and wrong-thread release. Build and run it in
-Delphi for Win32 or Win64, passing one log-file path. Success exits zero, a
-failure exits one and a wrong argument count exits 64.
+[ReadWriteLockProbe.dproj](ReadWriteLockProbe.dproj) is a console program
+whose [source](ReadWriteLockProbe.dpr) checks seven `TReadWriteLock` contract
+groups on real threads: concurrent readers, writer exclusion, recursion
+policies, upgrade and downgrade, queued promotion, timeouts with disposal, and
+wrong-thread release with invalid timeouts. Build and run it in Delphi for
+Win32 or Win64, passing one log-file path. The log gets a PASS line per group,
+or a FAIL line, and leaks are reported at shutdown. Success exits zero, a
+failure exits one and a wrong argument count exits 64. Build output goes to
+`tests/lib/native-read-write/<Platform>/<Config>/bin`.
 
 ## Bulk-fetch caching
 
@@ -168,7 +172,8 @@ Build it with Delphi and run it through the [broker](#private-desktop-broker),
 or run [RunGridViewportNativeTests.ps1](../RunGridViewportNativeTests.ps1) with
 `-FpcPath` and `-LazarusDirectory`. Delphi build output goes to
 `tests/lib/Delphi/<Platform>/grid-viewport/<Config>`. The probe takes the log
-path as its first argument and exits nonzero on failure.
+path as its first argument and exits 1 without it. It exits nonzero on failure,
+including a log it cannot write.
 
 ## Selection event delivery
 

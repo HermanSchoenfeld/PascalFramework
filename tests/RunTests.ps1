@@ -16,7 +16,7 @@ if ($LASTEXITCODE -ne 0 -or $targetInfo.Count -ne 2) {
 }
 $target = "$($targetInfo[0])-$($targetInfo[1])"
 if ($targetInfo[1] -ne 'win64' -and $targetInfo[1] -ne 'win32') {
-    throw 'This script uses the Lazarus Win32 widgetset. Use the Lazarus project for other platforms.'
+    throw 'The FPCUnit suites need Windows: this script uses the Lazarus Win32 widgetset, and the UI integration tests use the Windows unit.'
 }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $PSScriptRoot "lib\console-$target" }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
