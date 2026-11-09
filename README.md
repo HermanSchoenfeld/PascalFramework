@@ -13,101 +13,67 @@
 # Sphere 10 Pascal Framework
 
 Sphere 10 Pascal Framework is [Sphere10's](https://sphere10.com/) reusable Object Pascal
-library for **Lazarus/Free Pascal (LCL) and Delphi (VCL)**. It provides data-bound visual grids, multi-step wizards
-and configurable caches, together with the supporting utilities applications
-need: buffered streams, scoped resource cleanup, generic collection helpers, data sources,
-multicast events, date/time helpers and UI event throttling.
+library for **Lazarus/FPC (LCL) and Delphi (VCL)**. It provides data-bound
+visual grids, multi-step wizards, configurable caches and supporting utilities.
 
-The components work together: visual grids consume data sources that handle
-filtering, sorting and paging; wizard screens share a typed model and can change
-their route at runtime; caches control how values are fetched, retained and
-released. Use the units directly in a project or add the optional
-[Lazarus or Delphi package](packages/README.md). The examples below show their individual
-APIs. Open [Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) in Delphi or
-[Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) in Lazarus to run one application with
-Visual grid, Wizard/events, Cache, Refresh throttle and Utilities sections. Both projects use the same
-[entry point](Sphere10PascalFramework.dpr) and [demo sources](examples/demo/README.md).
+Use the units directly or through the optional [Lazarus or Delphi package](packages/README.md).
+[Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) (Delphi) and
+[Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) (Lazarus) build the
+[demo](examples/demo/README.md) from one [entry point](Sphere10PascalFramework.dpr).
 
-The supplied projects target **Delphi 13 Community Edition**, **Lazarus 2.1 /
-Free Pascal 3.2.0** and **Lazarus 4.8 / Free Pascal 3.2.2** on Windows. Delphi
-uses VCL; Lazarus uses LCL's Win32 widgetset, including for Win64 applications.
-See [build instructions](#open-build-and-test) and the [test guide](tests/README.md)
-for the compiler-specific commands and verification scope. The [CI workflow](.github/CI.md)
-builds the Lazarus package and demo and runs FPCUnit; its badge reports hosted
-GitHub results separately from local Delphi and Lazarus checks.
-
+The projects target **Delphi 13 Community Edition**, **Lazarus 2.1 with Free Pascal
+3.2.0** and **Lazarus 4.8 with Free Pascal 3.2.2** on Windows. Lazarus uses the
+Win32 widgetset, also for Win64. See the [build instructions](#open-build-and-test).
+The [CI workflow](.github/CI.md) builds the Lazarus package and demo, then runs FPCUnit
+and the native viewport check.
 
 ## Units
 
 | Unit | Description |
 | --- | --- |
-| [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound LCL/VCL grid with Single/Auto/Manual paging, text/numeric filters, single/multi-column sorting, cell/row/multi-row selection, custom rendering, popup menus, optional background fetching, an owned refresh throttle, cooperative refresh suspension and a customizable loading card with input control. |
-| [UCache.pas](src/Sphere10/UCache.pas) | Generic caches with fetch callbacks, explicit/bulk writes, bulk-fetch and preloaded caches, invalidation, fixed/sliding expiration, capacity and eviction policies, entry pins, staleness checks, null-value policies, lifecycle events and disposal policies. |
-| [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizard screens in one host window, with validation, Back/Next navigation, dynamic route insertion/replacement/removal, finish/cancel vetoes, retryable completion and lifecycle notifications. |
-| [UMemory.pas](src/Sphere10/UMemory.pas) | Scope-owned cleanup of objects and allocated memory through `TDisposables`, reverse-order disposal, allocation/reallocation helpers, explicit ownership transfer and shared disposal-policy definitions. |
-| [UCommon.pas](src/Sphere10/UCommon.pas) | Managed cleanup through `TScope`; shared helpers for arrays, Variants, date/time arithmetic, durations, bytes/hex, statistics, result diagnostics, multicast events, thread-targeted notifications, files and CPU information. |
-| [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable predicates/comparers and transformation adapters for global functions, object methods and nested callbacks, plus list filtering, removal, slicing and transformation helpers. |
-| [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Named Variant rows and column schemas, text/numeric search expressions, filter/sort criteria and generic data sources with filtering, sorting, paging and opt-in invalidatable snapshots. |
-| [UStreams.pas](src/Sphere10/UStreams.pas) | A bounded read-ahead stream decorator with configurable buffer size, optional ownership and length caching, logical positioning and synchronous writes. |
-| [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms with lifecycle events and owned-object cleanup, the TLoadingCircle visual indicator, control docking and image helpers, and throttled/coalesced UI notifications. |
-| [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Shared-memory synchronization with concurrent readers, one exclusive writer, upgradeable reads, optional recursion, timed acquisition and thread ownership checks. |
+| [UVisualGrid.pas](src/Sphere10/UVisualGrid.pas) | Data-bound grid with paging, search, sorting and background fetching. |
+| [UCache.pas](src/Sphere10/UCache.pas) | Per-key, bulk-fetch and preloaded caches. |
+| [UWizard.pas](src/Sphere10/UWizard.pas) | Typed-model wizards with validation and dynamic routes. |
+| [UMemory.pas](src/Sphere10/UMemory.pas) | `TDisposables` cleanup of objects and memory. |
+| [UCommon.pas](src/Sphere10/UCommon.pas) | `TScope` cleanup and array, date, byte, result, event and file helpers. |
+| [UCommon.Collections.pas](src/Sphere10/UCommon.Collections.pas) | Composable comparers, predicates, transformers and list helpers. |
+| [UCommon.Data.pas](src/Sphere10/UCommon.Data.pas) | Variant rows, search expressions and paged data sources. |
+| [UStreams.pas](src/Sphere10/UStreams.pas) | Read-ahead buffered stream. |
+| [UCommon.UI.pas](src/Sphere10/UCommon.UI.pas) | Application forms, `TLoadingCircle` and throttled UI events. |
+| [UConcurrency.pas](src/Sphere10/UConcurrency.pas) | Read-write lock with upgradeable reads. |
 
-Each framework unit starts with an alphabetical **Public types in this unit**
-table, with a one-line description of each supported type.
+Each framework unit opens with a **Public types in this unit** table.
 
-The bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
-library supplies the Free Pascal lists, dictionaries, queues, stacks and sets;
-Delphi uses its native RTL generics. UI components select Lazarus LCL or Delphi
-VCL through compiler conditionals. The supplied projects configure those paths.
+Free Pascal builds use the bundled [Generics.Collections](src/Generics.Collections/generics.collections.pas)
+library, and Delphi uses its RTL generics.
 
 # Examples
 
 ## Visual grid
 
-[TVisualGrid](src/Sphere10/UVisualGrid.pas) combines [Single/Auto/Manual paging](src/Sphere10/UVisualGrid.pas),
-[single-expression or per-column search](src/Sphere10/UVisualGrid.pas),
-[single/multi-column sorting](src/Sphere10/UVisualGrid.pas) and
-[cell, row or multiple-row selection](src/Sphere10/UVisualGrid.pas). Configure column
-widths/stretching, fonts/alignment, custom cell renderers, selection callbacks,
-popup menus and extra toolbar controls through the same [grid unit](src/Sphere10/UVisualGrid.pas).
+[TVisualGrid](src/Sphere10/UVisualGrid.pas) shows a data source with paging, search,
+multi-column sorting and cell, row or multi-row selection. It also takes custom
+cell renderers, selection callbacks, popup menus and toolbar controls.
 
 ![Unified demo with eight columns and an automatically fitted page](resources/demo/unified-grid.png)
 
-The shared Delphi/Lazarus demo has eight columns, a generated 10,000-record source
-and a live property editor. The Real column uses the
-[DollarValue renderer](src/Sphere10/UVisualGrid.pas). The same
-application contains the wizard, cache, throttle and utility demonstrations.
+Set `PageMode`, or use the paging button in the footer:
 
-Use the square paging button in the footer to choose **Single**, **Auto** or
-**Manual**. Its menu checks the current mode; its tooltip names that mode.
-You can also set `PageMode` in code:
+| Mode | Displays |
+| --- | --- |
+| Single (`vpmSingle`) | Every matching row in one page. |
+| Auto (`vpmAuto`) | The complete rows that fit the viewport. |
+| [Manual](resources/demo/unified-grid-manual.png) (`vpmManual`) | `ManualPageSize` rows. |
 
-| Mode | Displays | Paging controls |
-| --- | --- | --- |
-| Single (`vpmSingle`) | Every matching row in one page, with native scrolling. | Paging button. |
-| Auto (`vpmAuto`) | The complete rows that fit the viewport; horizontal scrolling remains available. | Paging button and navigation. |
-| [Manual](resources/demo/unified-grid-manual.png) (`vpmManual`) | A positive `ManualPageSize`, retained independently of Auto sizing. | Paging button, page size and navigation. |
-
-Changing mode starts at page zero and resets scrolling to the top-left.
-Assigning the current mode preserves the viewport and does not fetch again. Single applies filtering and sorting to the complete result. Returning to
-Manual restores its remembered size. The selector remains available for empty
-or single-page results; `vgoAutoHidePaging` hides unnecessary navigation.
-The compact icon button sits immediately before the first-page button in a
-right-anchored group. Navigation compacts before moving totals or the manual size
-editor onto another row; wrapping is used when the compact controls still cannot fit.
-Footer controls remain fully visible when fonts or display scaling change.
+New grids default to Manual with 100 rows.
 
 ![Unified demo showing all matching records in Single mode](resources/demo/unified-grid-single.png)
 
-Before reconfiguring a provider for a new selection, call
-`grid.CancelActiveFetch`, update the provider settings, then call `RefreshGrid`.
-Cancellation requests cooperative worker exit and rejects its result without
-waiting. It retains the accepted rows and leaves pending input, the throttle
-and manual loading cards unchanged. Keep the provider alive until its worker
-has retired; cancellation does not dispose it.
+### Data sources
 
-Implement three methods in [TCustomDataSource<T>](src/Sphere10/UCommon.Data.pas);
-it supplies filtering, sorting, paging and conversion to named Variant rows.
+Subclass [TCustomDataSource<T>](src/Sphere10/UCommon.Data.pas) and implement three
+methods. The base class supplies filtering, sorting, paging and conversion to named
+Variant rows.
 
 ```pascal
 uses Classes, Variants, Generics.Collections, UCommon.Data;
@@ -137,7 +103,7 @@ begin
 end;
 ```
 
-Attach it to [TVisualGrid](src/Sphere10/UVisualGrid.pas) from your form:
+Attach the source to a grid from your form:
 
 ```pascal
 uses Controls, Forms, UCommon.Data, UCommon.UI, UVisualGrid;
@@ -162,11 +128,9 @@ begin
 end;
 ```
 
-Set `grid.PageMode := vpmSingle` to display the full result, or `vpmManual` to
-use the remembered 25-row page. New grids default to Manual with 100 rows.
-The existing `AutoPageSize` and `ShowAllData` properties select Auto and Single.
-Custom data sources must treat a nonpositive requested page size as unbounded;
-the grid's public `PageSize` remains its positive finite capacity.
+Custom data sources must treat a nonpositive requested page size as unbounded.
+
+### Refresh throttle
 
 ```mermaid
 flowchart LR
@@ -175,10 +139,9 @@ flowchart LR
     source --> grid["Display page"]
 ```
 
-Each grid owns a [RefreshThrottle](src/Sphere10/UVisualGrid.pas), whose default
-`temNone` mode keeps immediate refresh behavior. Enable five-second leading and
-trailing admission before assigning `DataSource`. Here `FGrid` is an existing
-form field of type `TVisualGrid`:
+Each grid owns a [RefreshThrottle](src/Sphere10/UVisualGrid.pas), which admits
+requests at once by default (`temNone`). To wait for five quiet seconds, configure
+it before assigning `DataSource`:
 
 ```pascal
 uses UCommon, UCommon.UI, UVisualGrid;
@@ -201,30 +164,16 @@ begin
 end;
 ```
 
-The first request can fetch immediately. Every later client request, including
-paging, filtering, sorting, source replacement and resizing, restarts that grid's
-quiet timer and retains the latest parameters. While waiting, resizing changes
-layout without fetching. After five quiet seconds, one pending request is admitted
-with the latest parameters; if its own older fetch is still active, it waits for
-that worker to complete. This replay does not restart Waiting. A single input gets
-no duplicate ordinary delivery. Internal result layout and worker replay do not
-create new inputs. A user completion
-handler that calls `RefreshGrid` does create a new input. Each grid is independent:
-node/network state and another grid's worker cannot extend its `Waiting` state.
-Call this configuration and state handler on the UI thread; remove the listener
-before destroying a listener that has a shorter lifetime than the grid.
+The first request fetches at once. Later requests, including paging, sorting and
+resizes, restart the quiet timer, and only the latest runs after five quiet
+seconds. Configure the throttle and handle its events on the UI thread. Remove a
+listener before freeing it if the grid outlives it.
 
-Throttling is optional. The default `RefreshThrottle.Mode = temNone` admits
-requests immediately without arming a quiet timer, while still coalescing requests
-behind an active worker. Applications with an explicit busy lifecycle can keep
-that mode and use `RefreshSuspended` to hold queries until their work finishes.
+### Refresh suspension
 
-Use `RefreshSuspended` when application policy must temporarily prevent provider
-queries independently of the throttle. Visual layout and refresh requests still
-retain the latest parameters. Suspension requests cooperative cancellation of an
-active worker without joining it; its obsolete result or error is discarded.
-Providers should check their worker's termination flag while doing lengthy work.
-For example, an application can pause a view during a background import:
+To hold provider queries during your own work, set `RefreshSuspended`. It cancels
+an active fetch without waiting, so providers should check their worker's
+termination flag during lengthy work:
 
 ```pascal
 procedure TMyForm.ImportStarted;
@@ -241,26 +190,31 @@ begin
 end;
 ```
 
-Call these methods on the UI thread. Resuming normally respects any remaining
-throttle wait; the explicit cancellation above admits the latest page immediately,
-once a canceled older worker has retired. Suspension contains no application,
-node or networking dependency and does not change the throttle's timer contract.
+Call these methods on the UI thread. Resuming honors any remaining throttle wait
+unless you cancel the throttle first, as above.
 
-Call [RefreshGrid](src/Sphere10/UVisualGrid.pas) after changing source data. For worker fetching, set
-`FetchDataInThread := true`, keep the grid/source alive until completion, and keep
-source callbacks free of LCL/VCL control access. Publish UI state through the
-grid's completion event on the main thread. The worker queues completion directly;
-the grid does not poll for a finished fetch. Its owned dispatcher retires the
-worker, publishes the page once and discards queued callbacks safely on disposal.
-See the [unified grid demo](examples/demo/fMain.pas) for rendering and selection.
-The preserved [SQLite adapter recipe](examples/demo/sqlite/fMain.pas) is reference
-source for the older optional mORMot integration, with no separate application target.
+### Background fetching
 
-Enable [SnapshotCacheEnabled](src/Sphere10/UCommon.Data.pas) when the data source
-can retain a stable dataset between updates. It keeps one raw snapshot and one
-current filtered/sorted view, so changing pages converts only the visible rows;
-changing search or sort reuses the raw snapshot. Caching is off by default.
-After changing the backing data, invalidate the snapshot before refreshing:
+Call [RefreshGrid](src/Sphere10/UVisualGrid.pas) after changing source data. To
+fetch on a worker thread, set `FetchDataInThread := true` and:
+
+- Keep the grid and source alive until the fetch completes.
+- Keep source callbacks free of LCL and VCL control access.
+- Publish UI state through the grid's completion event on the main thread.
+
+To reconfigure a provider, call `grid.CancelActiveFetch`, update the provider, then
+call `RefreshGrid`. Cancellation neither waits for the worker nor frees the
+provider, so keep it alive until the worker retires.
+
+See the [unified grid demo](examples/demo/fMain.pas) for rendering and selection,
+and the [SQLite adapter recipe](examples/demo/sqlite/fMain.pas) for the older
+optional mORMot integration.
+
+### Snapshot caching
+
+[SnapshotCacheEnabled](src/Sphere10/UCommon.Data.pas) is off by default. Enable it
+for a dataset that stays stable between updates. After changing the data,
+invalidate the snapshot before refreshing:
 
 ```pascal
 procedure RefreshNames(ASource : TNameSource; AGrid : TVisualGrid);
@@ -270,35 +224,21 @@ begin
 end;
 ```
 
-[InvalidateSnapshot](src/Sphere10/UCommon.Data.pas) marks the next fetch for
-rebuilding without waiting for an active fetch. An in-flight fetch can finish its
-previous snapshot. Object items remain borrowed: keep them alive while cached
-snapshots are reused and while fetches are active.
+Keep object items alive while snapshots and fetches use them.
 
-The default [FetchPage](src/Sphere10/UCommon.Data.pas) still loads the initial raw
-dataset through `FetchAll`; caching makes subsequent pages cheaper, not that
-initial load. Sources with indexed or database-native paging can override the
-virtual method to retrieve only their requested records and return accurate
-counts/page bounds. Arbitrary filtering and sorting must still apply to the
-complete selected query before choosing its page.
+The default [FetchPage](src/Sphere10/UCommon.Data.pas) loads everything through
+`FetchAll`. Override it to let a database or index do the paging. The override must
+return accurate counts and page bounds, and filter and sort the complete query
+before paging.
 
-Outstanding grid refreshes retain the previous rows and show a compact bordered
-loading card after 200 ms, including requests waiting for the refresh throttle.
-After a page completes, an internal capacity refit does not keep Updating
-visible over accepted rows. A newer client request keeps its waiting feedback.
-The card uses [TLoadingCircle](src/Sphere10/UCommon.UI.pas), stays visible
-through fetch admission and disappears after completion or cancellation; quick
-cached pages avoid flashing it.
+### Loading cards
 
-A failed provider keeps the accepted rows and replaces automatic loading with
-its error. Synchronous providers also propagate the original exception to their
-caller. A successful retry clears the error; caller-owned loading remains
-independent.
+Pending refreshes show a [TLoadingCircle](src/Sphere10/UCommon.UI.pas) card after
+200 ms. A failed fetch shows its error until a retry succeeds, and synchronous
+providers also propagate the exception.
 
-Use [ShowLoading / HideLoading](src/Sphere10/UVisualGrid.pas) to hold a card while
-waiting for external work, independently of a page fetch. Supply a title,
-optional subtitle and optional `TGraphic`; the grid copies the graphic so its
-caller retains ownership. Omitting the image uses the loading circle.
+Use [ShowLoading and HideLoading](src/Sphere10/UVisualGrid.pas) to hold a card during
+external work. The grid copies the optional `TGraphic`, so you keep ownership.
 
 ```pascal
 grid.ShowLoading('Please Wait', 'Importing records', MyLoadingImage);
@@ -309,18 +249,14 @@ grid.RefreshGrid;
 grid.HideLoading;
 ```
 
-The optional fourth parameter, `ADisableInput`, defaults to `true`. Pass `false`
-for a card that permits interaction. `LoadingVisible` reports this held state;
-`IsUpdating` continues to report only an asynchronous page fetch. Fetch completion
-cannot dismiss a held card. `HideLoading` restores the current fetch/error
-presentation and its input restrictions without changing the grid's `Enabled`
-property. Call these UI methods on the main thread.
+The optional fourth parameter, `ADisableInput`, defaults to `true`. Fetch completion
+cannot dismiss a held card. `LoadingVisible` reports a held card, and `IsUpdating`
+reports only a fetch. Call these methods on the main thread.
 
 ## Loading circle
 
-[TLoadingCircle](src/Sphere10/UCommon.UI.pas) displays an animated loading
-indicator. Set `Active` on the UI thread while work runs; freeing the control
-stops its owned animation timer. The same control supports LCL and VCL.
+[TLoadingCircle](src/Sphere10/UCommon.UI.pas) is an animated loading indicator for
+LCL and VCL. Set `Active` on the UI thread while work runs.
 
 ```pascal
 uses Classes, Controls, UCommon.UI;
@@ -340,19 +276,12 @@ The port retains Martin R. Gagné's original copyright and license in the
 
 ## Caching
 
-[TActionCache<TKey, TValue>](src/Sphere10/UCache.pas) memoizes fetches, accepts explicit
-writes and supports invalidation. Configure [fixed or sliding expiration](src/Sphere10/UCache.pas),
-[least-used, largest, smallest, oldest, idle, ASAP or no-policy eviction](src/Sphere10/UCache.pas),
-[pinned entries](src/Sphere10/UCache.pas) and [on-demand staleness checks](src/Sphere10/UCache.pas).
-[Null handling](src/Sphere10/UCache.pas) can cache nil, return it without caching,
-or reject it; [fetch/removal events](src/Sphere10/UCache.pas) report each lifecycle
-phase. [Typed callback adapters](src/Sphere10/UCache.pas) accept global functions,
-object methods and nested functions.
-Subclasses supply [CheckStaleness](src/Sphere10/UCache.pas) for application-specific
-stale checks.
-
-Policies and callback types are declared at unit scope. For example,
-`TCacheExpirationPolicy` configures any cache without a generic base alias.
+[TActionCache<TKey, TValue>](src/Sphere10/UCache.pas) memoizes fetches and supports
+explicit writes, invalidation, fixed or sliding expiration, eviction policies,
+pinned entries, null-value policies, lifecycle events and callback adapters.
+For on-demand staleness checks, override `CheckStaleness` and pass
+`svpCheckStaleOnDemand`. `BulkLoad` writes pairs in order, so a failure keeps
+earlier writes.
 
 ```pascal
 program BasicCache;
@@ -397,24 +326,14 @@ begin
 end.
 ```
 
-Cache configuration uses the unit-level `TCacheExpirationPolicy`,
-`TCacheReapPolicy`, `TCacheNullValuePolicy` and `TCacheStaleValuePolicy` types from
-[UCache](src/Sphere10/UCache.pas), shared by every key/value specialization.
-Callbacks, fetcher adapters, events and bulk dictionaries are also unit-level
-types, such as `TCacheValueFetcher<TKey,TValue>` and `TCacheBulkValues<TKey,TValue>`.
+The size estimator sets the capacity unit. Return `1` to count entries instead of
+bytes. Use `epSinceLastAccessedTime` for sliding expiration.
 
-The [size estimator](src/Sphere10/UCache.pas) defines capacity units. The example
-uses `Length(AValue) * SizeOf(Char)` to count native string payload bytes;
-returning `1` instead counts entries. This excludes object/string allocation
-overhead. Use `epSinceLastAccessedTime` for sliding expiration.
+Operations and callbacks run under a recursive lock, so callbacks may use the cache
+but must not destroy it. `Get` returns a borrowed entry, so keep entries and
+object values alive while you use them. The value indexer returns a copy.
 
-Cache operations and callbacks use a recursive lock. Callbacks may access the
-same cache again, but must not destroy it. `Get` exposes a borrowed entry; keep
-entries and object values alive while using them outside an operation. The value
-indexer copies its result while the lock is held.
-
-The ordinary per-key cache above fetches a missing entry, reuses a fresh entry,
-and fetches again on the first read after invalidation.
+A read fetches a missing or invalidated entry:
 
 ```mermaid
 sequenceDiagram
@@ -441,14 +360,22 @@ sequenceDiagram
     Cache-->>App: Return fetched value
 ```
 
-Object caches use [idpFreeAndNil](src/Sphere10/UMemory.pas) to free admitted objects on removal or destruction.
-A rejected explicit write leaves ownership with its caller. Returned metadata and
-owned values are borrowed. See [more cache examples](examples/demo/README.md) for
-object ownership, notifications, capacity and callback adapters.
+Object caches use [idpFreeAndNil](src/Sphere10/UMemory.pas) to free admitted
+objects on removal or destruction. A rejected explicit write leaves ownership with
+the caller. Returned values stay borrowed. See [more cache examples](examples/demo/README.md#cache).
 
-## Bulk-Fetch Caching
+## Bulk-fetch caching
 
-[TBulkFetchActionCache<TKey,TValue>](src/Sphere10/UCache.pas) loads a complete dictionary in one provider call. Its first read, `ContainsCachedItem` or `GetAllCachedValues` loads that snapshot. Ordinary missing, expired or stale reads refresh the source at most once per request. With `FetchOnceOnly = True`, reads retain loaded values despite expiry or invalidation. `ForceRefresh` replaces the snapshot; `Purge` clears it for a later reload. Bulk `Reap` validates its arguments and returns zero without evicting snapshot entries.
+[TBulkFetchActionCache<TKey,TValue>](src/Sphere10/UCache.pas) loads a complete
+dictionary in one provider call:
+
+- The first read, `ContainsCachedItem` or `GetAllCachedValues` call loads the
+  snapshot.
+- Reading a missing, expired or stale entry reloads the whole snapshot once.
+- `FetchOnceOnly = True` keeps loaded values despite expiry or invalidation.
+- `ForceRefresh` purges before reloading, so a provider failure propagates
+  and leaves no snapshot.
+- `Purge` clears the snapshot. `Remove` is not supported.
 
 ```pascal
 uses Classes, SysUtils, Generics.Collections, UCommon, UMemory, UCache;
@@ -482,9 +409,13 @@ begin
 end; // resources frees the cache automatically.
 ```
 
-The provider fills a temporary dictionary owned by the cache and must not retain that container. Object/pointer payloads are borrowed, so their owner must keep them alive while the cache or returned values use them. `ForceRefresh` purges before fetching: provider failure propagates and leaves the old snapshot unavailable; the next read can retry. Individual `Remove` is unsupported. `GetAllCachedValues` materializes an array without a per-key fetch; ordinary caches only return current entries, while bulk caches first load an uninitialized snapshot. Object values in that array remain borrowed.
+The provider fills a temporary dictionary that the cache owns, and must not keep
+it. Payloads are borrowed, so keep them alive while the cache or returned values
+use them.
 
-[TPreloadedCache<TKey,TValue>](src/Sphere10/UCache.pas) borrows an existing dictionary and reads it into a fetch-once snapshot. Keep that original dictionary and its payloads alive until the cache is freed; `ForceRefresh` sees later edits.
+[TPreloadedCache<TKey,TValue>](src/Sphere10/UCache.pas) reads a borrowed dictionary
+into a fetch-once snapshot. Keep the dictionary and its payloads alive until the
+cache is freed. `ForceRefresh` picks up later edits.
 
 ```pascal
 type
@@ -509,15 +440,14 @@ begin
 end; // reverse registration order frees cache before source.
 ```
 
-The [complete executable examples](examples/demo/UCacheApiExamples.pas) cover ordinary global/object/nested callbacks, interface wrappers, typed notifications, a cache subclass with stale detection, entry metadata, explicit `BulkLoad`, bulk-fetch caches and preloaded dictionaries. `BulkLoad` remains sequential explicit admission: duplicate keys use the last value, a later failure keeps earlier successful writes, and no provider is called.
+See the [complete executable examples](examples/demo/UCacheApiExamples.pas).
 
 ## Wizards
 
-[TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens in
-one modal window, with validation, Back/Next navigation, dynamic branches and
-retryable finish/cancel vetoes. [Lifecycle events and busy-state guards](src/Sphere10/UWizard.pas)
-report changes and reject reentry. The wizard owns its screens; the caller owns
-the model. Run the included showcase from a Lazarus LCL or Delphi VCL application.
+[TWizard<T> and TWizardForm<T>](src/Sphere10/UWizard.pas) host model-bound screens
+in one modal window, with validation, dynamic routes, retryable finish and cancel
+vetoes, lifecycle events and reentrancy guards. The wizard owns its screens, and
+the caller owns the model. Run the showcase from an LCL or VCL application:
 
 ```pascal
 uses Classes, UWizardFeatureModel, UWizardFeatureDemo;
@@ -544,9 +474,7 @@ begin
 end;
 ```
 
-Open [Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) in Lazarus or
-[Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) in Delphi, select **Wizard and events**
-and choose **Wizard feature showcase**. Both projects include these demo units.
+In the demo, select **Wizard and events** and choose **Wizard feature showcase**.
 
 ```mermaid
 flowchart LR
@@ -558,7 +486,7 @@ flowchart LR
     summary -->|Veto or exception: retry| summary
 ```
 
-Actual native LCL screens from the showcase:
+Native LCL screens from the showcase:
 
 | Name and validation | Age and route editing |
 | --- | --- |
@@ -568,10 +496,9 @@ Actual native LCL screens from the showcase:
 | **Completion and retry** | |
 | ![Summary after a vetoed finish](resources/wizard/wizard-retry.png) | [Walkthrough and launcher](examples/demo/README.md) |
 
-Derive screens from `TWizardForm<TModel>`. Adapt the demo's
-[Name screen](examples/demo/UWIZFeatureName.pas) for a minimal dynamic route as
-below, adding these units to its implementation `uses` clause. `Model` is already
-assigned when `Initialize` runs.
+Derive screens from `TWizardForm<TModel>`. This minimal route adapts the demo's
+[Name screen](examples/demo/UWIZFeatureName.pas). Add the listed units to its
+implementation `uses` clause. `Model` is assigned before `Initialize` runs.
 
 ```pascal
 uses UWizard, UWIZFeatureAge, UWIZFeatureCommit, UWIZFeatureSummary;
@@ -600,20 +527,16 @@ begin
 end;
 ```
 
-Use [ptReplaceAllNext, ptReplaceAll and ptRemoveNext](src/Sphere10/UWizard.pas)
-to replace the continuation, replace the full route or remove future steps. Identical contiguous injections
-are idempotent. A rejected finish/cancel stays active for retry; accepted completion
-runs once. See the [wizard guide](examples/demo/README.md) for callback signatures,
-Back navigation and screen lifetimes.
+Use `ptReplaceAllNext`, `ptReplaceAll` or `ptRemoveNext` to replace the remaining
+steps, replace the whole route or remove future steps. Identical contiguous
+injections are idempotent. A rejected finish or cancel keeps the wizard open for a
+retry, and accepted completion runs once.
 
 ## Managed scopes
 
-[TScope](src/Sphere10/UCommon.pas) is a managed record that runs resource cleanup
-when its last owning copy is finalized. Declare a local to retain it through a
-procedure, including `Exit` and exceptions. Its private guardian retains a cleanup
-method, so scopes can be returned and copied without pointing to a stack record.
-
-Pass the method to run when the scope ends:
+[TScope](src/Sphere10/UCommon.pas) is a managed record that runs a cleanup method
+when its last copy is finalized, including on `Exit` and exceptions. Scopes can be
+returned and copied.
 
 ```pascal
 program ManagedScope;
@@ -645,24 +568,20 @@ begin
 end.
 ```
 
-A default scope is empty; `IsEmpty` tests that state. `Create` accepts a bound
-cleanup method and rejects nil. The callback's target must outlive the scope;
-retaining the method does not take ownership of that object. `Reset` drops this record's
-ownership; other copies, including compiler-generated result temporaries, can
-retain cleanup until their enclosing routine exits. Keep cleanup on the thread
-required by its resource. Cleanup errors propagate; the releasing record is detached first
-so a caught failure cannot release that same guardian again.
+- `Create` rejects nil. The scope does not own the method's target, which must
+  outlive it.
+- `Reset` drops this record's ownership. Other copies, including compiler-generated
+  result temporaries, can keep the cleanup until their routine exits.
+- Keep cleanup on the thread that its resource requires.
+- Cleanup errors propagate.
 
-The [shared executable example](examples/demo/UCoreApiExamples.pas) temporarily
-changes a flag, restores it through a custom cleanup, and uses all three lock
-scope modes. Neither a caller-side interface variable nor a `finally` is needed.
+The [shared executable example](examples/demo/UCoreApiExamples.pas) also uses
+custom cleanup and lock scopes.
 
 ## Scoped disposal
 
-[TDisposables](src/Sphere10/UMemory.pas) owns several objects and memory blocks
-through one record. It releases them in reverse registration order when the
-record's scope ends, including when a procedure raises an exception. Its original
-implementation remains independent of `TScope`.
+[TDisposables](src/Sphere10/UMemory.pas) is a record that frees its registered
+objects and memory in reverse order when its scope ends, even on an exception.
 
 ```pascal
 uses Classes, UMemory;
@@ -690,7 +609,7 @@ begin
 end;
 ```
 
-Keep the bag in a class field when resources should live as long as their owner:
+Keep the bag in a class field to tie resources to their owner:
 
 ```pascal
 type
@@ -737,12 +656,10 @@ begin
 end;
 ```
 
-`TReportBuilder` needs no destructor solely for those three resources. The
-compiler finalizes its managed `FResources` field when the owner is freed; a
-failed constructor also releases resources already registered. If a destructor
-must perform additional shutdown work using those resources, do that work before
-`inherited Destroy`; leave their final release to the bag. Register each object
-once, and keep component-owned objects with their existing component owner.
+The compiler finalizes `FResources` with its owner, even after a failed
+constructor, so no destructor is needed for these resources. A destructor that
+uses them must do so before `inherited Destroy`. Register each object once, and
+leave component-owned objects with their owner.
 
 Transfer ownership explicitly when a resource must outlive its bag:
 
@@ -766,72 +683,39 @@ begin
 end;
 ```
 
-Use `AddMem` to adopt an existing `System.GetMem` allocation; use the bag's
-`FreeMem` to release a registered allocation early. `Objects[...]` is the default
-property form of `AddObject`, for example
-`lines := scope[TStringList.Create] as TStringList`. Keep an initialized bag in
-its original local variable or class field: do not copy or return the bag, and
-do not free a registered object manually. Remove it first to transfer ownership.
-If cleanup fails, the bag still attempts all remaining
-resources and then propagates the first error.
+- `AddMem` adopts a `System.GetMem` allocation, and the bag's `FreeMem` releases
+  one early.
+- Keep an initialized bag in its original variable or field. Do not copy or
+  return it.
+- Do not free a registered object yourself. Remove it first.
+- If a cleanup fails, the bag still tries the rest, then raises the first error.
 
 [TDisposePolicy](src/Sphere10/UMemory.pas) is the shared cleanup-policy enum.
-`AddObject` selects `idpFree`, and `AddMem`/`GetMem` select `idpFreeMem`.
-Consumers such as object caches also accept `idpNone`, `idpNil` and
-`idpFreeAndNil`; a cleared stored pointer does not clear a caller's separate
-variable. `idpRelease` is declared, but `TDisposables` does not implement interface
-release through that policy. For reference-counted interfaces, retain an ordinary
-interface variable and let the compiler release it.
+`AddObject` uses `idpFree`, and `AddMem` and `GetMem` use `idpFreeMem`.
+`TDisposables` does not implement `idpRelease`, so keep interfaces in interface
+variables.
 
 ## Arrays and collections
 
-[TArrayTool<T>](src/Sphere10/UCommon.pas) searches and edits dynamic arrays.
-[UCommon.Collections](src/Sphere10/UCommon.Collections.pas) adds list slicing,
-filtering, sorting and transformations with reusable callbacks.
+[TArrayTool<T>](src/Sphere10/UCommon.pas) provides `Empty`, `Create` (one to six
+values), `Contains`, `IndexOf`, `Add`, `Append`, `Prepend`, `InsertAt`, `Remove`,
+`RemoveAt`, `Swap`, `MoveItem`, `Copy`, `Concat`, `_Length` and `ToArray` for
+dynamic arrays. Indexes are zero-based. `Remove` removes every match, `InsertAt`
+inserts before an index, and `Copy` is shallow. Pass `ToArray` the exact element
+count.
 
-### Array construction, searching, editing and copying
+[UCommon.Collections](src/Sphere10/UCommon.Collections.pas) supplies
+`TComparerTool<T>`, `TPredicateTool<T>` and `TListTool`. They adapt global,
+object-method and nested callbacks, compose comparers and predicates, and filter
+and transform lists and arrays. Interface variables own the adapters, but a method
+callback's object must outlive every use.
 
-`TArrayTool<T>` supplies all sixteen operations shown below. Arrays use zero-based
-indexes. `Remove` removes every matching element. `InsertAt` inserts before an
-existing index; use `Append` to add at the end. `Copy` allocates independent array
-storage but object references still refer to the same objects. Pass the exact
-number of enumerable elements to `ToArray`.
-
-| Operation | Example/result |
-| --- | --- |
-| `Empty`, `Create` | Empty array or overloads with one through six values. |
-| `Contains` | Boolean membership, optionally returning the index and accepting an equality comparer. |
-| `IndexOf` | Index of a match, or `-1`; default or supplied equality comparer. |
-| `Add`, `Append`, `Prepend`, `InsertAt` | Grow and insert values. |
-| `Remove`, `RemoveAt` | Remove all equal values, or one indexed value. |
-| `Swap`, `MoveItem` | Exchange positions, or move one item while preserving the others' order. |
-| `Copy`, `Concat` | Copy a whole array/slice, or combine arrays. |
-| `_Length`, `ToArray` | Open-array length, or materialize an enumerable of known size. |
-
-### Comparers, predicates and transformations
-
-The normal entry points are `TComparerTool<T>`, `TPredicateTool<T>`,
-`TListTool<T>` and `TListTool<T1, T2>`. They adapt global functions,
-object methods and nested callbacks, compose comparisons/predicates, filter lists
-and transform either lists or arrays. Interface variables own their adapters;
-the object supplying an object-method callback must outlive every use.
-
-The complete example below also constructs every public adapter class directly:
-`TNestedComparer`, `TObjectComparer`, `TGlobalComparer`, `TManyComparer`,
-`TInvertedComparer`; `TNestedPredicate`, `TObjectPredicate`, `TGlobalPredicate`,
-`TNotPredicate`, `TAndManyPredicate`, `TOrManyPredicate`; and
-`TNestedTransformer`, `TObjectTransformer`, `TGlobalTransformer`. These are public
-for compiler compatibility; the factories are usually simpler for application code.
-
-`TListTool.Copy` takes a start index and a **count**, returning a caller-owned new
-list. `Range`, `Skip` and `Take` mutate the supplied list and return the signed
-size change (`new count - old count`). Filtering normally keeps object ownership
-with the caller; supply `idpFreeAndNil` only for rejected objects this list owns.
-The public spelling of the explicit slot-policy method is `DiposeItem`.
-
-`TSortedHashSetTool<T>.Pop` is available only with FPC. It removes and returns
-one enumerated value, and rejects an empty set. It is intentionally guarded in
-the shared example because Delphi uses its RTL collection types.
+- `TListTool.Copy` takes a start index and a **count**, and the caller owns the new
+  list.
+- `Range`, `Skip` and `Take` modify the list and return the signed size change.
+- Pass `idpFreeAndNil` to a filter only for rejected objects that the list owns.
+- The slot-policy method is spelled `DiposeItem`.
+- `TSortedHashSetTool<T>.Pop` is FPC only and rejects an empty set.
 
 <details>
 <summary>Complete checked example: every array operation and every collection adapter type</summary>
@@ -1117,8 +1001,8 @@ end.
 ## Results and diagnostics
 
 [TResult](src/Sphere10/UCommon.pas) carries a Variant value and timestamped debug,
-info, warning or error messages. [IsSuccess/IsFailure](src/Sphere10/UCommon.pas)
-reflect error status; [ToString](src/Sphere10/UCommon.pas) formats the collected diagnostics.
+info, warning or error messages. `IsSuccess` and `IsFailure` report the error
+status, and `ToString` formats the messages.
 
 ```pascal
 uses UCommon;
@@ -1134,11 +1018,9 @@ end;
 
 ## Dates, bytes and statistics
 
-[TDateTimeHelper and TTimeSpan](src/Sphere10/UCommon.pas) provide calendar/duration
-arithmetic, parsing and formatting. [Hex2Bytes/Bytes2Hex](src/Sphere10/UCommon.pas)
-convert binary data; [TVariantTool](src/Sphere10/UCommon.pas) compares numeric/text
-Variants; [TStatistics](src/Sphere10/UCommon.pas) accumulates count, sum, min/max,
-mean and variance without keeping every sample.
+[UCommon](src/Sphere10/UCommon.pas) provides `TDateTimeHelper` and `TTimeSpan` for
+date and duration arithmetic, `Hex2Bytes` and `Bytes2Hex`, `TVariantTool` for
+Variant comparisons and `TStatistics` for running statistics.
 
 ```pascal
 uses SysUtils, UCommon;
@@ -1161,22 +1043,16 @@ begin
 end;
 ```
 
-[TBox<T>](src/Sphere10/UCommon.pas) wraps a typed value in an object;
-[TFileTool.AppendText](src/Sphere10/UCommon.pas) appends plain UTF-8 text followed by CRLF, without a BOM or binary length prefix;
-[TCPUTool.GetLogicalCPUCount](src/Sphere10/UCommon.pas) reports logical processors.
-
-Delphi's `TFileStreamHelper.WriteString` writes UTF-8 bytes without adding a newline.
-File encoding happens at the stream boundary: Delphi supplies native Unicode;
-FPC callers use Lazarus's UTF-8 `String` convention.
+`TBox<T>` wraps a value in an object, and `TCPUTool.GetLogicalCPUCount` counts
+logical processors. `TFileTool.AppendText` appends UTF-8 text and CRLF without a
+BOM, and Delphi's `TFileStreamHelper.WriteString` writes UTF-8 without a newline.
 
 ## Buffered streams
 
-[TBufferedStream](src/Sphere10/UStreams.pas) combines small reads from a wrapped
-`TStream` into larger reads using a fixed buffer, 64 KiB by default. It accepts
-forward-only streams, supports the wrapped stream's seeking and resizing, and
-writes immediately. Buffer size must be positive.
-Each `Read` performs at most one wrapped read and can return a short result;
-the input stream determines blocking behavior.
+[TBufferedStream](src/Sphere10/UStreams.pas) reads ahead from a wrapped `TStream`
+through a fixed buffer, 64 KiB by default. It accepts forward-only streams and
+writes immediately. Each `Read` makes at most one wrapped read and can return fewer
+bytes than requested.
 
 ```pascal
 uses Classes, UStreams;
@@ -1196,31 +1072,18 @@ begin
 end;
 ```
 
-Pass `False` for ownership to leave the input open. Access it through the decorator
-while buffering: its logical position can precede the wrapped stream's physical
-position. `FlushUnreadData` returns unread bytes to a seekable input before
-handing it back. Disposal does not rewind borrowed inputs; forward-only inputs
-cannot recover unread bytes. Writing or resizing with unread buffered data also
-requires seeking to restore the logical position first.
+Pass `False` for ownership to leave the input open. While buffering, access the
+input only through the decorator. Call `FlushUnreadData` (alias
+`SynchronizePosition`) to return unread bytes to a seekable input before handing it
+back. A forward-only input cannot recover unread bytes.
 
-The same [worked example](examples/demo/UCoreApiExamples.pas) runs in the Delphi
-and Lazarus demo under **Utilities → Core API**.
+`EnableReadBuffering` and `EnableStreamLengthCaching` default to `True`. The fourth
+constructor argument sets length caching and the fifth sets read buffering.
+Disable length caching for inputs that can grow independently.
 
-`EnableReadBuffering` and `EnableStreamLengthCaching` both default to `True`;
-the fourth and fifth constructor arguments configure length caching and read
-buffering respectively. Length caching retains one successful `Size` query as
-an `Int64`; writes and resizing invalidate it, including failed or partial changes.
-Set `EnableStreamLengthCaching := False` for inputs that can grow independently.
-Construction never queries the input size or position.
-
-`EnableBuffering` and `DisableBuffering` switch both flags. Disabling read buffering
-frees the private `BufferedData` allocation and delegates reads, writes and seeks
-directly. `Size` still follows `EnableStreamLengthCaching`, independently of read
-buffering. `BufferSize` retains the configured capacity; enabling
-allocates it again. With unread bytes, disabling throws without changing either
-flag or seeking implicitly. Consume those bytes or call `FlushUnreadData` first;
-if rewinding is unsupported, it throws and preserves the unread bytes.
-For direct reads with cached length, set only `EnableReadBuffering := False`.
+`EnableBuffering` and `DisableBuffering` switch both flags. With unread bytes,
+disabling raises an exception, so consume them or call `FlushUnreadData` first. For
+direct reads with a cached length, set only `EnableReadBuffering := False`.
 
 ```pascal
 procedure ReadSections(AInput: TBufferedStream);
@@ -1239,14 +1102,10 @@ begin
 end;
 ```
 
-`SynchronizePosition` remains an alias for `FlushUnreadData`. The flags can also
-be set separately; length caching keeps working while read buffering is disabled.
-
 ## Multicast events
 
-[TNotifyManyEvent](src/Sphere10/UCommon.pas) adds/removes several object-method
-listeners and invokes them together. [Thread notification helpers](src/Sphere10/UCommon.pas)
-can queue individual listeners for the UI main thread.
+[TNotifyManyEvent](src/Sphere10/UCommon.pas) invokes several object-method
+listeners together.
 
 ```pascal
 uses Classes, UCommon;
@@ -1276,22 +1135,15 @@ begin
 end;
 ```
 
-`Add(HandleChanged, True)` dispatches on the main thread: calls already there run
-immediately; worker calls are queued. Queued senders and receivers must remain
-alive until delivery.
+`Add(HandleChanged, True)` runs that listener on the main thread and queues calls
+from workers. Queued senders and receivers must stay alive until delivery.
 
-## Read/Write Locking
+## Read-write locking
 
-[TReadWriteLock](src/Sphere10/UConcurrency.pas) protects shared memory with
-**multiple concurrent readers or one exclusive writer**. Hold a read lock while
-inspecting shared data and a write lock while changing it.
-
-Use upgradeable read when an inspection may lead to a change. One thread can
-reserve that mode while other readers continue; its write waits for those readers
-to leave. Timed acquisition and optional recursion support controlled contention.
-
-Retain a [TScope](src/Sphere10/UCommon.pas) local to release an acquisition
-automatically:
+[TReadWriteLock](src/Sphere10/UConcurrency.pas) allows **multiple concurrent readers
+or one exclusive writer**. Take an upgradeable read when an inspection may lead to
+a change. Keep the returned [TScope](src/Sphere10/UCommon.pas) in a local to release
+the lock automatically:
 
 ```pascal
 uses UCommon, UConcurrency;
@@ -1322,15 +1174,11 @@ begin
 end;
 ```
 
-Each scope owns one typed acquisition. Copies retain that same acquisition;
-they do not acquire another lock. Keep the lock alive until every scope copy
-ends, and finalize lock scopes on the acquiring thread. For code shared with
-FPC, a plain nested `begin`/`end` does not create a shorter managed-local lifetime;
-use a helper procedure as above when an inner write must finish earlier.
-Always retain the returned record instead of discarding it.
+Keep the lock alive until every scope copy ends, and finalize scopes on the
+acquiring thread. Under FPC, a nested `begin`/`end` does not end a scope early, so
+use a helper procedure, as above, when an inner write must finish first.
 
-The lower-level `Acquire*Lock`, `TryAcquire*Lock` and `Release*Lock` methods remain
-available for explicit ownership:
+For explicit ownership, use `Acquire*Lock`, `TryAcquire*Lock` and `Release*Lock`:
 
 ```pascal
 uses UConcurrency;
@@ -1379,41 +1227,24 @@ begin
 end;
 ```
 
-Promotion uses `AcquireWriteLock` or `TryAcquireWriteLock` while the same thread
-holds upgradeable read ownership. This is allowed with `lrpNoRecursion`, as in
-the example. The write acquisition is additional:
-`ReleaseWriteLock` releases only that write acquisition; the surrounding
-`ReleaseUpgradeableReadLock` remains necessary. The nested `try`/`finally` blocks
-above preserve that balance when protected work raises an exception. Recursive
-acquisitions likewise require one matching typed release for each acquisition;
-the lock never guesses which mode a caller intends to release.
+- To promote, acquire the write while holding the upgradeable read, even with
+  `lrpNoRecursion`. `ReleaseWriteLock` releases only the write.
+- Release each acquisition, including recursive ones, in its own mode on the
+  acquiring thread.
+- `TryAcquire*Lock` takes milliseconds. `-1` waits indefinitely and `0` tests
+  immediately.
+- `lrpNoRecursion` is the default. `lrpSupportsRecursion` permits nested ownership,
+  including a writer taking a read lock.
+- A plain read lock cannot become a write or upgradeable lock.
+- Stop and join consumer threads before freeing the lock.
 
-Each `TryAcquire*Lock` accepts integer milliseconds: `-1` waits indefinitely,
-`0` tests immediately, and a positive value bounds the wait; for example,
-`TryAcquireWriteLock(5000)` waits up to five seconds. A failed attempt
-retains any outer acquisition. `lrpNoRecursion` is the default;
-`lrpSupportsRecursion` permits nested ownership, including a writer taking a read
-lock. Ordinary read ownership cannot become write or upgradeable ownership.
-Waiting writers take precedence over new readers. There is no FIFO guarantee.
-
-Release every acquisition on the thread that acquired it. `Is*LockHeld` and
-`Recursive*Count` describe the calling thread; `CurrentReadCount` counts distinct
-explicit read owners, excluding upgradeable-only access. Stop and join consumers
-before freeing the lock. `Dispose` rejects active owners/waiters without changing
-their state; finite `TryAcquire` calls allow consumers to check their own cooperative
-cancellation between waits. See the [shared regression cases](tests/UConcurrency.Tests.pas).
+See the [shared regression cases](tests/UConcurrency.Tests.pas).
 
 ## Throttled UI events
 
-Open **Refresh throttle** in the [shared demo](examples/demo/README.md) to test
-repeated **Notify** clicks against a real grid and counted data source. Its
-countdown and event log show immediate delivery, quiet-period resets and one
-trailing refresh. [Timing walkthrough](examples/throttle/README.md).
-
-[TThrottledEvent](src/Sphere10/UCommon.UI.pas) coalesces repeated UI events. Select
-[immediate, interval, burst-end or burst-start-and-end delivery](src/Sphere10/UCommon.UI.pas);
-inspect suppressed-call counts and notification timestamps. Create an owned event,
-then call its [Notify](src/Sphere10/UCommon.UI.pas) from UI handlers.
+[TThrottledEvent](src/Sphere10/UCommon.UI.pas) coalesces repeated UI events and
+needs an active LCL or VCL message loop. Create it with an owner, then call
+`Notify` from UI handlers:
 
 ```pascal
 uses Classes, UCommon, UCommon.UI;
@@ -1428,19 +1259,17 @@ begin
 end;
 ```
 
-An active LCL/VCL message loop is required. `temNotifyOnEventBurstFinished` waits for
-one full `Interval` without another `Notify` call; each new event restarts that
-quiet period. `temNotifyOnEventBurstStartAndFinished` adds an eligible immediate
-leading notification to the same trailing behavior. Use
-`temNotifyEveryInterval` for periodic delivery during a continuous burst instead.
-Each deferred input in the two quiet-burst modes cancels and rearms the native
-timer for a full `Interval`; periodic mode retains its already armed deadline.
-Polling application state must not call `Notify` unless a new event occurred.
-Once the previous burst has ended with its trailing callback, a new input starts
-a new leading notification without an additional delivery-based cooldown.
+| Mode | Delivers |
+| --- | --- |
+| `temNone` | Immediately. |
+| `temNotifyEveryInterval` | Periodically during a continuous burst. |
+| `temNotifyOnEventBurstFinished` | After a full quiet `Interval`. |
+| `temNotifyOnEventBurstStartAndFinished` | Immediately, then after a quiet `Interval` if repeated. |
 
-The two quiet-burst modes expose [Waiting and OnWaitingChanged](src/Sphere10/UCommon.UI.pas)
-for driving a busy UI independently of data-fetch completion:
+When polling, call `Notify` only for a new event.
+
+The two burst modes expose [Waiting and OnWaitingChanged](src/Sphere10/UCommon.UI.pas)
+to drive a busy UI:
 
 ```pascal
 procedure BindBusyState(AEvent : TThrottledEvent; AStateChanged : TNotifyEvent);
@@ -1450,32 +1279,17 @@ begin
 end;
 ```
 
-The state-change handler reads `TThrottledEvent(Sender).Waiting` to show or hide
-its busy presentation. State and timer changes are committed before listeners
-run. The first input starts waiting and delivers immediately in start-and-end
-mode; each further input restarts the quiet timer. After silence, one pending
-delivery runs and waiting ends. A single input ends waiting without a duplicate
-delivery. Node, network and worker state do not enter this calculation.
-
-`BurstActive` is an alias for `Waiting`. The older Started/Finishing/Finished
-events remain available. `Cancel` and changing `Mode` clear waiting without an
-ordinary delivery or a fabricated quiet finish; state-change listeners still
-receive the transition. Exceptions from callbacks propagate while leaving the
-timer/state coherent. A running page fetch can retain its own loading UI after
-the throttle's busy presentation has ended.
-
-The optional [Postpone](src/Sphere10/UCommon.UI.pas) API is an explicit new request
-to delay a delivery, retained for existing callers. A consumer requiring only
-refresh-input quiet periods should use `Notify` and `Waiting`, without an external
-finishing veto or polling another service's status.
+The handler reads `TThrottledEvent(Sender).Waiting`, which is set before listeners
+run. `Cancel` and changing `Mode` end waiting without a delivery. To try it, open
+**Refresh throttle** in the [demo](examples/demo/README.md) and follow the
+[timing walkthrough](examples/throttle/README.md).
 
 ## Form ownership and docking
 
-[TApplicationForm](src/Sphere10/UCommon.UI.pas) adds first-activation/destruction
-events, configurable close behavior and [AutoDispose](src/Sphere10/UCommon.UI.pas)
-for form-owned noncomponent objects. [AddControlDockCenter](src/Sphere10/UCommon.UI.pas)
-fills a container; [SetImageListPicture](src/Sphere10/UCommon.UI.pas) copies an image-list
-entry into a TImage. Controls retain normal component ownership.
+[TApplicationForm](src/Sphere10/UCommon.UI.pas) adds first-activation and destruction
+events, configurable close behavior and `AutoDispose` for form-owned noncomponent
+objects. `AddControlDockCenter` docks a control to fill a container, and
+`SetImageListPicture` copies an image-list entry into a `TImage`.
 
 ```pascal
 uses Classes, Controls, ExtCtrls, UCommon.UI;
@@ -1493,23 +1307,14 @@ begin
 end;
 ```
 
-Application forms hide on Close by default; hidden forms still own their resources.
+Application forms hide on Close by default and keep their resources while hidden.
 
 ## Data rows and search expressions
 
-Column names, named row bindings, grid column names and
-`Binding`/`SortBinding`/`DisplayBinding` use native `String`. Data-source overrides
-must declare `GetItemField(...; const ABindingName: String)` too. This retains
-Unicode text in Delphi and the normal Lazarus text conventions in FPC. The
-search-expression tokenizer keeps its explicit UTF-8 input/token contract;
-that byte-level parser boundary is separate from schema and UI names.
-
-[TDataRow and TDataColumns](src/Sphere10/UCommon.Data.pas) expose named fields through
-a managed Variant. [Filter/sort criteria](src/Sphere10/UCommon.Data.pas) describe text
-and numeric comparisons and sort directions; [data sources choose null ordering](src/Sphere10/UCommon.Data.pas).
-[TSearchExpressionService](src/Sphere10/UCommon.Data.pas) parses numeric comparisons,
-inclusive/exclusive intervals and text-match expressions. Use one schema ID for
-each consistent column set; field names are case-sensitive.
+[TDataRow and TDataColumns](src/Sphere10/UCommon.Data.pas) expose named fields
+through a managed Variant. `TSearchExpressionService` parses numeric comparisons,
+intervals and text matches. Use one schema ID for each column set. Field names are
+case-sensitive.
 
 ```pascal
 uses SysUtils, Variants, UCommon.Data;
@@ -1536,57 +1341,41 @@ begin
 end;
 ```
 
+Column names and bindings use native `String`, so data-source overrides must
+declare `GetItemField(...; const ABindingName: String)`.
+
 ## Complete API recipes
 
-Run **Utilities** in the shared Delphi/Lazarus demo for the complete array,
-disposal, core and UI recipes. The Cache tab also has **Run complete cache API**.
-Recipes display their results in the memo. Array, core and UI recipes also check expected outcomes.
-
-| Recipe | Demonstrates |
-| --- | --- |
-| [Arrays and collections](examples/demo/UArrayCollectionExamples.pas) | Every array operation and overload; all public comparer, predicate, list and transformation adapters. |
-| [Scoped resources](examples/demo/UDisposalReadmeExamples.pas) | Several owned objects and memory blocks; automatic cleanup in local scopes and class-owned bags; ownership transfer. |
-| [Caches](examples/demo/UCacheApiExamples.pas) | Per-key and bulk-fetch caches, preloaded dictionaries, callback families, entry metadata, notifications and subclassed stale checks. |
-| [Core utilities](examples/demo/UCoreApiExamples.pas) | Results, dates, statistics, Variants, files, buffered streams, queued notifications, read/write locking, data sources, search expressions and common UI helpers. |
-| [Grid and wizard APIs](examples/demo/UUiApiExamples.pas) | Column callbacks, selection, native adapters, typed wizard models, dynamic routes, host windows and lifecycle callbacks. |
-
-The [public type index](docs/public-api-examples.md) maps each public Framework
-type to its worked example, including aliases, records and helpers. Empty
-placeholders and platform-only APIs are identified explicitly. Bundled third-party
-collection types are outside this index.
+The demo's **Utilities** tab runs the [array and collection](examples/demo/UArrayCollectionExamples.pas),
+[scoped resource](examples/demo/UDisposalReadmeExamples.pas),
+[core utility](examples/demo/UCoreApiExamples.pas) and
+[grid and wizard](examples/demo/UUiApiExamples.pas) recipes. The **Cache** tab's
+**Run complete cache API** runs the [cache recipes](examples/demo/UCacheApiExamples.pas).
+The array, core and UI recipes check their results. The
+[public type index](docs/public-api-examples.md) maps each public Framework type to
+its worked example.
 
 # Open, build and test
 
-Open the appropriate main project from the repository root:
+Keep each form's paired `.dfm` (VCL) and `.lfm` (LCL) files.
 
-| Project | Purpose |
-| --- | --- |
-| [Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) | Delphi/VCL app: grid, wizard/events, cache, throttle and utility demonstrations. |
-| [Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) | The same app and shared Pascal sources under Lazarus/FPC. |
+## Delphi
 
-Automated unit tests are separate from the demo application; see the
-[test guide](tests/README.md). Optional reusable library packages and project
-groups are described in the [package guide](packages/README.md).
-For Free Pascal, use Delphi mode and add `src/Sphere10` and `src/Generics.Collections` to the unit
-search path. Its UI units use Lazarus LCL; the supplied projects configure their
-paths. Package installation is optional; see the [package guide](packages/README.md).
+Open [Sphere10PascalFramework.dproj](Sphere10PascalFramework.dproj) and press **F9**
+to build and run the demo. It references `src/Sphere10` directly and needs no
+installed package. Community Edition users should compile through the IDE. In your
+own Delphi projects, add only `src/Sphere10` to the unit search path, as the
+[package guide](packages/README.md#delphi-13) describes.
 
-For Delphi, open `Sphere10PascalFramework.dproj` and press **F9** to build and run the
-unified demo. It references `src/Sphere10` directly and needs no installed package.
-The optional runtime package is a library build target; the runnable demo is the
-first project in the group.
-The same units use VCL forms/resources under Delphi and LCL under Free Pascal;
-keep each platform's paired `.dfm`/`.lfm` resources. Delphi uses its RTL generics,
-so add only `src/Sphere10` to a Delphi source project's unit search path.
-Community Edition users should compile through the IDE.
+## Lazarus/FPC
 
-Build the demo and optional runtime package separately: a source-based demo build
-does not establish package compatibility. Run the native Delphi probes to check
-VCL behavior; FPC's `-MDelphi` is a language mode and does not substitute for an
-Embarcadero compiler build. The [test guide](tests/README.md) lists suite coverage
-and native checks for grid refresh, loading, wizard windows and reader/writer locks.
+Open [Sphere10PascalFramework.lpi](Sphere10PascalFramework.lpi) to build and run
+the same demo. In your own projects, use Delphi mode and add `src/Sphere10` and
+`src/Generics.Collections` to the unit search path.
 
-Run the unit suite and the real modal wizard check on Windows:
+## Tests
+
+Run the unit suite and the native modal wizard check on Windows:
 
 ```powershell
 .\tests\RunTests.ps1 `
@@ -1598,9 +1387,10 @@ Run the unit suite and the real modal wizard check on Windows:
   -LazarusDirectory '<lazarus>'
 ```
 
-Replace the tool paths for your installation. The native probe checks one stable
-wizard window, hidden inactive screens and retry/cancel behavior on a private
-desktop. See the [test guide](tests/README.md) for coverage and fixture selection.
+Replace the tool paths for your installation. FPC's `-MDelphi` mode is not a
+Delphi build, so run the [native Delphi probes](tests/native/README.md) to check
+VCL behavior. The [test guide](tests/README.md) describes coverage and fixture
+selection.
 
 # License and copyright
 

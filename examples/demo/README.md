@@ -1,34 +1,24 @@
 # Sphere 10 Pascal Framework demo
 
+One application demonstrates the framework in Delphi and Lazarus, with generated
+local data and no wallet, node, database or network.
+
 Open [Sphere10PascalFramework.dproj](../../Sphere10PascalFramework.dproj) in Delphi
 or [Sphere10PascalFramework.lpi](../../Sphere10PascalFramework.lpi) in Lazarus.
-Both run the same [entry point](../../Sphere10PascalFramework.dpr), Pascal sources
-and paired `.dfm`/`.lfm` forms. No installed package is needed.
+Both build the same [entry point](../../Sphere10PascalFramework.dpr) and sources
+without an installed package. Unit tests are [separate](../../tests/README.md).
 
-The app has **Visual grid**, **Wizard and events**, **Cache**, **Refresh throttle**
-and **Utilities** tabs. Data is generated locally; no wallet, node, database or
-network connection is involved. Automated unit tests remain [separate](../../tests/README.md).
+Cache capacity rejection and simulated wizard failures raise handled exceptions.
+If the debugger stops, choose Continue.
 
 ## Visual grid
 
 ![Native demo with the visual grid and property editor](../../resources/demo/unified-grid.png)
 
-[fMain.pas](fMain.pas) binds 10,000 generated records to eight columns. Choose
-**Single**, **Auto** or **Manual** from the square paging button in the footer:
-
-| Mode | Behavior |
-| --- | --- |
-| Single | Show the complete filtered/sorted result in one page, with native scrolling. |
-| Auto | Fit complete rows to the viewport, with horizontal scrolling when needed. |
-| [Manual](../../resources/demo/unified-grid-manual.png) | Use an editable positive page size, remembered while another mode is active. |
-
-Each mode change starts at page zero and resets scrolling to the top-left.
-Assigning the current mode keeps its scroll position. The mode selector stays available for
-empty and single-page results; unnecessary navigation can hide automatically.
-The icon button stays beside the first-page button as the grid resizes; its
-menu checks the current mode and its tooltip names it. Narrow
-footers put totals and the manual size editor on a separate row.
-The same API works in Delphi and Lazarus:
+[fMain.pas](fMain.pas) binds 10,000 generated records to eight columns and shows
+custom drawing, the dollar renderer, selection callbacks and popup menus. Choose
+**Single**, **Auto** or [**Manual**](../../resources/demo/unified-grid-manual.png)
+paging with the footer's square button. In code:
 
 ```pascal
 grid.ManualPageSize := 25;
@@ -37,91 +27,71 @@ grid.PageMode := vpmAuto; // vpmSingle shows all rows; vpmManual restores 25.
 
 ![Single mode showing all generated records](../../resources/demo/unified-grid-single.png)
 
-The images above use Delphi/VCL. The same page in Lazarus/LCL:
+Lazarus LCL screenshots:
 [Auto](../../resources/demo/unified-grid-auto-fpc.png),
 [Manual](../../resources/demo/unified-grid-manual-fpc.png),
 [Single](../../resources/demo/unified-grid-single-fpc.png).
 
-Use the property editor to try search/sort, selection,
-column sizing/stretching, captions, fonts and toolbar widgets. The Lazarus editor
-uses RTTI; Delphi uses its native value-list editor.
-
-The example also demonstrates custom cell rendering, the dollar renderer,
-selection callbacks and popup menus. **Add fetch delay** simulates slow work.
-The source captures data away from controls; completion publishes the page on
-the main thread. Scoped disposal owns helper objects. For a new selection that
-reconfigures the same provider, call `CancelActiveFetch` first, update its
-settings, then `RefreshGrid`. Cancellation is cooperative and nonblocking;
-accepted rows remain until the latest admitted query completes.
+Try search, sorting, selection, column sizing, captions, fonts and toolbar
+widgets in the property editor. **Add fetch delay** simulates slow work.
 
 ## Wizard and events
 
-![Wizard launcher in the same five-tab application](../../resources/demo/unified-wizard-launcher.png)
+![Wizard launcher tab](../../resources/demo/unified-wizard-launcher.png)
 
 Choose **Wizard feature showcase**:
 
-1. Enter and confirm a name. The first screen creates its route after validation.
-2. Enter an age; inject, replace or remove optional notes. Go Back and change the route.
+1. Enter and confirm a name.
+2. Enter an age. Inject, replace or remove optional notes, then go Back and
+   change the route.
 3. Accept the confirmation boundary, where Back is unavailable.
-4. Try finish/cancel vetoes and simulated exceptions, then retry successfully.
+4. Try finish and cancel vetoes and simulated exceptions, then retry.
 5. Inspect the event history, screen lifetimes and rejected recursive requests.
 
-The wizard uses one modal host at a stable position. It owns every screen,
-including removed screens; the caller owns the shared model and retained history.
-[Screen captures and usage code](../../README.md#wizards) show the full flow.
+The [main README](../../README.md#wizards) shows the full flow.
 
 ![Native wizard launched from this application](../../resources/demo/unified-wizard.png)
 
-**Run Wizard Test** demonstrates the property-bag action wizard. **Notify Test**
-shows multicast listeners and throttle modes. **Work Area** shows docked controls.
+- **Run Wizard Test** shows the property-bag action wizard.
+- **Notify Test** shows multicast listeners and throttle modes.
+- **Work Area** shows docked controls.
 
 ## Cache
 
-**Run cache examples** demonstrates fetch hits, invalidation, explicit writes,
-capacity/eviction, pins, lifecycle callbacks and object ownership. Its memo shows
-fetch counts and disposal outcomes. [UCacheDemo.pas](UCacheDemo.pas) contains the code.
+**Run cache examples** ([UCacheDemo.pas](UCacheDemo.pas)) shows hits,
+invalidation, writes, capacity and eviction, pins, lifecycle callbacks and object
+ownership. The memo shows fetch counts and disposal outcomes.
 
-**Run complete cache API** adds subclassed stale detection, every callback adapter,
-entry metadata, explicit bulk writes, bulk-fetch caching and borrowed
-preloaded dictionaries. [UCacheApiExamples.pas](UCacheApiExamples.pas) contains the
-worked recipes; the [main README](../../README.md#caching) explains their contracts.
+**Run complete cache API** ([UCacheApiExamples.pas](UCacheApiExamples.pas)) adds
+stale checks, callback adapters, metadata, bulk writes, bulk fetching and
+preloaded dictionaries. The [main README](../../README.md#caching) explains their
+contracts.
 
-![Cache output in the shared demo](../../resources/demo/unified-cache.png)
-
-Capacity rejection and simulated wizard failures deliberately raise handled
-exceptions. A debugger can stop at the first-chance exception; Continue runs the
-example's recovery path.
+![Cache tab output](../../resources/demo/unified-cache.png)
 
 ## Refresh throttle
 
-Click **Notify** to request a real grid refresh. Repeated clicks restart the
-five-second quiet period; the counters distinguish requests, deliveries and
-provider calls. The card follows the throttle's waiting state.
-[Step-by-step timing check](../throttle/README.md).
+Click **Notify** to try the five-second refresh throttle, as the
+[timing walkthrough](../throttle/README.md) describes.
 
 ## Utilities
 
-| Button | Worked examples |
-| --- | --- |
-| Run arrays and collections | All array methods/overloads, list operations, comparers, predicates and transformation adapters. |
-| Run scoped disposal | Several objects and memory blocks, class-owned disposal bags and explicit ownership transfer. |
-| Run core API examples | Results, dates, statistics, files, buffered/direct stream modes and explicit unread-data flushing, Variants, notifications, TScope cleanup, automatic read/write/upgradeable scopes, explicit locking, data sources, search expressions and common visuals. |
-| Run UI API examples | Column callbacks, selection, VCL compatibility controls and a model-bound wizard lifecycle. |
-
-Each runner checks its results and appends completion to the memo. The
+[**Run arrays and collections**](UArrayCollectionExamples.pas),
+[**Run scoped disposal**](UDisposalReadmeExamples.pas),
+[**Run core API examples**](UCoreApiExamples.pas) and
+[**Run UI API examples**](UUiApiExamples.pas) report completion in the memo. All
+except scoped disposal also check their results. The
 [public type index](../../docs/public-api-examples.md) maps every public Framework
-type to its recipe, with platform-specific and empty APIs marked explicitly.
+type to its recipe.
 
 ## Build layout
 
-Delphi outputs go under `lib/Delphi/<platform>/demo/<configuration>`; Lazarus
-outputs go under `lib/FPC/<cpu>-<os>/demo`. Delphi Community Edition builds through
-the IDE. Optional [library packages](../../packages/README.md) are reusable build
-targets rather than additional runnable demos.
+Delphi builds to `lib/Delphi/<platform>/demo/<configuration>` and Lazarus to
+`lib/FPC/<cpu>-<os>/demo`. Delphi Community Edition builds through the IDE. The
+[library packages](../../packages/README.md) are optional build targets.
 
-The preserved [SQLite adapter](sqlite/fMain.pas) is a source recipe for the older
-optional mORMot integration. It has no separate application project and is not
-needed by this demo.
+The [SQLite adapter](sqlite/fMain.pas) is a source-only recipe for the older
+optional mORMot integration.
 
 Copyright © 2026 [Herman Schoenfeld](https://sphere10.com).
 [MIT license](../../LICENSE).
