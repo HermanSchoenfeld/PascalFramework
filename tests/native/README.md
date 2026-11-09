@@ -16,11 +16,11 @@ Build the [throttle probe](#five-second-throttle) in Delphi. Then, with Free
 Pascal on PATH, build the broker and run the probe from the repository root:
 
 ```powershell
-New-Item tests\lib\native-throttle\broker,<local-folder> -ItemType Directory -Force
+New-Item tests\lib\native-throttle\broker,<new-folder> -ItemType Directory -Force
 fpc -FEtests\lib\native-throttle\broker -FUtests\lib\native-throttle\broker tests\native\PrivateDesktopBroker.lpr
 .\tests\lib\native-throttle\broker\PrivateDesktopBroker.exe `
   .\tests\lib\native-throttle\Win64\Debug\bin\NativeThrottleProbe.exe `
-  <local-folder>
+  <new-folder>\trace.log
 ```
 
 For another probe, pass its executable and log path instead.
@@ -133,7 +133,7 @@ from the repository root:
 
 ```powershell
 $env:PASCAL_GRID_EARLY_CANCEL_ONLY = '1'
-.\tests\lib\Delphi\Win64\grid-throttle\Debug\GridThrottleProbe.exe <local-folder>
+.\tests\lib\Delphi\Win64\grid-throttle\Debug\GridThrottleProbe.exe <new-folder>\GridEarlyCancel.log
 ```
 
 Unset that selector for a full run.
@@ -213,8 +213,8 @@ Run each executable through the [broker](#private-desktop-broker) with one
 absolute log path in a new folder, for example:
 
 ```powershell
-& $Broker $DelphiCaptureExe '<local-folder>'
-& $Broker $FpcCaptureExe '<local-folder>'
+& $Broker $DelphiCaptureExe '<new-folder>\delphi.log'
+& $Broker $FpcCaptureExe '<new-folder>\fpc.log'
 ```
 
 Each run saves `unified-grid-{auto,manual,single}-{delphi,fpc}.png` in
