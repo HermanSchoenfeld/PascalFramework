@@ -267,7 +267,7 @@ begin
   Require(TIntListTools.Range(list,1,3)=-1,'Range size delta'); // 20,30,40
   Require(TIntListTools.Skip(list,1)=-1,'Skip size delta');    // 30,40
   Require(TIntListTools.Take(list,1)=-1,'Take size delta');    // 30
-  TIntListTools.DiposeItem(list,0,idpNil); // Zero the slot; this does not remove it.
+  TIntListTools.DisposeItem(list,0,idpNil); // Zero the slot; this does not remove it.
   Require((list.Count=1) and (list[0]=0),'Explicit item policy');
   {$IFDEF FPC}
   setOfNumbers := scope.AddObject(TSortedHashSet<Integer>.Create) as TSortedHashSet<Integer>;

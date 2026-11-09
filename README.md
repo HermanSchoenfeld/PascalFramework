@@ -714,7 +714,8 @@ callback's object must outlive every use.
   list.
 - `Range`, `Skip` and `Take` modify the list and return the signed size change.
 - Pass `idpFreeAndNil` to a filter only for rejected objects that the list owns.
-- The slot-policy method is spelled `DiposeItem`.
+- `DisposeItem` applies a dispose policy to one slot without removing it; the
+  misspelled `DiposeItem` remains as a deprecated alias.
 - `TSortedHashSetTool<T>.Pop` is FPC only and rejects an empty set.
 
 <details>
@@ -979,7 +980,7 @@ begin
   Require(TIntListTools.Range(list,1,3)=-1,'Range size delta'); // 20,30,40
   Require(TIntListTools.Skip(list,1)=-1,'Skip size delta');    // 30,40
   Require(TIntListTools.Take(list,1)=-1,'Take size delta');    // 30
-  TIntListTools.DiposeItem(list,0,idpNil); // Zero the slot; this does not remove it.
+  TIntListTools.DisposeItem(list,0,idpNil); // Zero the slot; this does not remove it.
   Require((list.Count=1) and (list[0]=0),'Explicit item policy');
   {$IFDEF FPC}
   setOfNumbers := scope.AddObject(TSortedHashSet<Integer>.Create) as TSortedHashSet<Integer>;

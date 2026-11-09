@@ -421,7 +421,7 @@ var
 
     LExpressionKind := GetEnumName(TypeInfo(TExpressionKind), Ord(er.Kind));
     case er.Kind of
-      ekNum: LSubKind := GetEnumName(TypeInfo(TNumericComparisionKind), Ord(er.NumericComparisionKind));
+      ekNum: LSubKind := GetEnumName(TypeInfo(TNumericComparisonKind), Ord(er.NumericComparisonKind));
       ekText: LSubKind := GetEnumName(TypeInfo(TTextMatchKind), Ord(er.TextMatchKind));
       ekSet: LSubKind := GetEnumName(TypeInfo(TSetKind), Ord(er.SetKind));
     end;

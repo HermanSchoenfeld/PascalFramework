@@ -123,7 +123,8 @@ third-party generics and compiler-exported implementation adapters are excluded.
 | `TExpressionRecord` | [SearchExpressions](../examples/demo/UCoreApiExamples.pas) |  |
 | `TFilterCriteria` | [DataRowsAndPaging](../examples/demo/UCoreApiExamples.pas) |  |
 | `TFilterOperand` | [DataRowsAndPaging](../examples/demo/UCoreApiExamples.pas) |  |
-| `TNumericComparisionKind` | [SearchExpressions](../examples/demo/UCoreApiExamples.pas) |  |
+| `TNumericComparisionKind` | [SearchExpressions](../examples/demo/UCoreApiExamples.pas) | Deprecated alias; use `TNumericComparisonKind`. |
+| `TNumericComparisonKind` | [SearchExpressions](../examples/demo/UCoreApiExamples.pas) |  |
 | `TPageFetchParams` | [DataRowsAndPaging](../examples/demo/UCoreApiExamples.pas) |  |
 | `TPageFetchResult` | [DataRowsAndPaging](../examples/demo/UCoreApiExamples.pas) |  |
 | `TSearchExpressionService` | [SearchExpressions](../examples/demo/UCoreApiExamples.pas) |  |

@@ -590,7 +590,7 @@ var
   LExpression: TExpressionRecord;
   LKind: TExpressionKind;
   LText: TTextMatchKind;
-  LNumber: TNumericComparisionKind;
+  LNumber: TNumericComparisonKind;
   LSet: TSetKind;
   LCaught: Boolean;
 begin
@@ -600,7 +600,7 @@ begin
   Require((LExpression.Kind = ekText) and (LText = tmkMatchTextBeginning) and
     (String(LExpression.Values[0]) = 'report'), 'text prefix expression');
   LExpression := TSearchExpressionService.Parse('>=20');
-  LNumber := LExpression.NumericComparisionKind;
+  LNumber := LExpression.NumericComparisonKind;
   Require((LExpression.Kind = ekNum) and (LNumber = nckNumericGTE),
     'numeric comparison expression');
   LExpression := TSearchExpressionService.Parse('[10,30]');
